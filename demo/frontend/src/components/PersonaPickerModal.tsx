@@ -3,8 +3,8 @@ import { Check, X } from "lucide-react";
 import type { PersonaCase } from "../api";
 import { useMountTransition } from "../hooks/useMountTransition";
 
-// Must match the longest transition in the .persona-modal CSS (see styles.css).
-const MODAL_EXIT_MS = 280;
+// Must be >= the longest transition in the .persona-modal CSS (see styles.css).
+const MODAL_EXIT_MS = 380;
 
 type Props = {
   open: boolean;

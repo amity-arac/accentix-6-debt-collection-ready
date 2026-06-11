@@ -1,10 +1,7 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, IdCard } from "lucide-react";
 import type { Agent, CustomerData } from "../api";
 import { renderDate, looksLikeCanonicalDate } from "../format/dateRender";
-import { useMountTransition } from "../hooks/useMountTransition";
-
-// Must match the longest transition on .customer-panel (see styles.css).
-const PANEL_EXIT_MS = 240;
 
 type Props = {
   caseId: string | null;
@@ -42,11 +39,26 @@ export function CustomerPanel({
   headerClickable = false,
   onHeaderClick,
 }: Props) {
-  // Cross-fade the full panel and the collapsed pill: both are pinned to the
-  // same top-left corner, so the panel scales toward/from that corner while
-  // the pill fades the other way. Both stay mounted through the transition.
-  const expanded = useMountTransition(!collapsed, PANEL_EXIT_MS);
-  const mini = useMountTransition(collapsed, PANEL_EXIT_MS);
+  // The card morphs its own size between full and the 52px pill (one element,
+  // like the start bar morphs its width). When collapsed, the content area is
+  // made inert so its buttons leave the tab order while faded out.
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.inert = collapsed;
+  }, [collapsed]);
+
+  // Measure the panel's natural height while expanded so collapse can morph
+  // max-height to the exact value (no dead-zone, no clipping). scrollHeight
+  // reports the true content height even while clamped, so it re-measures
+  // correctly when the persona changes. Keyed on the data, not the toggle, so
+  // it never samples mid-transition (when the width is still 52px).
+  const shellRef = useRef<HTMLElement>(null);
+  const [fullHeight, setFullHeight] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (collapsed || !shellRef.current) return;
+    setFullHeight(shellRef.current.scrollHeight + 2); // + 1px top/bottom border
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer, caseId, mode, agent]);
 
   const rawDue = customer.due_date;
   const dueDateLabel = looksLikeCanonicalDate(rawDue)
@@ -94,88 +106,96 @@ export function CustomerPanel({
   );
 
   return (
-    <>
-      {mini.mounted && (
-        <button
-          className={`customer-panel collapsed ${mini.visible ? "panel-in" : "panel-out"}`}
-          onClick={onToggleCollapse}
-          aria-label="Show customer details"
-          title="Show customer details"
-        >
-          <IdCard size={22} aria-hidden="true" />
-        </button>
-      )}
-      {expanded.mounted && (
     <aside
-      className={`customer-panel ${expanded.visible ? "panel-in" : "panel-out"}`}
+      ref={shellRef}
+      className={`customer-panel ${collapsed ? "is-collapsed" : ""}`}
+      style={
+        collapsed
+          ? undefined
+          : fullHeight != null
+            ? { maxHeight: `${fullHeight}px` }
+            : undefined
+      }
     >
-      {headerClickable ? (
-        <button
-          type="button"
-          className="panel-head panel-head-trigger"
-          onClick={onHeaderClick}
-          aria-label="Switch persona"
-          title="Switch persona"
-        >
-          {headerInner}
-        </button>
-      ) : (
-        <header className="panel-head">{headerInner}</header>
-      )}
-
-      <section className="panel-identity">
-        <h1 className="name-display" title={customerName}>
-          {customerName}
-        </h1>
-        {(loanType || last4) && (
-          <p className="name-sub">
-            {loanType ?? "—"}
-            {last4 && (
-              <>
-                <span className="dot-sep" aria-hidden="true">·</span>
-                ending {last4}
-              </>
-            )}
-          </p>
-        )}
-      </section>
-
-      <section className="panel-balance" aria-label="Balance">
-        <div className="balance-line">
-          <span className="balance-numeral">
-            {fmtAmount(customer.total_amount_due)}
-          </span>
-          <span className="balance-currency">THB</span>
-        </div>
-        {balanceMetaParts.length > 0 && (
-          <p className="balance-meta">{balanceMetaParts.join(" · ")}</p>
-        )}
-      </section>
-
-      <section className={`panel-case status-${caseStatus}`}>
-        <span className="status-pill">
-          <span className="status-pill-dot" aria-hidden="true" />
-          {caseStatusLabel}
-        </span>
-        {note && <p className="panel-note">{String(note)}</p>}
-      </section>
-
-      {phone && (
-        <footer className="panel-footer">
-          <span className="panel-phone-label">Phone</span>
-          <span className="panel-phone">{phone}</span>
-        </footer>
-      )}
-
       <button
-        className="customer-panel-collapse"
+        type="button"
+        className="panel-mini-icon"
         onClick={onToggleCollapse}
-        aria-label="Hide customer details"
+        aria-label="Show customer details"
+        title="Show customer details"
+        aria-hidden={!collapsed}
+        tabIndex={collapsed ? 0 : -1}
       >
-        ▾ Collapse
+        <IdCard size={22} aria-hidden="true" />
       </button>
+
+      <div className="panel-content" ref={contentRef}>
+        {headerClickable ? (
+            <button
+              type="button"
+              className="panel-head panel-head-trigger"
+              onClick={onHeaderClick}
+              aria-label="Switch persona"
+              title="Switch persona"
+            >
+              {headerInner}
+            </button>
+          ) : (
+            <header className="panel-head">{headerInner}</header>
+          )}
+
+          <section className="panel-identity">
+            <h1 className="name-display" title={customerName}>
+              {customerName}
+            </h1>
+            {(loanType || last4) && (
+              <p className="name-sub">
+                {loanType ?? "—"}
+                {last4 && (
+                  <>
+                    <span className="dot-sep" aria-hidden="true">·</span>
+                    ending {last4}
+                  </>
+                )}
+              </p>
+            )}
+          </section>
+
+          <section className="panel-balance" aria-label="Balance">
+            <div className="balance-line">
+              <span className="balance-numeral">
+                {fmtAmount(customer.total_amount_due)}
+              </span>
+              <span className="balance-currency">THB</span>
+            </div>
+            {balanceMetaParts.length > 0 && (
+              <p className="balance-meta">{balanceMetaParts.join(" · ")}</p>
+            )}
+          </section>
+
+          <section className={`panel-case status-${caseStatus}`}>
+            <span className="status-pill">
+              <span className="status-pill-dot" aria-hidden="true" />
+              {caseStatusLabel}
+            </span>
+            {note && <p className="panel-note">{String(note)}</p>}
+          </section>
+
+          {phone && (
+            <footer className="panel-footer">
+              <span className="panel-phone-label">Phone</span>
+              <span className="panel-phone">{phone}</span>
+            </footer>
+          )}
+
+          <button
+            className="customer-panel-collapse"
+            onClick={onToggleCollapse}
+            aria-label="Hide customer details"
+          >
+            ▾ Collapse
+          </button>
+      </div>
     </aside>
-      )}
-    </>
   );
 }

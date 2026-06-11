@@ -136,13 +136,17 @@ body {
 }
 
 /* ─────────────── customer panel ─────────────── */
+/* The card is a single element that morphs its own size between the full
+   panel and the 52px pill, the same way the start bar morphs its width. Width,
+   max-height, padding and radius animate together on the 420ms ease-out the
+   control bar uses; the content fades as the box closes. (max-height rather
+   than the grid 1fr trick, which collapses to 0 under position: fixed.) */
 .customer-panel {
   position: fixed;
   top: 24px;
   left: 24px;
   width: 272px;
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
+  max-height: 480px; /* fallback before JS measures the exact height */
   background: var(--card);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -150,28 +154,49 @@ body {
   border-radius: 18px;
   box-shadow: var(--shadow-1);
   padding: 18px 18px 12px 18px;
+  overflow: hidden;
   z-index: 10;
-  transform-origin: top left;
   transition:
-    opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+    width 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    max-height 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    padding 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 220ms ease,
+    box-shadow 280ms ease;
 }
-.customer-panel.collapsed {
-  width: 52px; height: 52px;
+.customer-panel.is-collapsed {
+  width: 52px;
+  max-height: 52px;
   padding: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-  cursor: pointer;
-  border: 1px solid var(--border);
+  border-radius: 16px;
   background: var(--card-strong);
+  cursor: pointer;
 }
-/* Collapse/expand cross-fade. The full panel and the pill share the top-left
-   corner; one scales toward it as the other scales away. The leaving copy
-   drops pointer-events so clicks reach the one coming in. */
-.customer-panel.panel-in { opacity: 1; transform: none; }
-.customer-panel.panel-out { opacity: 0; pointer-events: none; }
-.customer-panel:not(.collapsed).panel-out { transform: scale(0.97); }
-.customer-panel.collapsed.panel-out { transform: scale(0.85); }
+.panel-content {
+  transition: opacity 170ms ease;
+}
+.is-collapsed .panel-content { opacity: 0; }
+/* Collapsed pill icon: fades in once the content has folded away, fades out
+   immediately on expand so it never overlaps the returning content. */
+.panel-mini-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+.is-collapsed .panel-mini-icon {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 220ms ease 130ms;
+}
 .panel-head {
   display: flex;
   align-items: center;
@@ -1262,7 +1287,7 @@ button.bubble.tool-result {
   justify-content: center;
   padding: 24px;
   opacity: 0;
-  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .persona-modal-backdrop.open { opacity: 1; }
 .persona-modal {
@@ -1279,10 +1304,12 @@ button.bubble.tool-result {
   box-shadow: var(--shadow-3);
   overflow: hidden;
   opacity: 0;
-  transform: translateY(10px) scale(0.985);
+  transform: translateY(16px) scale(0.96);
+  transform-origin: center bottom;
+  will-change: opacity, transform;
   transition:
-    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .persona-modal-backdrop.open .persona-modal {
   opacity: 1;
@@ -1564,15 +1591,13 @@ button.bubble.tool-result {
   }
 }
 @media (max-width: 700px) {
+  /* Force the pill on small screens regardless of toggle state. */
   .customer-panel {
-    width: 52px; height: 52px; padding: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px;
+    width: 52px;
+    max-height: 52px;
+    padding: 0;
+    border-radius: 16px;
   }
-  .panel-head,
-  .panel-identity,
-  .panel-balance,
-  .panel-case,
-  .panel-footer,
-  .customer-panel-collapse { display: none; }
+  .customer-panel .panel-content { opacity: 0; pointer-events: none; }
+  .customer-panel .panel-mini-icon { opacity: 1; pointer-events: auto; }
 }
