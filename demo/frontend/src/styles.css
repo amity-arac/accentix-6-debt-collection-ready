@@ -151,6 +151,10 @@ body {
   box-shadow: var(--shadow-1);
   padding: 18px 18px 12px 18px;
   z-index: 10;
+  transform-origin: top left;
+  transition:
+    opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .customer-panel.collapsed {
   width: 52px; height: 52px;
@@ -161,6 +165,13 @@ body {
   border: 1px solid var(--border);
   background: var(--card-strong);
 }
+/* Collapse/expand cross-fade. The full panel and the pill share the top-left
+   corner; one scales toward it as the other scales away. The leaving copy
+   drops pointer-events so clicks reach the one coming in. */
+.customer-panel.panel-in { opacity: 1; transform: none; }
+.customer-panel.panel-out { opacity: 0; pointer-events: none; }
+.customer-panel:not(.collapsed).panel-out { transform: scale(0.97); }
+.customer-panel.collapsed.panel-out { transform: scale(0.85); }
 .panel-head {
   display: flex;
   align-items: center;
@@ -1250,7 +1261,10 @@ button.bubble.tool-result {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+.persona-modal-backdrop.open { opacity: 1; }
 .persona-modal {
   display: flex;
   flex-direction: column;
@@ -1264,6 +1278,15 @@ button.bubble.tool-result {
   border-radius: 22px;
   box-shadow: var(--shadow-3);
   overflow: hidden;
+  opacity: 0;
+  transform: translateY(10px) scale(0.985);
+  transition:
+    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.persona-modal-backdrop.open .persona-modal {
+  opacity: 1;
+  transform: none;
 }
 .persona-modal-head {
   display: flex;

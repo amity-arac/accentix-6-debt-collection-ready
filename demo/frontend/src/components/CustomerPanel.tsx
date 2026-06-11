@@ -1,6 +1,10 @@
 import { ChevronDown, IdCard } from "lucide-react";
 import type { Agent, CustomerData } from "../api";
 import { renderDate, looksLikeCanonicalDate } from "../format/dateRender";
+import { useMountTransition } from "../hooks/useMountTransition";
+
+// Must match the longest transition on .customer-panel (see styles.css).
+const PANEL_EXIT_MS = 240;
 
 type Props = {
   caseId: string | null;
@@ -38,18 +42,11 @@ export function CustomerPanel({
   headerClickable = false,
   onHeaderClick,
 }: Props) {
-  if (collapsed) {
-    return (
-      <button
-        className="customer-panel collapsed"
-        onClick={onToggleCollapse}
-        aria-label="Show customer details"
-        title="Show customer details"
-      >
-        <IdCard size={22} aria-hidden="true" />
-      </button>
-    );
-  }
+  // Cross-fade the full panel and the collapsed pill: both are pinned to the
+  // same top-left corner, so the panel scales toward/from that corner while
+  // the pill fades the other way. Both stay mounted through the transition.
+  const expanded = useMountTransition(!collapsed, PANEL_EXIT_MS);
+  const mini = useMountTransition(collapsed, PANEL_EXIT_MS);
 
   const rawDue = customer.due_date;
   const dueDateLabel = looksLikeCanonicalDate(rawDue)
@@ -97,7 +94,21 @@ export function CustomerPanel({
   );
 
   return (
-    <aside className="customer-panel">
+    <>
+      {mini.mounted && (
+        <button
+          className={`customer-panel collapsed ${mini.visible ? "panel-in" : "panel-out"}`}
+          onClick={onToggleCollapse}
+          aria-label="Show customer details"
+          title="Show customer details"
+        >
+          <IdCard size={22} aria-hidden="true" />
+        </button>
+      )}
+      {expanded.mounted && (
+    <aside
+      className={`customer-panel ${expanded.visible ? "panel-in" : "panel-out"}`}
+    >
       {headerClickable ? (
         <button
           type="button"
@@ -164,5 +175,7 @@ export function CustomerPanel({
         ▾ Collapse
       </button>
     </aside>
+      )}
+    </>
   );
 }

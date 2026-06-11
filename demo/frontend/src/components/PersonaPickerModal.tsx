@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import type { PersonaCase } from "../api";
+import { useMountTransition } from "../hooks/useMountTransition";
+
+// Must match the longest transition in the .persona-modal CSS (see styles.css).
+const MODAL_EXIT_MS = 280;
 
 type Props = {
   open: boolean;
@@ -44,9 +48,13 @@ export function PersonaPickerModal({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
 
-  // On open: reset selection to the current persona and focus the dialog.
+  // Stay mounted through the close animation; `visible` drives the .open class.
+  const { mounted, visible } = useMountTransition(open, MODAL_EXIT_MS);
+
+  // When the dialog actually mounts: reset selection to the current persona,
+  // remember the trigger, and move focus in. On unmount, restore focus.
   useEffect(() => {
-    if (!open) return;
+    if (!mounted) return;
     setSelectedId(currentCaseId);
     prevFocusRef.current =
       document.activeElement instanceof HTMLElement
@@ -56,15 +64,17 @@ export function PersonaPickerModal({
     return () => {
       prevFocusRef.current?.focus();
     };
-  }, [open, currentCaseId]);
+    // currentCaseId is read at mount time; re-running on its change isn't wanted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
 
   // Keep the selected persona in view (it may sit far down a long list).
   useEffect(() => {
-    if (!open) return;
+    if (!mounted) return;
     dialogRef.current
       ?.querySelector(".persona-list-item.selected")
       ?.scrollIntoView({ block: "nearest" });
-  }, [open, selectedId]);
+  }, [mounted, selectedId]);
 
   const companies = useMemo(
     () => COMPANY_ORDER.filter((c) => cases.some((x) => x.company === c)),
@@ -87,7 +97,7 @@ export function PersonaPickerModal({
     [cases, selectedId],
   );
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -117,7 +127,7 @@ export function PersonaPickerModal({
 
   return (
     <div
-      className="persona-modal-backdrop"
+      className={`persona-modal-backdrop${visible ? " open" : ""}`}
       onClick={onClose}
       onKeyDown={handleKeyDown}
       role="presentation"
