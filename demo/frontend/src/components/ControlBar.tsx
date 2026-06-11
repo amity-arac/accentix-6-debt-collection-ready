@@ -5,6 +5,11 @@ import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
 import type { Agent } from "../api";
 
+// Single-model deliverable: the agent is always the fine-tuned Qwen (sft_v2).
+// Update these if you serve a different base model / SFT version.
+const MODEL_NAME = "Qwen3.5-9B";
+const SFT_VERSION = "v2";
+
 type Props = {
   started: boolean;
   ready: boolean;
@@ -33,8 +38,6 @@ export function ControlBar({
   starting,
   startError,
   onStart,
-  agent,
-  onAgentChange,
   micState,
   micSupported,
   micError,
@@ -54,33 +57,12 @@ export function ControlBar({
     return (
       <div className="control-bar start">
         <div
-          className="agent-segmented"
-          role="radiogroup"
-          aria-label="Agent model"
+          className="agent-badge"
+          aria-label={`Agent model: Qwen ${MODEL_NAME}, SFT ${SFT_VERSION}`}
         >
-          <span className="agent-segmented-label" aria-hidden="true">
-            <Cpu size={14} /> Agent
-          </span>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={agent === "qwen"}
-            className={`agent-segmented-btn ${agent === "qwen" ? "on" : ""}`}
-            onClick={() => onAgentChange("qwen")}
-            disabled={starting}
-          >
-            Qwen
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={agent === "gemini"}
-            className={`agent-segmented-btn ${agent === "gemini" ? "on" : ""}`}
-            onClick={() => onAgentChange("gemini")}
-            disabled={starting}
-          >
-            Gemini
-          </button>
+          <Cpu size={14} aria-hidden="true" />
+          <span className="agent-badge-name">{MODEL_NAME}</span>
+          <span className="agent-badge-sft">SFT {SFT_VERSION}</span>
         </div>
         <button
           className="btn start"

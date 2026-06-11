@@ -817,6 +817,33 @@ button.bubble.tool-result {
 }
 .agent-segmented-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ─────────────── pre-Start model badge (single-model deliverable) ─────────────── */
+.agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  border-radius: 999px;
+}
+.agent-badge svg { color: var(--ink-soft); }
+.agent-badge-name {
+  font-size: 13px;
+  font-weight: var(--fw-medium);
+  color: var(--ink);
+}
+.agent-badge-sft {
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+}
+
 /* ─────────────── error boundary ─────────────── */
 .error-boundary {
   position: fixed;
