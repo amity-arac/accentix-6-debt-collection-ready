@@ -822,6 +822,7 @@ button.bubble.tool-result {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 210px;
   padding: 6px 14px;
   border: 1px solid var(--border-strong);
   background: #fff;
@@ -834,6 +835,7 @@ button.bubble.tool-result {
   color: var(--ink);
 }
 .agent-badge-sft {
+  margin-left: auto;
   font-size: 10px;
   font-weight: var(--fw-medium);
   letter-spacing: 0.04em;
