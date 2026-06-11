@@ -59,6 +59,9 @@ export function useSession() {
   });
   // Latest user-chosen agent, read inside start() to avoid closure staleness.
   const agentRef = useRef<Agent>("qwen");
+  // Latest user-chosen persona/case id (null → backend default). Read inside
+  // start() so a fresh session is created for the picked persona.
+  const caseIdRef = useRef<string | null>(null);
 
   const setAgent = useCallback((agent: Agent) => {
     agentRef.current = agent;
@@ -198,7 +201,7 @@ export function useSession() {
             }
           },
         },
-        { agent: agentRef.current },
+        { agent: agentRef.current, caseId: caseIdRef.current ?? undefined },
       );
     } catch (e: any) {
       const msg = `Failed to load session: ${e?.message ?? e}`;
@@ -213,6 +216,17 @@ export function useSession() {
     // Avoid unused-var TS warning
     void capturedSession;
   }, [onHop]);
+
+  // Pick a persona (pre-start only): remember the case id and re-create the
+  // session for it. `onSession` repopulates customer/caseId; `started` (owned
+  // by App) stays false, so the user lands back on the start screen.
+  const selectCase = useCallback(
+    async (caseId: string) => {
+      caseIdRef.current = caseId;
+      await start();
+    },
+    [start],
+  );
 
   const sendUserMessage = useCallback(
     async (text: string, viaMic: boolean) => {
@@ -331,6 +345,7 @@ export function useSession() {
     state,
     start,
     setAgent,
+    selectCase,
     sendUserMessage,
     reset,
     togglePause,

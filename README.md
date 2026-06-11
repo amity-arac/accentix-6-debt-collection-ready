@@ -97,11 +97,11 @@ AAX6_VLLM_MODEL=sft_v2
 | `AAX6_PROMPT_VERSION` | yes (`v8`) | Loads the v8 per-company prompt the model was trained on. |
 | `AAX6_DEMO_MODE` | `live` | Live agent (default). |
 | `AAX6_DEMO_AGENT` | `qwen` | Use the Qwen agent (default). |
-| `AAX6_DEMO_CASE_ID` | optional | Which case/persona to load. Default `TC-AEON-AAX-025`. Any id in `data/test-cases/personas_test.json` works (e.g. `TC-JAI-AAX-*`, `TC-KS-AAX-*`, `TC-AIS-AAX-*`). |
+| `AAX6_DEMO_CASE_ID` | optional | The persona loaded **on startup**. Default `TC-AEON-AAX-025`. You normally don't need to set this — use the in-app persona picker instead (below). Any id in `data/test-cases/personas_data.json` works. |
 | `AAX6_VLLM_BASE_URL` | yes | vLLM endpoint, e.g. `http://localhost:8000/v1`. |
 | `AAX6_VLLM_MODEL` | yes (`sft_v2`) | **Must be `sft_v2`** — the LoRA module name, *not* the base model. This is what applies the fine-tune. |
 
-> Choosing a case sets the company (the prefix after `TC-`, e.g. `AEON`) and the debtor's profile (name, debt amount, due date, the 4-digit ID for KYC).
+> Choosing a persona sets the company (the prefix after `TC-`, e.g. `AEON`) and the debtor's profile (name, debt amount, due date, the 4-digit ID for KYC). **All 152 personas** ship in `data/test-cases/personas_data.json` (≈38 per company across AEON / AIS / JAI / KS) and can be browsed and switched from the UI — see *Choosing a persona* below.
 
 ---
 
@@ -124,6 +124,12 @@ cd demo/frontend && npm run dev
 ```
 
 Then open **http://localhost:5173** and start typing the debtor's side of the conversation (in Thai). You'll see the agent's replies plus the tool calls it makes (identity verification, payment/callback recording, etc.) in the stream.
+
+---
+
+## Choosing a persona
+
+The card in the top-left shows the persona currently loaded. **Before starting a call**, click its header (company + case id) to open the persona picker — a pop-up listing all 152 personas. Filter by **company** (AEON / AIS / JAI / KS) or **track**, click a persona to see its account details and scenario (including the **last-4 digits** you'll need to pass the agent's KYC), then **Talk to this persona** to load it. Once a call has started the header is locked; **Reset** the call to switch again.
 
 ---
 
@@ -151,7 +157,7 @@ If these are unset, audio requests fail silently and the chat continues normally
 | vLLM out-of-memory at startup | Lower `--max-model-len` in `scripts/serve_qwen.sh`, or use a larger GPU. |
 | Agent replies but ignores the playbook / wrong language | Ensure `AAX6_V6_ACTIVE=1` and `AAX6_PROMPT_VERSION=v8` are set in `.env`. |
 | Tool calls show as plain text | vLLM must run with `--tool-call-parser qwen3_xml` (set by `serve_qwen.sh`); keep vLLM at 0.19.0. |
-| `KeyError: case_id …` on session start | Use a case id present in `data/test-cases/personas_test.json` (the default `TC-AEON-AAX-025` is valid). |
+| `KeyError: case_id …` on session start | Use a case id present in `data/test-cases/personas_data.json` (the default `TC-AEON-AAX-025` is valid), or just pick a persona from the in-app picker. |
 | First serve is very slow | The base model (~18 GB) downloads from Hugging Face once; subsequent starts are fast. |
 | `git: 'lfs' is not a git command` | Install git-LFS first (`brew install git-lfs` / `apt install git-lfs`), then `git lfs install && git lfs pull`. |
 
@@ -159,7 +165,7 @@ If these are unset, audio requests fail silently and the chat continues normally
 
 ## What's included / not included
 
-**Included:** the Qwen agent, its deterministic tool backend, the v8 per-company prompts + the full v6 tool catalog, the held-out demo cases (`personas_test.json`), the `sft_v2` LoRA adapter, the web demo (backend + frontend), and the serve script.
+**Included:** the Qwen agent, its deterministic tool backend, the v8 per-company prompts + the full v6 tool catalog, all 152 demo personas (`personas_data.json`, selectable from the in-app picker), the `sft_v2` LoRA adapter, the web demo (backend + frontend), and the serve script.
 
 **Not included** (by design): model training, the automated evaluator/benchmark harness, the Gemini-driven simulated customer, and other experimental agents. This package is scoped to *serving and talking to* the v2 agent.
 

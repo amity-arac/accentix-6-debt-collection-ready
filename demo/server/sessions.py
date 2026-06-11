@@ -18,8 +18,10 @@ Both return the same `hops[]` shape:
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Protocol
@@ -34,7 +36,9 @@ REPLAY_HOP_DELAY_SEC = 0.35
 REPLAY_REPLY_DELAY_SEC = 0.05
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TEST_CASES_FILE = REPO_ROOT / "data" / "test-cases" / "personas_test.json"
+# Full 152-persona pool (106 train + 46 test). The picker lists every case here
+# and `_load_test_case` resolves the chosen id against the same file.
+TEST_CASES_FILE = REPO_ROOT / "data" / "test-cases" / "personas_data.json"
 
 MAX_LIVE_TURNS = 30
 
@@ -118,6 +122,60 @@ def _load_test_case(case_id: str) -> dict[str, Any]:
         if case.get("id") == case_id:
             return case
     raise KeyError(f"case_id {case_id!r} not found in {TEST_CASES_FILE}")
+
+
+# Display fields lifted verbatim from each case's `customer_data` for the picker.
+_CUSTOMER_DISPLAY_FIELDS = (
+    "customer_name",
+    "loan_type",
+    "total_amount_due",
+    "minimum_payment_due",
+    "due_date",
+    "due_status",
+    "customer_phone",
+    "last_4_digits",
+    "case_status",
+    "case_status_note",
+)
+
+
+def _extract_tag(usp: str, tag: str) -> str:
+    """Return the inner text of <tag>…</tag> from a persona prompt, or ""."""
+    m = re.search(rf"<{tag}>\s*(.*?)\s*</{tag}>", usp, re.S)
+    return m.group(1).strip() if m else ""
+
+
+def _persona_summary(case: dict[str, Any]) -> dict[str, Any]:
+    """Flatten one test case into the row shape the persona picker consumes.
+
+    Parses the human-facing role-play sections (persona / situation /
+    constraints) out of `user_system_prompt`; `<system_rules>` is intentionally
+    omitted (internal sim mechanics + the [TASK_COMPLETED] marker).
+    """
+    case_id = case.get("id", "")
+    cd = case.get("customer_data", {}) or {}
+    usp = case.get("user_system_prompt", "") or ""
+    row: dict[str, Any] = {
+        "id": case_id,
+        "company": case_id.split("-")[1] if "-" in case_id else "",
+        "topic": case.get("topic", ""),
+        "eval_track": case.get("eval_track"),
+        "patience": case.get("patience"),
+        "persona": _extract_tag(usp, "persona"),
+        "situation": _extract_tag(usp, "situation"),
+        "constraints": _extract_tag(usp, "constraints"),
+    }
+    for field in _CUSTOMER_DISPLAY_FIELDS:
+        row[field] = cd.get(field)
+    return row
+
+
+@functools.lru_cache(maxsize=1)
+def list_cases() -> list[dict[str, Any]]:
+    """All personas as flat picker rows. Cached — the source file is static."""
+    with TEST_CASES_FILE.open(encoding="utf-8") as fh:
+        cases = json.load(fh)
+    return [_persona_summary(c) for c in cases]
 
 
 def normalize_live_hops(reply_result: dict[str, Any]) -> list[dict[str, Any]]:

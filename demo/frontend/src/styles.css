@@ -1213,10 +1213,340 @@ button.bubble.tool-result {
   z-index: 20;
 }
 
+/* ─────────────── persona picker: clickable panel header ─────────────── */
+.panel-head-trigger {
+  /* Reuses .panel-head layout; reset native button chrome but keep the
+     bottom hairline that separates the header from the body. */
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.panel-head-trigger:hover {
+  background: var(--brand-soft);
+}
+.panel-head-trigger:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.panel-head-chevron {
+  color: var(--ink-faint);
+  flex: 0 0 auto;
+  transition: transform 160ms ease, color 160ms ease;
+}
+.panel-head-trigger:hover .panel-head-chevron {
+  color: var(--brand);
+  transform: translateY(1px);
+}
+
+/* ─────────────── persona picker: modal ─────────────── */
+.persona-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.persona-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 880px;
+  height: min(72vh, 680px);
+  background: var(--card-strong);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+.persona-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--hairline);
+}
+.persona-modal-title {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-title);
+  color: var(--ink);
+}
+.persona-modal-count {
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-micro);
+}
+.persona-modal-close {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-strong);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.persona-modal-close:hover { background: #fff; color: var(--ink); }
+
+.persona-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--hairline);
+}
+.persona-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.persona-chip {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caption);
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-strong);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.persona-chip:hover { background: #fff; color: var(--ink); }
+.persona-chip.on {
+  background: var(--brand);
+  border-color: var(--brand-strong);
+  color: #fff;
+}
+
+.persona-modal-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* left column — list */
+.persona-list {
+  flex: 0 0 332px;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  overflow-y: auto;
+  border-right: 1px solid var(--hairline);
+}
+.persona-list-empty {
+  padding: 24px 16px;
+  color: var(--ink-faint);
+  font-size: var(--fs-body);
+  text-align: center;
+}
+.persona-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.persona-list-item:hover { background: var(--brand-soft); }
+.persona-list-item.selected {
+  background: var(--brand-soft);
+  border-color: var(--brand-soft-strong);
+}
+.persona-list-item.current { border-left-color: var(--brand); }
+.persona-list-item:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.persona-item-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+.persona-item-current { color: var(--brand); flex: 0 0 auto; }
+.persona-item-sub {
+  font-size: var(--fs-caption);
+  color: var(--ink-soft);
+}
+.persona-item-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* shared metadata tags */
+.persona-company-tag,
+.persona-track-tag,
+.persona-patience-tag,
+.persona-status-tag {
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-micro);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-soft);
+}
+.persona-company-tag { color: var(--brand); border-color: var(--brand-soft-strong); }
+.persona-track-tag.track-A {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+.persona-track-tag.track-B {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.10);
+  border-color: rgba(245, 158, 11, 0.32);
+}
+.persona-status-tag {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.28);
+}
+
+/* right column — detail */
+.persona-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.persona-detail-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px;
+}
+.persona-detail-topic {
+  margin: 0 0 8px 0;
+  font-size: var(--fs-title);
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+}
+.persona-detail-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 18px 0;
+}
+.persona-detail-id {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
+}
+.persona-section-label {
+  margin: 18px 0 8px 0;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-micro);
+  color: var(--ink-faint);
+}
+.persona-section-label span { font-weight: var(--fw-regular); text-transform: none; }
+.persona-section-sublabel {
+  margin: 12px 0 4px 0;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-soft);
+}
+.persona-account-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: var(--fs-caption);
+}
+.persona-account-grid dt { color: var(--ink-faint); }
+.persona-account-grid dd { margin: 0; color: var(--ink); }
+.persona-kyc { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.persona-scenario-persona {
+  margin: 0 0 8px 0;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+.persona-scenario {
+  margin: 0 0 8px 0;
+  font-size: var(--fs-caption);
+  line-height: 1.6;
+  color: var(--ink-soft);
+  white-space: pre-line;
+}
+.persona-detail-actions {
+  padding: 14px 22px;
+  border-top: 1px solid var(--hairline);
+}
+.persona-select-btn {
+  width: 100%;
+  justify-content: center;
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand-strong);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-title);
+}
+.persona-select-btn:hover:not(:disabled) { background: var(--brand-strong); }
+.persona-select-btn:disabled {
+  background: rgba(12, 110, 87, 0.35);
+  border-color: rgba(12, 110, 87, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: not-allowed;
+}
+.persona-detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+  color: var(--ink-faint);
+  font-size: var(--fs-body);
+}
+
 /* ─────────────── responsive ─────────────── */
 @media (max-width: 900px) {
   .chat-main { padding-left: 24px; }
   .customer-panel { width: 240px; }
+}
+@media (max-width: 760px) {
+  .persona-modal { height: min(86vh, 720px); }
+  .persona-modal-body { flex-direction: column; }
+  .persona-list {
+    flex: 0 0 auto;
+    max-height: 40%;
+    border-right: 0;
+    border-bottom: 1px solid var(--hairline);
+  }
 }
 @media (max-width: 700px) {
   .customer-panel {

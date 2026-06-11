@@ -4,12 +4,14 @@ import { CustomerPanel } from "./components/CustomerPanel";
 import { ChatStream } from "./components/ChatStream";
 import { ControlBar } from "./components/ControlBar";
 import { ResetConfirmModal } from "./components/ResetConfirmModal";
+import { PersonaPickerModal } from "./components/PersonaPickerModal";
 import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
 import { useSession } from "./hooks/useSession";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 import { requestMicPermission } from "./speech";
+import { fetchCases, type PersonaCase } from "./api";
 import * as audio from "./audio";
 
 export default function App() {
@@ -17,6 +19,7 @@ export default function App() {
     state,
     start,
     setAgent,
+    selectCase,
     sendUserMessage,
     reset,
     togglePause,
@@ -28,6 +31,8 @@ export default function App() {
   const [startError, setStartError] = useState<string>("");
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [personaModalOpen, setPersonaModalOpen] = useState(false);
+  const [cases, setCases] = useState<PersonaCase[]>([]);
   const initRef = useRef(false);
 
   const initSession = useCallback(async (): Promise<boolean> => {
@@ -52,6 +57,38 @@ export default function App() {
     initRef.current = true;
     void initSession();
   }, [initSession]);
+
+  // Load the persona catalog once for the picker. Non-fatal: if it fails the
+  // picker just shows an empty state and the default session still works.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCases()
+      .then((rows) => {
+        if (!cancelled) setCases(rows);
+      })
+      .catch(() => {
+        /* picker degrades to empty; default session unaffected */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSelectPersona = useCallback(
+    async (caseId: string) => {
+      setPersonaModalOpen(false);
+      setStarting(true);
+      setStartError("");
+      try {
+        await selectCase(caseId);
+      } catch (e: any) {
+        setStartError(String(e?.message ?? e));
+      } finally {
+        setStarting(false);
+      }
+    },
+    [selectCase],
+  );
 
   const onFinal = useCallback(
     (text: string) => {
@@ -125,6 +162,8 @@ export default function App() {
         customer={state.customer}
         collapsed={panelCollapsed}
         onToggleCollapse={() => setPanelCollapsed((c) => !c)}
+        headerClickable={!started}
+        onHeaderClick={() => setPersonaModalOpen(true)}
       />
       <main className="chat-main">
         {started && (
@@ -164,6 +203,13 @@ export default function App() {
           setResetModalOpen(false);
           void reset();
         }}
+      />
+      <PersonaPickerModal
+        open={personaModalOpen}
+        cases={cases}
+        currentCaseId={state.caseId}
+        onClose={() => setPersonaModalOpen(false)}
+        onSelect={(id) => void handleSelectPersona(id)}
       />
       {state.streamError && (
         <div className="stream-error-banner" role="alert">

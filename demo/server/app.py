@@ -26,7 +26,7 @@ from typing import AsyncIterator
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 # Load .env from the repo root before any module reads env vars.
@@ -119,14 +119,25 @@ async def _stream_turn(session: sessions.Session, msg: str) -> AsyncIterator[byt
 # ---------------------------------------------------------------------------
 
 
+@app.get("/api/cases")
+async def list_cases() -> JSONResponse:
+    """All available personas as flat picker rows (id, company, topic, account
+    facts, parsed persona/situation/constraints). Static; cached server-side."""
+    return JSONResponse(sessions.list_cases())
+
+
 @app.get("/api/session")
-async def create_session(agent: str | None = Query(default=None)) -> StreamingResponse:
-    mode, case_id, default_agent = _config()
+async def create_session(
+    agent: str | None = Query(default=None),
+    case_id: str | None = Query(default=None),
+) -> StreamingResponse:
+    mode, default_case_id, default_agent = _config()
+    chosen_case = (case_id or default_case_id).strip()
     chosen_agent = (agent or default_agent).strip().lower()
     if chosen_agent not in sessions.VALID_AGENTS:
         chosen_agent = default_agent
     try:
-        session = sessions.build(case_id, mode, agent=chosen_agent)
+        session = sessions.build(chosen_case, mode, agent=chosen_agent)
     except KeyError as e:
         raise HTTPException(404, detail=str(e))
     except Exception as e:

@@ -1,4 +1,4 @@
-import { IdCard } from "lucide-react";
+import { ChevronDown, IdCard } from "lucide-react";
 import type { Agent, CustomerData } from "../api";
 import { renderDate, looksLikeCanonicalDate } from "../format/dateRender";
 
@@ -9,6 +9,9 @@ type Props = {
   customer: CustomerData;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  /** When true the header acts as a button that opens the persona picker. */
+  headerClickable?: boolean;
+  onHeaderClick?: () => void;
 };
 
 function fmtAmount(v: unknown): string {
@@ -32,6 +35,8 @@ export function CustomerPanel({
   customer,
   collapsed,
   onToggleCollapse,
+  headerClickable = false,
+  onHeaderClick,
 }: Props) {
   if (collapsed) {
     return (
@@ -73,16 +78,39 @@ export function CustomerPanel({
   if (dueDateLabel) balanceMetaParts.push(`Due ${dueDateLabel}`);
   if (customer.due_status) balanceMetaParts.push(String(customer.due_status));
 
+  const headerInner = (
+    <>
+      <span className="company">{String(customer.company_name ?? "AEON")}</span>
+      <span className="case-id">{caseId ?? "—"}</span>
+      {headerClickable && (
+        <ChevronDown
+          size={14}
+          className="panel-head-chevron"
+          aria-hidden="true"
+        />
+      )}
+      <span className={`mode-pill ${mode ?? ""}`}>
+        <span className="mode-dot" aria-hidden="true" />
+        {mode ? (agent ? `${mode} · ${agent}` : mode) : "…"}
+      </span>
+    </>
+  );
+
   return (
     <aside className="customer-panel">
-      <header className="panel-head">
-        <span className="company">{String(customer.company_name ?? "AEON")}</span>
-        <span className="case-id">{caseId ?? "—"}</span>
-        <span className={`mode-pill ${mode ?? ""}`}>
-          <span className="mode-dot" aria-hidden="true" />
-          {mode ? (agent ? `${mode} · ${agent}` : mode) : "…"}
-        </span>
-      </header>
+      {headerClickable ? (
+        <button
+          type="button"
+          className="panel-head panel-head-trigger"
+          onClick={onHeaderClick}
+          aria-label="Switch persona"
+          title="Switch persona"
+        >
+          {headerInner}
+        </button>
+      ) : (
+        <header className="panel-head">{headerInner}</header>
+      )}
 
       <section className="panel-identity">
         <h1 className="name-display" title={customerName}>

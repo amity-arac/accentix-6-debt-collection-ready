@@ -42,6 +42,29 @@ export type CustomerData = {
 
 export type Agent = "qwen" | "gemini";
 
+/* One persona row from GET /api/cases — flat picker shape (account facts +
+ * parsed role-play sections). Mirrors `_persona_summary` on the backend. */
+export type PersonaCase = {
+  id: string;
+  company: string;
+  topic: string;
+  eval_track: string | null;
+  patience: number | null;
+  persona: string;
+  situation: string;
+  constraints: string;
+  customer_name?: string;
+  loan_type?: string;
+  total_amount_due?: number;
+  minimum_payment_due?: number;
+  due_date?: string;
+  due_status?: string;
+  customer_phone?: string;
+  last_4_digits?: string;
+  case_status?: string;
+  case_status_note?: string | null;
+};
+
 export type StreamSessionMsg = {
   type: "session";
   session_id: string;
@@ -103,12 +126,21 @@ async function consumeNdjson(
   }
 }
 
+export async function fetchCases(): Promise<PersonaCase[]> {
+  const resp = await fetch("/api/cases");
+  if (!resp.ok) throw new Error(`/api/cases ${resp.status}`);
+  return (await resp.json()) as PersonaCase[];
+}
+
 export async function streamSession(
   handlers: StreamHandlers,
-  opts: { agent?: Agent } = {},
+  opts: { agent?: Agent; caseId?: string } = {},
 ): Promise<void> {
-  const qs = opts.agent ? `?agent=${encodeURIComponent(opts.agent)}` : "";
-  const resp = await fetch(`/api/session${qs}`);
+  const qs = new URLSearchParams();
+  if (opts.agent) qs.set("agent", opts.agent);
+  if (opts.caseId) qs.set("case_id", opts.caseId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const resp = await fetch(`/api/session${suffix}`);
   await consumeNdjson(resp, handlers);
 }
 
