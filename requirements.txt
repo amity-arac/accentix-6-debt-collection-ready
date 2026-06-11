@@ -1,0 +1,19 @@
+# Backend (FastAPI demo) — Qwen live path.
+# Python 3.11 recommended. Install with:  pip install -r requirements.txt
+fastapi
+uvicorn[standard]
+openai
+python-dotenv
+numpy
+
+# Imported at module load by simulator/config.py and services/speech/config.py.
+# NOT called on the Qwen live path — present only so imports resolve, and to
+# enable OPTIONAL text-to-speech. No GOOGLE_API_KEY is required to talk to the
+# agent; a Google Cloud project/credentials are needed only if you enable TTS.
+google-genai
+google-auth
+google-cloud-texttospeech
+
+# NOTE: vLLM is NOT listed here — install it on the GPU host separately, e.g.
+#   pip install vllm==0.19.0
+# (Pinned to the version this adapter was served + validated under. See README.)
