@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, X } from "lucide-react";
+import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, X } from "lucide-react";
 import { ThinkingDot } from "./ThinkingDot";
 import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
@@ -30,6 +30,9 @@ type Props = {
   onPause: () => void;
   onRequestReset: () => void;
   onTypedSubmit: (text: string) => void;
+  onSave: () => void;
+  canSave: boolean;
+  saving: boolean;
 };
 
 export function ControlBar({
@@ -50,6 +53,9 @@ export function ControlBar({
   onPause,
   onRequestReset,
   onTypedSubmit,
+  onSave,
+  canSave,
+  saving,
 }: Props) {
   const [typed, setTyped] = useState("");
 
@@ -179,6 +185,15 @@ export function ControlBar({
           title="Reset call"
         >
           <RotateCcw size={16} aria-hidden="true" />
+        </button>
+        <button
+          className="btn save"
+          onClick={onSave}
+          disabled={!canSave || saving}
+          aria-label="Save conversation"
+          title={canSave ? "Save conversation" : "Nothing to save yet"}
+        >
+          <Save size={16} aria-hidden="true" />
         </button>
         {busy && <ThinkingDot />}
       </div>

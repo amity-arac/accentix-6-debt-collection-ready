@@ -11,8 +11,10 @@ import { useSession } from "./hooks/useSession";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 import { requestMicPermission } from "./speech";
-import { fetchCases, type PersonaCase } from "./api";
+import { fetchCases, saveTrajectory, type PersonaCase } from "./api";
 import * as audio from "./audio";
+
+type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string };
 
 export default function App() {
   const {
@@ -33,7 +35,9 @@ export default function App() {
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [personaModalOpen, setPersonaModalOpen] = useState(false);
   const [cases, setCases] = useState<PersonaCase[]>([]);
+  const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
   const initRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initSession = useCallback(async (): Promise<boolean> => {
     setStarting(true);
@@ -89,6 +93,28 @@ export default function App() {
     },
     [selectCase],
   );
+
+  const canSave = started && state.bubbles.length > 0 && !state.busy;
+
+  const handleSave = useCallback(async () => {
+    if (!state.sessionId) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveState({ phase: "saving", message: "Saving…" });
+    try {
+      const res = await saveTrajectory(state.sessionId);
+      if (res.saved) {
+        setSaveState({ phase: "saved", message: `Saved to demo-saved-trajectory/${res.path}` });
+      } else {
+        setSaveState({ phase: "error", message: res.reason ?? "Nothing to save yet" });
+      }
+    } catch (e: any) {
+      setSaveState({ phase: "error", message: `Save failed: ${e?.message ?? e}` });
+    }
+    saveTimerRef.current = setTimeout(
+      () => setSaveState({ phase: "idle", message: "" }),
+      3500,
+    );
+  }, [state.sessionId]);
 
   const onFinal = useCallback(
     (text: string) => {
@@ -195,6 +221,9 @@ export default function App() {
         onPause={togglePause}
         onRequestReset={() => setResetModalOpen(true)}
         onTypedSubmit={handleTyped}
+        onSave={() => void handleSave()}
+        canSave={canSave}
+        saving={saveState.phase === "saving"}
       />
       <ResetConfirmModal
         open={resetModalOpen}
@@ -235,7 +264,14 @@ export default function App() {
           onRestart={() => {
             void reset();
           }}
+          onSave={() => void handleSave()}
+          saving={saveState.phase === "saving"}
         />
+      )}
+      {saveState.phase !== "idle" && (
+        <div className={`save-toast ${saveState.phase}`} role="status">
+          {saveState.message}
+        </div>
       )}
       {!mic.supported && (
         <div className="info-banner" role="status">

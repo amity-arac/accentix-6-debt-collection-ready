@@ -125,6 +125,8 @@ cd demo/frontend && npm run dev
 
 Then open **http://localhost:5173** and start typing the debtor's side of the conversation (in Thai). You'll see the agent's replies plus the tool calls it makes (identity verification, payment/callback recording, etc.) in the stream.
 
+**Saving a conversation:** click the **Save** button in the control bar (any time after the first exchange) or on the end-of-call card. Each save writes a JSON file to `data/demo-saved-trajectory/<dd-mm-yy>/<case_id>-<HH-MM-SS>.json` — a canonical, replay-/eval-compatible trajectory (`conversation` + `full-trajectory`) plus the raw model message history (`agent_messages`).
+
 ---
 
 ## Choosing a persona

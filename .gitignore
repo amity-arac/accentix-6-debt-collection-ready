@@ -21,3 +21,7 @@ demo/frontend/dist/
 
 # NOTE: checkpoints/ is intentionally NOT ignored — the sft_v2 LoRA adapter
 # ships with the repo via git-LFS (see .gitattributes).
+
+# Saved demo conversations are runtime artifacts: keep the folder, ignore contents.
+data/demo-saved-trajectory/*
+!data/demo-saved-trajectory/.gitkeep

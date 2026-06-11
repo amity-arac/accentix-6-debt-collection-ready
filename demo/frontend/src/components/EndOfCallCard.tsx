@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
-import { Play } from "lucide-react";
+import { Play, Save } from "lucide-react";
 
 type Props = {
   onRestart: () => void;
+  onSave: () => void;
+  saving: boolean;
 };
 
-export function EndOfCallCard({ onRestart }: Props) {
+export function EndOfCallCard({ onRestart, onSave, saving }: Props) {
   const btnRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -22,14 +24,24 @@ export function EndOfCallCard({ onRestart }: Props) {
         Call ended
       </h2>
       <p className="end-of-call-body">The session reached completion.</p>
-      <button
-        ref={btnRef}
-        type="button"
-        className="btn end-of-call-action"
-        onClick={onRestart}
-      >
-        <Play size={16} aria-hidden="true" /> Start a new call
-      </button>
+      <div className="end-of-call-actions">
+        <button
+          type="button"
+          className="btn end-of-call-save"
+          onClick={onSave}
+          disabled={saving}
+        >
+          <Save size={16} aria-hidden="true" /> {saving ? "Saving…" : "Save conversation"}
+        </button>
+        <button
+          ref={btnRef}
+          type="button"
+          className="btn end-of-call-action"
+          onClick={onRestart}
+        >
+          <Play size={16} aria-hidden="true" /> Start a new call
+        </button>
+      </div>
     </div>
   );
 }

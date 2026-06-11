@@ -18,6 +18,7 @@ Both return the same `hops[]` shape:
 from __future__ import annotations
 
 import asyncio
+import datetime
 import functools
 import json
 import os
@@ -318,6 +319,10 @@ class LiveSession:
             # with) so the agent's option space matches its training.
             kwargs["append_script_catalog"] = True
         self._agent = self._CommunicatorCls(**kwargs)
+        # Per-turn record for the save-trajectory feature: each entry is
+        # {"user": <customer msg>, "hops": [<normalized hops>]}. Reset here so a
+        # reset_pointer() (which re-inits the agent) starts a clean transcript.
+        self._transcript: list[dict[str, Any]] = []
 
     async def prewarm(self) -> None:
         """Populate the LLM's prefix cache so the user's first turn is fast.
@@ -363,6 +368,13 @@ class LiveSession:
 
         last_reply_args: dict[str, Any] = {}
         filler_emitted = False
+        turn_hops: list[dict[str, Any]] = []
+
+        def _emit(hop: dict[str, Any]) -> dict[str, Any]:
+            # Record every client-facing hop so the turn can be saved later.
+            turn_hops.append(hop)
+            return hop
+
         try:
             while True:
                 item = await queue.get()
@@ -378,12 +390,12 @@ class LiveSession:
                     name = item.get("name")
                     if name != "reply" and not filler_emitted:
                         filler_emitted = True
-                        yield {
+                        yield _emit({
                             "kind": "reply",
                             "text": FILLER_TEXT,
                             "text_ids": [],
                             "dynamic_vars": {},
-                        }
+                        })
                     # Pending hop itself is internal — do not forward to client.
                     continue
                 if kind == "tool_call":
@@ -394,42 +406,97 @@ class LiveSession:
                     # branch above already set filler_emitted=True.
                     if name != "reply" and not filler_emitted:
                         filler_emitted = True
-                        yield {
+                        yield _emit({
                             "kind": "reply",
                             "text": FILLER_TEXT,
                             "text_ids": [],
                             "dynamic_vars": {},
-                        }
-                    yield {
+                        })
+                    yield _emit({
                         "kind": "tool_call",
                         "name": name,
                         "args": item.get("args", {}),
-                    }
+                    })
                     if name == "reply":
                         last_reply_args = item.get("args", {}) or {}
                 elif kind == "tool_result":
-                    yield {
+                    yield _emit({
                         "kind": "tool_result",
                         "name": item.get("name"),
                         "result": item.get("result"),
-                    }
+                    })
                 elif kind == "rendered_text":
-                    yield {
+                    yield _emit({
                         "kind": "reply",
                         "text": item.get("text", ""),
                         "text_ids": last_reply_args.get("text_ids", []),
                         "dynamic_vars": last_reply_args.get("dynamic_vars", {}),
-                    }
+                    })
                 else:
-                    yield item
+                    yield _emit(item)
         finally:
             result = await task
 
+        self._transcript.append({"user": user_msg, "hops": turn_hops})
         self._turn_count += 1
         if "[TASK_COMPLETED]" in (result.get("text") or ""):
             self.done = True
         if self._turn_count >= MAX_LIVE_TURNS:
             self.done = True
+
+
+# ---------------------------------------------------------------------------
+# Save trajectory
+# ---------------------------------------------------------------------------
+
+
+def build_trajectory_case(session: "LiveSession") -> dict[str, Any]:
+    """Assemble a saved-trajectory case from a LiveSession's recorded transcript.
+
+    Matches the canonical schema in `data/trajectories/` (so the file is
+    replay-/eval-compatible) and embeds the raw agent message history under
+    `agent_messages` for debugging. `conversation` is the human-readable
+    turn-by-turn (filler excluded); `full-trajectory` interleaves tool
+    calls/results with rendered text and customer turns, mirroring the
+    simulator's format (built here from the demo's already-normalized hops).
+    """
+    case = session._case
+    conversation: list[dict[str, Any]] = []
+    full: list[dict[str, Any]] = []
+    for turn in session._transcript:
+        user_msg = turn.get("user", "")
+        conversation.append({"role": "customer", "content": user_msg})
+        full.append({"role": "customer", "content": user_msg})
+        for hop in turn.get("hops", []):
+            kind = hop.get("kind")
+            if kind == "tool_call":
+                full.append({
+                    "role": "agent",
+                    "content": {"tool_call": hop.get("name"), "args": hop.get("args", {})},
+                })
+            elif kind == "tool_result":
+                full.append({"role": "system", "content": {"result": hop.get("result")}})
+            elif kind == "reply":
+                text = hop.get("text", "")
+                full.append({"role": "agent", "content": text})
+                if text != FILLER_TEXT:
+                    conversation.append({"role": "agent", "content": text})
+    return {
+        "id": session.case_id,
+        "topic": case.get("topic"),
+        "patience": case.get("patience"),
+        "eval_track": case.get("eval_track"),
+        "was_flipped": case.get("was_flipped", False),
+        "user_system_prompt": case.get("user_system_prompt"),
+        "customer_data": session.customer_data,
+        "communicator_mode": f"{session.agent_name}-prescript",
+        "conversation": conversation,
+        "full-trajectory": full,
+        # Demo-specific extras — canonical eval/replay tooling ignores unknown keys.
+        "session_id": session.session_id,
+        "saved_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "agent_messages": getattr(session._agent, "history", []),
+    }
 
 
 # ---------------------------------------------------------------------------

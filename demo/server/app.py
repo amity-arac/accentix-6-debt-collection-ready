@@ -17,6 +17,7 @@ NDJSON message types:
 from __future__ import annotations
 
 import asyncio
+import datetime
 import json
 import logging
 import os
@@ -190,6 +191,35 @@ async def reset_session(session_id: str) -> StreamingResponse:
         _stream_session_only(session),
         media_type=NDJSON_MEDIA,
     )
+
+
+@app.post("/api/session/{session_id}/save")
+async def save_trajectory(session_id: str) -> JSONResponse:
+    """Persist the live conversation to data/demo-saved-trajectory/<dd-mm-yy>/.
+
+    Writes a JSON list of one canonical case (replay-/eval-compatible) plus the
+    raw agent message history. Each call is a fresh timestamped file.
+    """
+    session = SESSIONS.get(session_id)
+    if session is None:
+        raise HTTPException(404, detail=f"unknown session_id {session_id!r}")
+    if not isinstance(session, sessions.LiveSession) or not session._transcript:
+        return JSONResponse({"saved": False, "reason": "nothing to save"}, status_code=400)
+
+    case = sessions.build_trajectory_case(session)
+    now = datetime.datetime.now()
+    day = now.strftime("%d-%m-%y")
+    out_dir = sessions.REPO_ROOT / "data" / "demo-saved-trajectory" / day
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{session.case_id}-{now.strftime('%H-%M-%S')}.json"
+    (out_dir / filename).write_text(
+        json.dumps([case], ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return JSONResponse({
+        "saved": True,
+        "path": f"{day}/{filename}",
+        "turns": len(session._transcript),
+    })
 
 
 @app.get("/api/tts")

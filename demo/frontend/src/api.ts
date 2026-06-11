@@ -166,3 +166,19 @@ export async function streamReset(
   });
   await consumeNdjson(resp, handlers);
 }
+
+export type SaveResult = {
+  saved: boolean;
+  path?: string;
+  turns?: number;
+  reason?: string;
+};
+
+/** Persist the current live conversation server-side. The backend's 400
+ * "nothing to save" is returned as a normal `{ saved: false }`, not an error. */
+export async function saveTrajectory(sessionId: string): Promise<SaveResult> {
+  const resp = await fetch(`/api/session/${sessionId}/save`, { method: "POST" });
+  if (resp.status === 400) return (await resp.json()) as SaveResult;
+  if (!resp.ok) throw new Error(`/api/session/${sessionId}/save ${resp.status}`);
+  return (await resp.json()) as SaveResult;
+}
