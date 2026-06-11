@@ -58,6 +58,14 @@ export function PersonaPickerModal({
     };
   }, [open, currentCaseId]);
 
+  // Keep the selected persona in view (it may sit far down a long list).
+  useEffect(() => {
+    if (!open) return;
+    dialogRef.current
+      ?.querySelector(".persona-list-item.selected")
+      ?.scrollIntoView({ block: "nearest" });
+  }, [open, selectedId]);
+
   const companies = useMemo(
     () => COMPANY_ORDER.filter((c) => cases.some((x) => x.company === c)),
     [cases],
@@ -86,6 +94,24 @@ export function PersonaPickerModal({
     if (e.key === "Escape") {
       e.preventDefault();
       onClose();
+      return;
+    }
+    if (e.key === "Tab") {
+      // Trap focus inside the dialog so Tab never lands on the page behind.
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   };
 
@@ -109,7 +135,11 @@ export function PersonaPickerModal({
           <h2 id="persona-modal-title" className="persona-modal-title">
             Choose a persona
           </h2>
-          <span className="persona-modal-count">{cases.length} personas</span>
+          <span className="persona-modal-count">
+            {filtered.length === cases.length
+              ? `${cases.length} personas`
+              : `${filtered.length} of ${cases.length}`}
+          </span>
           <button
             type="button"
             className="persona-modal-close"
@@ -157,7 +187,11 @@ export function PersonaPickerModal({
         <div className="persona-modal-body">
           <ul className="persona-list" aria-label="Personas">
             {filtered.length === 0 && (
-              <li className="persona-list-empty">No personas match.</li>
+              <li className="persona-list-empty">
+                {cases.length === 0
+                  ? "Couldn't load personas."
+                  : "No personas match these filters."}
+              </li>
             )}
             {filtered.map((c) => {
               const isSelected = c.id === selectedId;
