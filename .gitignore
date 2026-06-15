@@ -25,3 +25,6 @@ demo/frontend/dist/
 # Saved demo conversations are runtime artifacts: keep the folder, ignore contents.
 data/demo-saved-trajectory/*
 !data/demo-saved-trajectory/.gitkeep
+
+# Internal hand-off doc (background for the maintaining agent) — not shipped to the customer.
+HANDOFF.md
