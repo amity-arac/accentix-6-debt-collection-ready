@@ -68,12 +68,17 @@ export function useSession() {
     setState((s) => ({ ...s, agent }));
   }, []);
 
-  // Hops arrive over the network at their own pace; we still serialize the
-  // rendering so a `reply` hop's TTS playback finishes before the next bubble
-  // appears. This queue lives across renders.
+  // Hops arrive over the network at their own pace. Render each one the moment
+  // it arrives (tool_call / tool_result / reply bubbles never wait on anything)
+  // and play reply TTS on a SEPARATE serial queue, so speech playback never
+  // gates the appearance of later bubbles. These queues live across renders.
   const queueRef = useRef<Hop[]>([]);
   const drainingRef = useRef(false);
   const pausedRef = useRef(false);
+  // Reply bubbles waiting to be spoken, played one clip at a time in arrival
+  // order. Decoupled from `queueRef` so audio never blocks bubble rendering.
+  const audioQueueRef = useRef<{ id: number; text: string }[]>([]);
+  const audioDrainingRef = useRef(false);
 
   const setReplySpeaking = useCallback((id: number, speaking: boolean) => {
     setState((s) => ({
@@ -101,8 +106,35 @@ export function useSession() {
     }
   }, []);
 
+  // Play queued reply audio one clip at a time, in arrival order, WITHOUT
+  // blocking bubble rendering. The bubble is already on screen; this only
+  // drives its speaking / ttsFailed state around the actual playback.
+  const drainAudio = useCallback(async () => {
+    if (audioDrainingRef.current) return;
+    audioDrainingRef.current = true;
+    try {
+      while (audioQueueRef.current.length > 0) {
+        await waitWhilePaused();
+        // Re-read after the await: barge-in/reset can clear the queue while we
+        // were paused, so the shift may now come back empty.
+        const next = audioQueueRef.current.shift();
+        if (!next) continue;
+        const { id, text } = next;
+        setReplySpeaking(id, true);
+        try {
+          await audio.play(text);
+          setReplySpeaking(id, false);
+        } catch {
+          setReplyTtsFailed(id);
+        }
+      }
+    } finally {
+      audioDrainingRef.current = false;
+    }
+  }, [waitWhilePaused, setReplySpeaking, setReplyTtsFailed]);
+
   const renderHop = useCallback(
-    async (hop: Hop) => {
+    (hop: Hop) => {
       if (hop.kind === "reply") {
         const id = newId();
         setState((s) => ({
@@ -114,16 +146,14 @@ export function useSession() {
               kind: "reply",
               text: hop.text,
               text_ids: hop.text_ids,
-              speaking: true,
+              speaking: false,
             },
           ],
         }));
-        try {
-          await audio.play(hop.text);
-          setReplySpeaking(id, false);
-        } catch {
-          setReplyTtsFailed(id);
-        }
+        // Render now; speak later on the audio queue (do NOT await here, or
+        // every bubble behind this reply would wait for its clip to finish).
+        audioQueueRef.current.push({ id, text: hop.text });
+        void drainAudio();
       } else if (hop.kind === "tool_call") {
         setState((s) => ({
           ...s,
@@ -142,7 +172,7 @@ export function useSession() {
         }));
       }
     },
-    [setReplySpeaking, setReplyTtsFailed],
+    [drainAudio],
   );
 
   const drain = useCallback(async () => {
@@ -151,8 +181,10 @@ export function useSession() {
     try {
       while (queueRef.current.length > 0) {
         await waitWhilePaused();
-        const hop = queueRef.current.shift()!;
-        await renderHop(hop);
+        // Re-read after the await: a reset can clear the queue mid-pause.
+        const hop = queueRef.current.shift();
+        if (!hop) continue;
+        renderHop(hop);
       }
     } finally {
       drainingRef.current = false;
@@ -161,9 +193,9 @@ export function useSession() {
 
   const onHop = useCallback(
     (hop: Hop) => {
-      // Start warming the TTS cache the moment a reply hop arrives, so the
-      // Chirp 3 HD round-trip overlaps with the animation queue draining any
-      // tool bubbles still queued ahead of this reply.
+      // Warm the TTS cache the moment a reply hop arrives so the Chirp 3 HD
+      // round-trip overlaps with rendering and any earlier clip still playing
+      // on the audio queue.
       if (hop.kind === "reply") audio.prefetch(hop.text);
       queueRef.current.push(hop);
       void drain();
@@ -278,6 +310,8 @@ export function useSession() {
     queueRef.current = [];
     drainingRef.current = false;
     pausedRef.current = false;
+    audioQueueRef.current = [];
+    audioDrainingRef.current = false;
     const sid = state.sessionId;
     setState((s) => ({
       ...s,
@@ -329,6 +363,7 @@ export function useSession() {
 
   const bargeIn = useCallback(() => {
     audio.stop();
+    audioQueueRef.current = [];
     setState((s) => ({
       ...s,
       bubbles: s.bubbles.map((b) =>

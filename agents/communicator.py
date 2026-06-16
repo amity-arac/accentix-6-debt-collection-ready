@@ -17,6 +17,7 @@ import sys
 import time
 import uuid
 
+import httpx
 from google.genai import types
 
 
@@ -483,6 +484,17 @@ class CommunicatorQwenPreScript:
     MODEL = "Qwen/Qwen3.5-9B"
     BASE_URL = "http://localhost:8000/v1"
 
+    # Hot-path LLM client hardening. The OpenAI SDK defaults are unsafe for an
+    # interactive tool loop: a 600s read timeout lets a stalled vLLM hang a
+    # single turn for ~10 minutes, and 2 silent exponential-backoff retries
+    # (0.5→8s) on any 429/5xx turn an intermittent blip into invisible
+    # multi-second stalls plus 2 extra full generations. Fail fast instead, and
+    # cap output tokens so a runaway decode can't run to the 32k context limit
+    # (a reply is just text_ids + dynamic_vars; a non-reply tool call is tiny).
+    REQUEST_TIMEOUT = httpx.Timeout(connect=5.0, read=90.0, write=10.0, pool=5.0)
+    MAX_RETRIES = 1
+    MAX_OUTPUT_TOKENS = 1024
+
     def __init__(
         self,
         system_prompt: str,
@@ -501,7 +513,12 @@ class CommunicatorQwenPreScript:
 
         self.model = model or self.MODEL
         self.base_url = base_url or self.BASE_URL
-        self.client = OpenAI(base_url=self.base_url, api_key=os.getenv("VLLM_API_KEY", "unused"))
+        self.client = OpenAI(
+            base_url=self.base_url,
+            api_key=os.getenv("VLLM_API_KEY", "unused"),
+            timeout=self.REQUEST_TIMEOUT,
+            max_retries=self.MAX_RETRIES,
+        )
 
         self.script_db = script_db
         self.agent_context_data = agent_context_data
@@ -599,6 +616,7 @@ class CommunicatorQwenPreScript:
                     messages=messages,
                     tools=self.tools,
                     tool_choice=self.tool_choice,
+                    max_tokens=self.MAX_OUTPUT_TOKENS,
                     **self._sampling_kwargs(),
                     extra_body={"chat_template_kwargs": {"enable_thinking": False}},
                 )
@@ -830,6 +848,7 @@ class CommunicatorQwenPreScript:
             tools=self.tools,
             tool_choice=self.tool_choice,
             stream=True,
+            max_tokens=self.MAX_OUTPUT_TOKENS,
             **self._sampling_kwargs(),
             extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )

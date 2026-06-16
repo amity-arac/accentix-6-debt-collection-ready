@@ -2,8 +2,8 @@
  *
  * Each play(text) sets a singleton <audio>'s src to the streaming GET endpoint
  * (`/api/tts?text=...`). The browser starts decoding/playing as soon as
- * enough bytes have arrived — no need to wait for the whole MP3 to download
- * before any audio is heard. Resolves when audio playback ends or fails.
+ * enough bytes have arrived — no need to wait for the whole Ogg/Opus clip to
+ * download before any audio is heard. Resolves when audio playback ends or fails.
  */
 
 let audio: HTMLAudioElement | null = null;

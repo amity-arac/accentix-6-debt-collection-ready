@@ -4,7 +4,7 @@ Endpoints:
     GET    /api/session            -- create session, stream session info + opening hops (NDJSON)
     POST   /api/session/{id}/turn  -- stream agent hops for one user message (NDJSON)
     POST   /api/session/{id}/reset -- reset session, stream new session info + opening hops (NDJSON)
-    GET    /api/tts                -- Google Chirp 3 HD TTS (audio/mpeg)
+    GET    /api/tts                -- Google Chirp 3 HD TTS (audio/ogg, OGG_OPUS)
     GET    /api/health             -- liveness
 
 NDJSON message types:
@@ -178,6 +178,13 @@ async def advance_turn(session_id: str, body: TurnBody) -> StreamingResponse:
     return StreamingResponse(
         _stream_turn(session, body.message),
         media_type=NDJSON_MEDIA,
+        headers={
+            # Flush each hop the instant it is produced. Without this a reverse
+            # proxy (e.g. nginx) may buffer the NDJSON and deliver several hops
+            # in one clump, making tool calls look delayed. Matches /api/tts.
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

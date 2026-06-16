@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Mic } from "lucide-react";
 import { Bubble } from "./Bubble";
 import { ChatEmptyHint } from "./ChatEmptyHint";
+import { ThinkingDot } from "./ThinkingDot";
 import type { BubbleEntry } from "../hooks/useSession";
 
 type Props = {
@@ -9,14 +10,15 @@ type Props = {
   interim?: string;
   started: boolean;
   done: boolean;
+  busy?: boolean;
 };
 
-export function ChatStream({ entries, interim, started, done }: Props) {
+export function ChatStream({ entries, interim, started, done, busy }: Props) {
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [entries.length, interim]);
+  }, [entries.length, interim, busy]);
 
   const showEmptyHint = started && !done && entries.length === 0;
 
@@ -38,6 +40,14 @@ export function ChatStream({ entries, interim, started, done }: Props) {
             <div className="bubble-meta" aria-label="Transcribing">
               <Mic size={12} aria-hidden="true" /> …
             </div>
+          </div>
+        )}
+        {busy && (
+          <div
+            className="bubble agent-reply thinking-bubble"
+            aria-label="Agent is working"
+          >
+            <ThinkingDot />
           </div>
         )}
         <div ref={endRef} style={{ height: "24px" }} aria-hidden="true" />

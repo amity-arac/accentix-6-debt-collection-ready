@@ -198,6 +198,7 @@ export default function App() {
             interim={mic.interim}
             started={started}
             done={state.done}
+            busy={state.busy}
           />
         )}
       </main>
