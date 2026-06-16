@@ -92,8 +92,17 @@ export function ControlBar({
     );
   }
 
+  const muted = micState === "muted";
   const listening = micState === "listening";
-  const micLabel = listening ? "Listening — tap to stop" : "Tap to speak";
+  const micLabel = !micSupported
+    ? "Voice off"
+    : muted
+    ? "Muted"
+    : listening
+    ? "Listening…"
+    : "Mic on";
+  const micActionLabel = muted ? "Unmute microphone" : "Mute microphone";
+  const micActionTitle = muted ? "Tap to unmute (Space)" : "Tap to mute (Space)";
 
   const focusTyped = () => {
     setTimeout(() => {
@@ -151,22 +160,17 @@ export function ControlBar({
           onClick={onToggleMic}
           disabled={!micSupported || done}
           aria-label={
-            micSupported
-              ? listening
-                ? "Stop speaking"
-                : "Start speaking"
-              : "Speech not supported in this browser"
+            micSupported ? micActionLabel : "Speech not supported in this browser"
           }
+          aria-pressed={muted}
           title={
             micSupported
-              ? listening
-                ? "Tap to stop"
-                : "Tap to speak"
+              ? micActionTitle
               : "Web Speech API not supported — use the typed input"
           }
         >
           <span className="mic-glyph" aria-hidden="true">
-            {micSupported ? <Mic size={18} /> : <MicOff size={18} />}
+            {micSupported && !muted ? <Mic size={18} /> : <MicOff size={18} />}
           </span>
           <span className="mic-label">{micLabel}</span>
         </button>

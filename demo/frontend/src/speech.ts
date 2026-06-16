@@ -1,7 +1,10 @@
 /* Browser Web Speech API wrapper, Thai locale.
  *
- * Tap-to-start / tap-to-stop. `continuous: false` means the recognizer also
- * auto-ends after silence and delivers the final transcript via `onResult`.
+ * Continuous ("phone call") capture: `continuous: true` keeps the recognizer
+ * open across pauses, emitting a final result each time the caller stops
+ * speaking. The owning hook restarts it after the browser ends it (silence /
+ * timeout) and parks it while the agent is talking. `interimResults` streams
+ * the live partial transcript; `onStart` reports when capture actually begins.
  *
  * Each start() instantiates a fresh SpeechRecognition (the spec doesn't
  * support `start()` on a recognizer that's already ended).
@@ -50,6 +53,7 @@ export function createRecognizer(
   onResult: ResultCallback,
   onError: ErrorCallback,
   onEnd: EndCallback,
+  onStart?: EndCallback,
 ): RecognizerHandle {
   const SR: any =
     (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -67,9 +71,13 @@ export function createRecognizer(
       rec = new SR();
       rec.lang = "th-TH";
       rec.interimResults = true;
-      rec.continuous = false;
+      rec.continuous = true;
       rec.maxAlternatives = 1;
 
+      rec.onstart = () => {
+        running = true;
+        onStart?.();
+      };
       rec.onresult = (e: any) => {
         let interim = "";
         let final = "";

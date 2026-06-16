@@ -8,7 +8,7 @@ import { PersonaPickerModal } from "./components/PersonaPickerModal";
 import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
 import { useSession } from "./hooks/useSession";
-import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
+import { useSpeechRecognition, type MicState } from "./hooks/useSpeechRecognition";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 import { requestMicPermission } from "./speech";
 import { fetchCases, saveTrajectory, type PersonaCase } from "./api";
@@ -116,15 +116,52 @@ export default function App() {
     );
   }, [state.sessionId]);
 
+  // The mic runs continuously for the whole call so the caller can talk over
+  // the agent (barge-in). Two turn signals govern what we do with what it
+  // hears — read through refs so the speech callbacks never go stale or churn
+  // the recognizer:
+  //   busy     — a turn's response stream is in flight; we can't POST another.
+  //   speaking — a reply bubble is still playing its TTS (the agent's voice).
+  const agentSpeaking = state.bubbles.some(
+    (b) => b.kind === "reply" && b.speaking,
+  );
+  const busyRef = useRef(state.busy);
+  busyRef.current = state.busy;
+  const agentSpeakingRef = useRef(agentSpeaking);
+  agentSpeakingRef.current = agentSpeaking;
+
   const onFinal = useCallback(
     (text: string) => {
       if (!started) return;
+      // A response is still streaming — we can't start another turn yet, so
+      // drop this utterance (the caller is over-running the agent's reply).
+      if (busyRef.current) return;
+      // Caller spoke while the agent was still talking → cut its audio.
+      if (agentSpeakingRef.current) bargeIn();
       void sendUserMessage(text, true);
     },
-    [sendUserMessage, started],
+    [started, sendUserMessage, bargeIn],
   );
 
-  const mic = useSpeechRecognition(onFinal);
+  const onSpeechStart = useCallback(() => {
+    // The caller started talking. If the agent is mid-sentence and we can take
+    // a turn, interrupt its TTS immediately so it goes quiet like a real call.
+    if (!started || busyRef.current) return;
+    if (agentSpeakingRef.current) bargeIn();
+  }, [started, bargeIn]);
+
+  const callLive = started && !state.done;
+  const mic = useSpeechRecognition({ enabled: callLive, onFinal, onSpeechStart });
+
+  // Mute button state shown in the control bar:
+  //   muted     — caller closed the line.
+  //   waiting   — agent is thinking (no audio yet); input is briefly held.
+  //   listening — capturing, incl. armed for barge-in while the agent speaks.
+  const micState: MicState = mic.muted
+    ? "muted"
+    : state.busy && !agentSpeaking
+    ? "waiting"
+    : "listening";
 
   const handleStart = async () => {
     // If the user toggled to an agent the server hasn't been rebuilt with
@@ -134,14 +171,14 @@ export default function App() {
       const ok = await initSession();
       if (!ok) return;
     }
-    setStarted(true);
-    // Pre-warm the mic permission on stage so the first Space-hold isn't
-    // eaten by the permission prompt.
+    // Resolve the OS mic prompt BEFORE the call goes live, so the continuous
+    // mic doesn't open into an unanswered permission dialog. If the caller
+    // denies, start muted — they can grant access in the address bar and
+    // unmute. When voice isn't supported at all, focus the typed fallback.
     if (mic.supported) {
-      void requestMicPermission();
+      const granted = await requestMicPermission();
+      if (!granted) mic.setMuted(true);
     } else {
-      // Voice input isn't available; nudge focus to the typed fallback so
-      // the presenter can start typing immediately.
       setTimeout(() => {
         const input = document.querySelector<HTMLInputElement>(
           ".typed-fallback input",
@@ -149,11 +186,7 @@ export default function App() {
         input?.focus();
       }, 0);
     }
-  };
-
-  const handleToggleMic = () => {
-    if (mic.state === "idle") bargeIn();
-    mic.toggle();
+    setStarted(true);
   };
 
   const handleTyped = (text: string) => {
@@ -164,9 +197,8 @@ export default function App() {
   useGlobalKeyboard({
     enabled: started && !resetModalOpen,
     mic: {
-      state: mic.state,
-      start: mic.start,
-      stop: mic.stop,
+      muted: mic.muted,
+      toggleMute: mic.toggleMute,
       supported: mic.supported,
       error: mic.error,
       clearError: mic.clearError,
@@ -210,7 +242,7 @@ export default function App() {
         onStart={handleStart}
         agent={state.agent}
         onAgentChange={setAgent}
-        micState={mic.state}
+        micState={micState}
         micSupported={mic.supported}
         micError={mic.error}
         micErrorCode={mic.errorCode}
@@ -218,7 +250,7 @@ export default function App() {
         paused={state.paused}
         busy={state.busy}
         done={state.done}
-        onToggleMic={handleToggleMic}
+        onToggleMic={mic.toggleMute}
         onPause={togglePause}
         onRequestReset={() => setResetModalOpen(true)}
         onTypedSubmit={handleTyped}

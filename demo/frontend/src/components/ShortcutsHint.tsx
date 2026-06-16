@@ -2,8 +2,8 @@ import { useState } from "react";
 import { HelpCircle } from "lucide-react";
 
 const SHORTCUTS: Array<[string, string]> = [
-  ["Space", "Hold to talk"],
-  ["Esc", "Skip TTS / cancel"],
+  ["Space", "Mute / unmute"],
+  ["Esc", "Skip TTS / interrupt"],
   ["R", "Reset call"],
   ["K", "Toggle customer panel"],
   ["P", "Pause / resume"],

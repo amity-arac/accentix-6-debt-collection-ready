@@ -756,7 +756,18 @@ button.bubble.tool-result {
 .btn.mic { min-width: 180px; }
 .btn.mic .mic-glyph { font-size: 18px; }
 .btn.mic .mic-label { font-size: 12px; color: var(--ink-soft); }
-.btn.mic.idle      { background: var(--card-strong); }
+
+/* Muted — the caller closed the line (like a phone's mute). */
+.btn.mic.muted {
+  background: rgba(220, 38, 38, 0.10);
+  border-color: rgba(220, 38, 38, 0.45);
+}
+.btn.mic.muted .mic-label { color: #b91c1c; font-weight: 600; }
+
+/* Unmuted but parked while the agent is talking — live, not capturing yet. */
+.btn.mic.waiting { background: var(--card-strong); }
+
+/* Actively capturing the caller. */
 .btn.mic.listening {
   background: rgba(16, 185, 129, 0.16);
   border-color: rgba(16, 185, 129, 0.55);
