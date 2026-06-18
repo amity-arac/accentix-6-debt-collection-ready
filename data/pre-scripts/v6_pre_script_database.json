@@ -3022,5 +3022,101 @@
     "is_demand": false,
     "is_acknowledgment": false,
     "expects_response": true
+  },
+  {
+    "company": "AEON",
+    "text_id": 1063,
+    "intent_name": "A_Context_DiscloseAIAssistant",
+    "category": "A",
+    "state": "opening",
+    "template": "เรียนคุณ [customer_name] ค่ะ ดิฉันเป็นระบบผู้ช่วยอัตโนมัติ (AI) ของ [company_name] นะคะ แต่สามารถดูแลและช่วยจัดการเรื่องการชำระให้คุณได้ค่ะ",
+    "is_closer": false,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
+  },
+  {
+    "company": "AEON",
+    "text_id": 1064,
+    "intent_name": "A_Context_HumanHandoff",
+    "category": "A",
+    "state": "closing",
+    "template": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ",
+    "is_closer": true,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
+  },
+  {
+    "company": "JAI",
+    "text_id": 2063,
+    "intent_name": "A_Context_DiscloseAIAssistant",
+    "category": "A",
+    "state": "opening",
+    "template": "เรียนคุณ [customer_name] ค่ะ ดิฉันเป็นระบบผู้ช่วยอัตโนมัติ (AI) ของ [company_name] นะคะ แต่สามารถดูแลและช่วยจัดการเรื่องการชำระให้คุณได้ค่ะ",
+    "is_closer": false,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
+  },
+  {
+    "company": "JAI",
+    "text_id": 2064,
+    "intent_name": "A_Context_HumanHandoff",
+    "category": "A",
+    "state": "closing",
+    "template": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ",
+    "is_closer": true,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
+  },
+  {
+    "company": "KS",
+    "text_id": 3063,
+    "intent_name": "A_Context_DiscloseAIAssistant",
+    "category": "A",
+    "state": "opening",
+    "template": "เรียนคุณ [customer_name] ค่ะ ดิฉันเป็นระบบผู้ช่วยอัตโนมัติ (AI) ของ [company_name] นะคะ แต่สามารถดูแลและช่วยจัดการเรื่องการชำระให้คุณได้ค่ะ",
+    "is_closer": false,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
+  },
+  {
+    "company": "KS",
+    "text_id": 3064,
+    "intent_name": "A_Context_HumanHandoff",
+    "category": "A",
+    "state": "closing",
+    "template": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ",
+    "is_closer": true,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
+  },
+  {
+    "company": "AIS",
+    "text_id": 4063,
+    "intent_name": "A_Context_DiscloseAIAssistant",
+    "category": "A",
+    "state": "opening",
+    "template": "เรียนคุณ [customer_name] ค่ะ ดิฉันเป็นระบบผู้ช่วยอัตโนมัติ (AI) ของ [company_name] นะคะ แต่สามารถดูแลและช่วยจัดการเรื่องการชำระค่าบริการให้คุณได้ค่ะ",
+    "is_closer": false,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
+  },
+  {
+    "company": "AIS",
+    "text_id": 4064,
+    "intent_name": "A_Context_HumanHandoff",
+    "category": "A",
+    "state": "closing",
+    "template": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ",
+    "is_closer": true,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": false
   }
 ]

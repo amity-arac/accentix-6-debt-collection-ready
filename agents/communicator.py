@@ -225,6 +225,24 @@ def _openai_tool_schemas(valid_text_ids: list[int]) -> list[dict]:
                 "parameters": {"type": "object", "properties": {}, "required": []},
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "transfer_to_human_agent",
+                "description": "Hand the case off to a HUMAN specialist when the situation is genuinely beyond automated handling. Use ONLY when no script/tool can resolve it: a foreign-language caller you cannot serve, an active legal/bankruptcy/lawyer process, a deceased debtor, a data-removal/wrong-number request, an account-ownership dispute, suspected impersonation, or a customer in severe emotional crisis. DO NOT use it when a callback, partial payment, or dispute ticket would resolve the case, and DO NOT use it merely because the customer asks to speak to a person (acknowledge + offer options instead). No KYC required. After this returns, send the closing handoff reply (A_Context_HumanHandoff).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reason": {
+                            "type": "string",
+                            "enum": ["language_barrier", "legal_proceeding", "deceased", "data_removal_request", "account_dispute", "fraud_suspected", "customer_distress", "other"],
+                            "description": "Why the case is being escalated to a human.",
+                        },
+                    },
+                    "required": ["reason"],
+                },
+            },
+        },
     ]
 
 
@@ -325,6 +343,21 @@ def _gemini_tool_declarations() -> list[types.FunctionDeclaration]:
             name="get_current_datetime",
             description="Phase H (v6) — return today's date plus standard offsets (tomorrow / day_after_tomorrow / in_one_week) in the canonical ISO format 'YYYY-MM-DD (Weekday)'. ALWAYS call this BEFORE proposing, recording, or speaking any non-today date. The returned strings are pass-through values — paste them verbatim into `dynamic_vars[promised_date|callback_date|target_date]` or into `date` args for callback_datetime / payment_date / record_verbal_commitment. Calendar math is done for you.",
             parameters=types.Schema(type="OBJECT", properties={}, required=[]),
+        ),
+        types.FunctionDeclaration(
+            name="transfer_to_human_agent",
+            description="Hand the case off to a HUMAN specialist when the situation is genuinely beyond automated handling. Use ONLY when no script/tool can resolve it: a foreign-language caller you cannot serve, an active legal/bankruptcy/lawyer process, a deceased debtor, a data-removal/wrong-number request, an account-ownership dispute, suspected impersonation, or a customer in severe emotional crisis. DO NOT use it when a callback, partial payment, or dispute ticket would resolve the case, and DO NOT use it merely because the customer asks to speak to a person (acknowledge + offer options instead). No KYC required. After this returns, send the closing handoff reply (A_Context_HumanHandoff).",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "reason": types.Schema(
+                        type="STRING",
+                        enum=["language_barrier", "legal_proceeding", "deceased", "data_removal_request", "account_dispute", "fraud_suspected", "customer_distress", "other"],
+                        description="Why the case is being escalated to a human.",
+                    ),
+                },
+                required=["reason"],
+            ),
         ),
     ]
 

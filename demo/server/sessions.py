@@ -290,10 +290,13 @@ class LiveSession:
 
     def _init_agent(self) -> None:
         base = REPO_ROOT
-        # Deliverable: drive the fine-tuned Qwen (sft_v2) under the v8 per-company
-        # prompt it was TRAINED on (set AAX6_PROMPT_VERSION=v8). The legacy demo
-        # used a curated English replacement prompt ("qwen-demo") as a crutch for
-        # *base* Qwen; the SFT model needs its real v8 base, so variant=None.
+        # Deliverable: drive the fine-tuned Qwen (sft_v2) under the v9 per-company
+        # prompt (set AAX6_PROMPT_VERSION=v9). v9 = the trained v8 base PLUS honest-AI
+        # disclosure + the transfer_to_human_agent escalation; it's a strict superset
+        # of v8, so the SFT model still gets its real base. (Set v8 for original
+        # train-time behavior.) The legacy demo used a curated English replacement
+        # prompt ("qwen-demo") as a crutch for *base* Qwen; not needed here, so
+        # variant=None.
         variant = None
         system_prompt = self._load_prescript_prompt(
             base, self._company, self.customer_data, prompt_variant=variant,

@@ -30,6 +30,20 @@ def _gen_id(prefix: str) -> str:
     return f"{prefix}-{secrets.token_hex(3).upper()}"
 
 
+# Valid `reason` values for transfer_to_human_agent — kept in sync with the tool
+# schemas in agents/communicator.py.
+HANDOFF_REASONS = (
+    "language_barrier",
+    "legal_proceeding",
+    "deceased",
+    "data_removal_request",
+    "account_dispute",
+    "fraud_suspected",
+    "customer_distress",
+    "other",
+)
+
+
 def _date_format_error(got: str) -> dict:
     """Standard rejection payload for malformed date args under v6.
 
@@ -175,6 +189,17 @@ class CaseBackend:
         """
         return datetime_utils.datetime_lookup_table()
 
+    def transfer_to_human_agent(self, reason: str = "other") -> dict:
+        """Hand the case off to a human specialist when the situation is
+        genuinely beyond automated handling. Records a handoff ticket and
+        returns it. Does NOT require KYC — an escalation discloses no debt
+        info, so it is callable for unverified callers (foreigners,
+        wrong-number, impersonators, bereaved family).
+        """
+        if reason not in HANDOFF_REASONS:
+            reason = "other"
+        return {"transferred": True, "ticket_id": _gen_id("HUM"), "reason": reason}
+
     def dispatch(self, name: str, args: dict) -> dict:
         if name == "verify_identity":
             return self.verify_identity(args.get("last_4_digits", ""))
@@ -199,4 +224,6 @@ class CaseBackend:
             )
         if name == "get_current_datetime":
             return self.get_current_datetime()
+        if name == "transfer_to_human_agent":
+            return self.transfer_to_human_agent(args.get("reason", "other"))
         return {"error": "unknown_tool", "name": name}

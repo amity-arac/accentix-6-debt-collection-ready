@@ -83,7 +83,7 @@ Create a `.env` file **in the repository root** (this directory). The backend lo
 
 ```ini
 AAX6_V6_ACTIVE=1
-AAX6_PROMPT_VERSION=v8
+AAX6_PROMPT_VERSION=v9
 AAX6_DEMO_MODE=live
 AAX6_DEMO_AGENT=qwen
 AAX6_DEMO_CASE_ID=TC-AEON-AAX-025
@@ -94,7 +94,7 @@ AAX6_VLLM_MODEL=sft_v2
 | Variable | Required | Meaning |
 |---|---|---|
 | `AAX6_V6_ACTIVE` | yes (`1`) | Enables the v6 tool catalog + backend semantics. |
-| `AAX6_PROMPT_VERSION` | yes (`v8`) | Loads the v8 per-company prompt the model was trained on. |
+| `AAX6_PROMPT_VERSION` | yes (`v9`) | Loads the v9 per-company prompt: the trained v8 base **plus** honest-AI disclosure (admits it's an automated assistant when asked) and the `transfer_to_human_agent` escalation for out-of-scope cases. Use `v8` for the original train-time behavior. |
 | `AAX6_DEMO_MODE` | `live` | Live agent (default). |
 | `AAX6_DEMO_AGENT` | `qwen` | Use the Qwen agent (default). |
 | `AAX6_DEMO_CASE_ID` | optional | The persona loaded **on startup**. Default `TC-AEON-AAX-025`. You normally don't need to set this — use the in-app persona picker instead (below). Any id in `data/test-cases/personas_data.json` works. |
@@ -157,7 +157,7 @@ If these are unset, audio requests fail silently and the chat continues normally
 | `curl /v1/models` doesn't list `sft_v2` | Adapter not fetched — run `git lfs pull`. Confirm `checkpoints/sft_v2/adapter_model.safetensors` exists (~232 MB, not a tiny LFS pointer). |
 | Backend error "model not found" / no fine-tune behavior | `AAX6_VLLM_MODEL` must be **`sft_v2`**, not `Qwen/Qwen3.5-9B`. |
 | vLLM out-of-memory at startup | Lower `--max-model-len` in `scripts/serve_qwen.sh`, or use a larger GPU. |
-| Agent replies but ignores the playbook / wrong language | Ensure `AAX6_V6_ACTIVE=1` and `AAX6_PROMPT_VERSION=v8` are set in `.env`. |
+| Agent replies but ignores the playbook / wrong language | Ensure `AAX6_V6_ACTIVE=1` and `AAX6_PROMPT_VERSION=v9` are set in `.env`. |
 | Tool calls show as plain text | vLLM must run with `--tool-call-parser qwen3_xml` (set by `serve_qwen.sh`); keep vLLM at 0.19.0. |
 | `KeyError: case_id …` on session start | Use a case id present in `data/test-cases/personas_data.json` (the default `TC-AEON-AAX-025` is valid), or just pick a persona from the in-app picker. |
 | First serve is very slow | The base model (~18 GB) downloads from Hugging Face once; subsequent starts are fast. |
