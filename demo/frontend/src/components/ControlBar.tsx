@@ -5,10 +5,13 @@ import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
 import type { Agent } from "../api";
 
-// Single-model deliverable: the agent is always the fine-tuned Qwen (sft_v2).
-// Update these if you serve a different base model / SFT version.
-const MODEL_NAME = "Qwen3.5-9B";
-const SFT_VERSION = "v2";
+// Pre-start, the caller picks which agent drives the call: the fine-tuned Qwen
+// (sft_v2, served via vLLM) or Gemini (API). Choosing re-creates the live
+// session bound to that LLM — see handleStart() in App.tsx. Once the call is
+// live the choice is locked (the active model is shown in the CustomerPanel).
+// Update these labels if you serve a different base model / SFT version.
+const QWEN_LABEL = "Qwen3.5-9B";
+const QWEN_SFT = "v2";
 
 type Props = {
   started: boolean;
@@ -41,6 +44,8 @@ export function ControlBar({
   starting,
   startError,
   onStart,
+  agent,
+  onAgentChange,
   micState,
   micSupported,
   micError,
@@ -63,12 +68,33 @@ export function ControlBar({
     return (
       <div className="control-bar start">
         <div
-          className="agent-badge"
-          aria-label={`Agent model: Qwen ${MODEL_NAME}, SFT ${SFT_VERSION}`}
+          className="agent-segmented"
+          role="group"
+          aria-label="Choose which agent model drives the call"
         >
-          <Cpu size={14} aria-hidden="true" />
-          <span className="agent-badge-name">{MODEL_NAME}</span>
-          <span className="agent-badge-sft">SFT {SFT_VERSION}</span>
+          <span className="agent-segmented-label">
+            <Cpu size={13} aria-hidden="true" /> Model
+          </span>
+          <button
+            type="button"
+            className={`agent-segmented-btn ${agent === "qwen" ? "on" : ""}`}
+            onClick={() => onAgentChange("qwen")}
+            disabled={starting}
+            aria-pressed={agent === "qwen"}
+            title={`Fine-tuned ${QWEN_LABEL} (SFT ${QWEN_SFT}), served locally via vLLM`}
+          >
+            Qwen
+          </button>
+          <button
+            type="button"
+            className={`agent-segmented-btn ${agent === "gemini" ? "on" : ""}`}
+            onClick={() => onAgentChange("gemini")}
+            disabled={starting}
+            aria-pressed={agent === "gemini"}
+            title="Gemini (cloud API) running the same pre-script playbook + tools"
+          >
+            Gemini
+          </button>
         </div>
         <button
           className="btn start"

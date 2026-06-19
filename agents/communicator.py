@@ -13,6 +13,7 @@ until the LLM emits the terminal `reply` tool, capped by MAX_TOOL_HOPS.
 
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -93,6 +94,52 @@ def _parse_dynamic_vars(raw) -> dict[str, str]:
         if name in DYNAMIC_PLACEHOLDERS and value not in (None, ""):
             parsed[name] = str(value)
     return parsed
+
+
+def _coerce_text_ids(raw) -> list[int]:
+    """Normalize a tool-call `text_ids` argument into a clean list of ints.
+
+    The model is told `text_ids` is an integer array, but in practice it can
+    arrive as: a single int/float, a JSON-encoded string ("[1, 2]"), a
+    delimiter-separated string ("1\n2" / "1, 2"), or a list whose elements are
+    strings (possibly with surrounding whitespace/newlines). Iterating a bare
+    string yielded characters, so a literal like "1\n2" reached `int('\n')` and
+    raised `ValueError: invalid literal for int() with base 10: '\n'`. This
+    helper tolerates all those shapes and drops empty/non-numeric tokens.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, bool):  # bool is an int subclass; treat as invalid
+        return []
+    if isinstance(raw, (int, float)):
+        return [int(raw)]
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s:
+            return []
+        try:
+            decoded = json.loads(s)
+        except (ValueError, TypeError):
+            decoded = None
+        if decoded is not None and not isinstance(decoded, str):
+            return _coerce_text_ids(decoded)
+        # Fall back to splitting on any non-digit run (commas, whitespace,
+        # newlines, brackets) and keeping the integer groups.
+        return [int(tok) for tok in re.findall(r"-?\d+", s)]
+    # list / tuple / other iterable of elements
+    out: list[int] = []
+    try:
+        items = list(raw)
+    except TypeError:
+        return []
+    for item in items:
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, (int, float)):
+            out.append(int(item))
+        elif isinstance(item, str):
+            out.extend(int(tok) for tok in re.findall(r"-?\d+", item))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -658,11 +705,7 @@ class CommunicatorQwenPreScript:
             total_ms += hop_ms
 
             if name == "reply":
-                text_ids_raw = args.get("text_ids", [])
-                if isinstance(text_ids_raw, (int, float)):
-                    text_ids = [int(text_ids_raw)]
-                else:
-                    text_ids = [int(t) for t in text_ids_raw]
+                text_ids = _coerce_text_ids(args.get("text_ids", []))
                 # Phase F: pairwise chain-compatibility check. Reject incompatible
                 # chains (e.g., closer + question) and feed the rejection back to
                 # the LLM as a tool result so it can retry with a different chain.
@@ -1292,11 +1335,7 @@ class CommunicatorGeminiPreScript:
             ) else None
 
             if name == "reply":
-                text_ids_raw = args.get("text_ids", [])
-                if isinstance(text_ids_raw, (int, float)):
-                    text_ids = [int(text_ids_raw)]
-                else:
-                    text_ids = [int(t) for t in text_ids_raw]
+                text_ids = _coerce_text_ids(args.get("text_ids", []))
                 # Phase F chain-compat gate (advisory; agent retries on reject).
                 chain_err = _validate_chain(
                     text_ids,
