@@ -1,6 +1,6 @@
 # Accentix-6 — Thai Debt-Collection Agent (Qwen v2) · Live Demo
 
-A self-contained package to **stand up the fine-tuned Qwen debt-collection agent and talk to it live** in your browser. You play the debtor; the agent (a QLoRA fine-tune of Qwen3.5-9B, "sft_v2") negotiates a payment arrangement in Thai following the company playbook and Thai Debt Collection Act compliance rules.
+A self-contained package to **stand up the fine-tuned Qwen debt-collection agent and talk to it live** in your browser. You play the debtor; the agent (a QLoRA fine-tune of Qwen3.5-9B, "sft_v2_2") negotiates a payment arrangement in Thai following the company playbook and Thai Debt Collection Act compliance rules.
 
 The agent supports four companies — **AEON, JAI, KS, AIS** — and runs the same deterministic backend tools (identity verification, payment recording, callback scheduling, etc.) used to train and benchmark it.
 
@@ -13,14 +13,14 @@ Three local processes:
 ```
 ┌─────────────────┐      ┌──────────────────────┐      ┌─────────────────────┐
 │  Browser UI     │ ───▶ │  Demo backend        │ ───▶ │  vLLM server        │
-│  (Vite/React)   │ HTTP │  (FastAPI)           │ HTTP │  Qwen3.5-9B + sft_v2│
+│  (Vite/React)   │ HTTP │  (FastAPI)           │ HTTP │  Qwen3.5-9B + sft_v2_2│
 │  localhost:5173 │ ◀─── │  localhost:4100      │ ◀─── │  localhost:8000     │
 └─────────────────┘      └──────────────────────┘      └─────────────────────┘
         you type            orchestrates the agent          the LoRA model
        (the debtor)         + deterministic tools           (needs a GPU)
 ```
 
-- **vLLM** serves the model and applies the `sft_v2` LoRA adapter (requires an NVIDIA GPU).
+- **vLLM** serves the model and applies the `sft_v2_2` LoRA adapter (requires an NVIDIA GPU).
 - **Backend** drives the agent: builds the per-company system prompt + tool catalog, runs the agent's tool-call loop against the deterministic `CaseBackend`, and streams hops to the UI.
 - **Frontend** is the chat interface.
 
@@ -43,8 +43,8 @@ No Gemini / OpenAI API key is required to talk to the agent. (A Google Cloud pro
 
 ```
 accentix-6-debt-collection-ready/
-├── scripts/serve_qwen.sh    # start the vLLM server (base + sft_v2 LoRA)
-├── checkpoints/sft_v2/      # the fine-tuned LoRA adapter (git-LFS)
+├── scripts/serve_qwen.sh    # start the vLLM server (base + sft_v2_2 LoRA)
+├── checkpoints/sft_v2_2/      # the fine-tuned LoRA adapter (git-LFS)
 ├── demo/server/             # FastAPI backend (app, sessions, tts)
 ├── demo/frontend/           # React + Vite chat UI
 ├── agents/ simulator/ services/   # the agent, tools, prompt loading
@@ -61,7 +61,7 @@ accentix-6-debt-collection-ready/
 git clone <your-repo-url> accentix-6-debt-collection-ready
 cd accentix-6-debt-collection-ready
 git lfs install
-git lfs pull                      # downloads checkpoints/sft_v2/adapter_model.safetensors
+git lfs pull                      # downloads checkpoints/sft_v2_2/adapter_model.safetensors
 
 # 2. Python backend environment
 python3.11 -m venv .venv
@@ -88,18 +88,18 @@ AAX6_DEMO_MODE=live
 AAX6_DEMO_AGENT=qwen
 AAX6_DEMO_CASE_ID=TC-AEON-AAX-025
 AAX6_VLLM_BASE_URL=http://localhost:8000/v1
-AAX6_VLLM_MODEL=sft_v2
+AAX6_VLLM_MODEL=sft_v2_2
 ```
 
 | Variable | Required | Meaning |
 |---|---|---|
 | `AAX6_V6_ACTIVE` | yes (`1`) | Enables the v6 tool catalog + backend semantics. |
-| `AAX6_PROMPT_VERSION` | yes (`v9`) | Loads the v9 per-company prompt: the trained v8 base **plus** honest-AI disclosure (admits it's an automated assistant when asked) and the `transfer_to_human_agent` escalation for out-of-scope cases. Use `v8` for the original train-time behavior. |
+| `AAX6_PROMPT_VERSION` | yes (`v9`) | Loads the v9 per-company prompt: honest-AI disclosure (admits it's an automated assistant when asked) + the `transfer_to_human_agent` escalation for out-of-scope cases. **`sft_v2_2` was distilled under v9, so keep this `v9`** to match its training. |
 | `AAX6_DEMO_MODE` | `live` | Live agent (default). |
 | `AAX6_DEMO_AGENT` | `qwen` | Use the Qwen agent (default). |
 | `AAX6_DEMO_CASE_ID` | optional | The persona loaded **on startup**. Default `TC-AEON-AAX-025`. You normally don't need to set this — use the in-app persona picker instead (below). Any id in `data/test-cases/personas_data.json` works. |
 | `AAX6_VLLM_BASE_URL` | yes | vLLM endpoint, e.g. `http://localhost:8000/v1`. |
-| `AAX6_VLLM_MODEL` | yes (`sft_v2`) | **Must be `sft_v2`** — the LoRA module name, *not* the base model. This is what applies the fine-tune. |
+| `AAX6_VLLM_MODEL` | yes (`sft_v2_2`) | **Must be `sft_v2_2`** — the LoRA module name, *not* the base model. This is what applies the fine-tune. |
 
 > Choosing a persona sets the company (the prefix after `TC-`, e.g. `AEON`) and the debtor's profile (name, debt amount, due date, the 4-digit ID for KYC). **All 152 personas** ship in `data/test-cases/personas_data.json` (≈38 per company across AEON / AIS / JAI / KS) and can be browsed and switched from the UI — see *Choosing a persona* below.
 
@@ -113,7 +113,7 @@ Open three terminals (all from the repository root unless noted).
 # Terminal 1 — serve the model (first run downloads ~18 GB base model)
 bash scripts/serve_qwen.sh
 # Wait until ready, then confirm the adapter is loaded:
-curl -s http://localhost:8000/v1/models     # should list "sft_v2"
+curl -s http://localhost:8000/v1/models     # should list "sft_v2_2"
 
 # Terminal 2 — backend (reads your .env)
 source .venv/bin/activate
@@ -154,8 +154,8 @@ If these are unset, audio requests fail silently and the chat continues normally
 
 | Symptom | Fix |
 |---|---|
-| `curl /v1/models` doesn't list `sft_v2` | Adapter not fetched — run `git lfs pull`. Confirm `checkpoints/sft_v2/adapter_model.safetensors` exists (~232 MB, not a tiny LFS pointer). |
-| Backend error "model not found" / no fine-tune behavior | `AAX6_VLLM_MODEL` must be **`sft_v2`**, not `Qwen/Qwen3.5-9B`. |
+| `curl /v1/models` doesn't list `sft_v2_2` | Adapter not fetched — run `git lfs pull`. Confirm `checkpoints/sft_v2_2/adapter_model.safetensors` exists (~232 MB, not a tiny LFS pointer). |
+| Backend error "model not found" / no fine-tune behavior | `AAX6_VLLM_MODEL` must be **`sft_v2_2`**, not `Qwen/Qwen3.5-9B`. |
 | vLLM out-of-memory at startup | Lower `--max-model-len` in `scripts/serve_qwen.sh`, or use a larger GPU. |
 | Agent replies but ignores the playbook / wrong language | Ensure `AAX6_V6_ACTIVE=1` and `AAX6_PROMPT_VERSION=v9` are set in `.env`. |
 | Tool calls show as plain text | vLLM must run with `--tool-call-parser qwen3_xml` (set by `serve_qwen.sh`); keep vLLM at 0.19.0. |
@@ -167,7 +167,7 @@ If these are unset, audio requests fail silently and the chat continues normally
 
 ## What's included / not included
 
-**Included:** the Qwen agent, its deterministic tool backend, the v8 per-company prompts + the full v6 tool catalog, all 152 demo personas (`personas_data.json`, selectable from the in-app picker), the `sft_v2` LoRA adapter, the web demo (backend + frontend), and the serve script.
+**Included:** the Qwen agent, its deterministic tool backend, the v9 per-company prompts + the full v6 tool catalog, all 152 demo personas (`personas_data.json`, selectable from the in-app picker), the **`sft_v2_2`** LoRA adapter (default), the web demo (backend + frontend), and the serve script. The previous `sft_v2` adapter is also bundled as a fallback — serve it with `AAX6_VLLM_MODEL=sft_v2 bash scripts/serve_qwen.sh` (and set the backend's `AAX6_VLLM_MODEL=sft_v2` to match).
 
 **Not included** (by design): model training, the automated evaluator/benchmark harness, the Gemini-driven simulated customer, and other experimental agents. This package is scoped to *serving and talking to* the v2 agent.
 
@@ -182,4 +182,4 @@ The agent operates a **closed catalog** of vetted Thai reply templates plus dete
 - **Callbacks**: it can schedule a callback (`callback_datetime`) — no identity verification required for a callback.
 - **Dates**: all dates are normalized via `get_current_datetime` to a canonical format.
 
-`sft_v2` is a QLoRA fine-tune of Qwen3.5-9B distilled from a strong teacher under the v8 prompt; it runs here under that same v8 prompt and full catalog.
+`sft_v2_2` is a QLoRA fine-tune of Qwen3.5-9B distilled from a strong teacher under the **v9** prompt; it runs here under that same v9 prompt and full catalog. v9 adds two behaviors over the earlier `sft_v2`: it **discloses honestly** that it's an automated assistant when asked (never claims to be a human), and it **escalates to a human** (`transfer_to_human_agent`) on genuinely out-of-scope cases (deceased debtor, legal representation, etc.) instead of defaulting to a callback.
