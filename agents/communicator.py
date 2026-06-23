@@ -1224,7 +1224,7 @@ class CommunicatorQwenFreeform:
 class CommunicatorGeminiPreScript:
     """Pre-script communicator using Gemini function calling."""
 
-    MODEL = "gemini-3.1-pro"
+    MODEL = "gemini-3.1-pro-preview"
 
     def __init__(
         self,
