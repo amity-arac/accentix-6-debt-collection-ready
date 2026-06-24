@@ -644,7 +644,8 @@ class CommunicatorQwenPreScript:
         # the first delta. Lets the UI render the "รบกวนรอซักครู่ค่ะ" filler
         # ~500-1000ms earlier on KYC/non-reply turns. Default False preserves
         # the benchmark contract (simulator passes the default).
-        self.stream_tool_calls = stream_tool_calls
+        # self.stream_tool_calls = stream_tool_calls
+        self.stream_tool_calls = False
         # tool_choice for vLLM chat.completions. "auto" (free generation in the
         # trained qwen3_xml format, parsed afterwards) is the validated default for
         # the SFT model. "required" applies grammar-constrained decoding that
@@ -720,6 +721,7 @@ class CommunicatorQwenPreScript:
                     **self._sampling_kwargs(),
                     extra_body={"chat_template_kwargs": {"enable_thinking": False}},
                 )
+                print(response)
                 name, args, tool_call_id, raw_args_str = self._extract_first_tool_call(response)
             hop_ms = (time.perf_counter() - t_start) * 1000
             total_ms += hop_ms
@@ -960,6 +962,7 @@ class CommunicatorQwenPreScript:
 
         try:
             for chunk in stream:
+                print(chunk)
                 choices = getattr(chunk, "choices", None) or []
                 if not choices:
                     continue
