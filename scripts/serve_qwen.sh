@@ -56,7 +56,7 @@ echo "  -> gpu-memory-utilization: $GPU_MEM_UTIL (override with GPU_MEM_UTIL=...
 echo "  -> LD_PRELOAD: ${LD_PRELOAD:-<none>}"
 exec python3 -m vllm.entrypoints.openai.api_server \
   --model Qwen/Qwen3.5-9B --trust-remote-code --gdn-prefill-backend triton \
-  --host 0.0.0.0 --port "$PORT" --dtype auto --max-model-len 32768 \
+  --host 0.0.0.0 --port "$PORT" --dtype bfloat16 --max-model-len 32768 \
   --enable-auto-tool-choice --tool-call-parser qwen3_xml \
   --default-chat-template-kwargs '{"enable_thinking": false}' \
   --enable-lora --max-lora-rank 32 --lora-modules "$MODEL_NAME=$ADAPTER" \
