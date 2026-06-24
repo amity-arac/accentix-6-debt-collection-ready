@@ -23,7 +23,7 @@ PORT="${PORT:-8000}"
 # adapter:  AAX6_VLLM_MODEL=sft_v2 bash scripts/serve_qwen.sh
 # The served LoRA module name == $MODEL_NAME, exactly what the backend must send
 # (AAX6_VLLM_MODEL) so the adapter is applied on top of the base model.
-MODEL_NAME="${AAX6_VLLM_MODEL:-sft_v2_2}"
+MODEL_NAME="${AAX6_VLLM_MODEL:-sft_v2_3}"
 ADAPTER="checkpoints/$MODEL_NAME"
 # Fraction of GPU memory vLLM may use. vLLM's default (0.9) sizes the KV cache so
 # aggressively that on a ~96 GB card (e.g. H20) the CUDA-graph pool overshoots its
