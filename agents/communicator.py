@@ -26,8 +26,22 @@ def _hop_log(verbose: bool, hop_idx: int, kind: str, *, name: str = None,
              args=None, result=None, text: str = None, elapsed_ms: float = None) -> None:
     """Write a single hop's log line to stderr (bypasses any stdout redirection).
 
-    Activated by per-instance `self.verbose=True` on the Communicator.
+    Two independent outputs:
+      * Always-on (unless AAX6_LOG_TOOLS=0) structured tool-loop log of the
+        model's `reply` choice and how the reply path handled it. Non-reply tools
+        are logged by CaseBackend.dispatch, so only reply-related hops are
+        surfaced here — that keeps every tool call on one timeline without
+        double-logging the backend tools.
+      * The pretty per-hop trace below, gated on per-instance `self.verbose=True`.
     """
+    if LOG_TOOLS:
+        if kind == "tool_call" and name == "reply":
+            tlog.info("[tool-call] model → reply(%s)", short(args))
+        elif kind == "tool_result" and isinstance(result, dict) and "sent" in result:
+            tlog.info("[reply]     rejected (%s) → re-prompting model, hop consumed",
+                      result.get("reason"))
+        elif kind == "rendered_text":
+            tlog.info("[reply]     SENT → %s", short(text, 200))
     if not verbose:
         return
     def trim(s: str, n: int = 140) -> str:
@@ -51,6 +65,7 @@ def _hop_log(verbose: bool, hop_idx: int, kind: str, *, name: str = None,
 
 from simulator.config import get_client, MAX_TOOL_HOPS, FILLER_TEXT, V6_ACTIVE
 from simulator.datetime_utils import is_valid_time, is_within_legal_hours
+from simulator.tool_logging import LOG_TOOLS, logger as tlog, short
 from agents.helper import calculate_cost, retry_transient
 from agents.prescript import (
     DYNAMIC_PLACEHOLDERS,
@@ -541,6 +556,9 @@ def _render_reply(script_db: list[dict], script_lookup: dict[int, dict],
         if s is not None:
             scripts.append(s)
     if not scripts:
+        if LOG_TOOLS:
+            tlog.info("[fallback]  no known text_ids in %s → substituting first "
+                      "catalog template [%s]", text_ids, script_db[0]["text_id"])
         scripts = [script_db[0]]
     filled_parts = [
         fill_template(s["template"], agent_context_data, dynamic_vars=dynamic_vars,
@@ -677,6 +695,8 @@ class CommunicatorQwenPreScript:
         return _EmittingList()
 
     def reply(self, message: str, backend) -> dict:
+        if LOG_TOOLS:
+            tlog.info("[turn]      customer → %s", short(message, 200))
         self.history.append({"role": "user", "content": message})
 
         hops = self._make_hops_list()
@@ -906,6 +926,10 @@ class CommunicatorQwenPreScript:
                 raw_args_str = "{}"
             return name, args, tc.id, raw_args_str
         except (IndexError, KeyError, TypeError, AttributeError, json.JSONDecodeError):
+            if LOG_TOOLS:
+                tlog.info("[fallback]  model emitted no parseable tool call → "
+                          "reply(text_ids=[%s]) (first catalog template)",
+                          self.script_db[0]["text_id"])
             return "reply", {"text_ids": [self.script_db[0]["text_id"]]}, str(uuid.uuid4()), json.dumps({"text_ids": [self.script_db[0]["text_id"]]})
 
     def _llm_streamed(self, messages: list[dict]) -> tuple[str, dict, str, str]:
@@ -994,6 +1018,10 @@ class CommunicatorQwenPreScript:
 
         if name is None:
             # Fallback identical to _extract_first_tool_call's except branch.
+            if LOG_TOOLS:
+                tlog.info("[fallback]  stream produced no tool call → "
+                          "reply(text_ids=[%s]) (first catalog template)",
+                          self.script_db[0]["text_id"])
             fallback_args = {"text_ids": [self.script_db[0]["text_id"]]}
             return "reply", fallback_args, str(uuid.uuid4()), json.dumps(fallback_args)
         if tool_call_id is None:
@@ -1043,6 +1071,9 @@ class CommunicatorQwenPreScript:
             [fallback_tid], {},
         )
         text = FALLBACK_TEXT
+        if LOG_TOOLS:
+            tlog.warning("[fallback]  MAX_TOOL_HOPS exhausted → FALLBACK_TEXT "
+                         "(hop reports text_ids=%s; customer sees the apology)", final_ids)
         self.history.append({"role": "assistant", "content": text})
         hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": {}, "fallback": True}})
         hops.append({"kind": "rendered_text", "text": text})

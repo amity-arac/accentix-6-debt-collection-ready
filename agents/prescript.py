@@ -34,7 +34,7 @@ SYSTEM_PLACEHOLDERS = {
     "company_phone": "company_phone",
     "company_name": "company_name",  # Phase G — injected into customer_data from case_id prefix
     "agent_name": "agent_name",      # Phase G — stylized first name per company (น้องอ้อน / น้องใจ / น้องแคร์)
-    "today": "today",                # Phase H — SIMULATION_DATE rendered as "YYYY-MM-DD (Weekday)"; injected at case init
+    "today": "today",                # Phase H — real Asia/Bangkok date rendered as "YYYY-MM-DD (Weekday)"; injected at case init
     "vehicle_registration": "vehicle_registration",
     "location": "location",
     "vehicle_brand": "vehicle_brand",

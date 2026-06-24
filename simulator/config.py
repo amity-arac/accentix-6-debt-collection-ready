@@ -16,9 +16,10 @@ from google.oauth2 import service_account
 V6_ACTIVE: bool = os.environ.get("AAX6_V6_ACTIVE", "").strip().lower() in ("1", "true", "yes", "on")
 
 # ── Phase H (v6) simulation date ───────────────────────────
-# Hard-coded "today" used by simulator/datetime_utils.today_iso() and the
-# get_current_datetime backend tool. Reproducible across replays — bump
-# manually before each benchmark. Format: ISO YYYY-MM-DD (Weekday is computed).
+# NOTE: no longer the live "today". simulator/datetime_utils now derives the
+# current date from the real Asia/Bangkok clock (get_current_datetime + the
+# per-case `today`), so the demo tracks the real calendar. This constant is
+# retained only for offline/eval reproducibility. Format: ISO YYYY-MM-DD.
 SIMULATION_DATE: str = "2026-05-22"
 
 # ── File paths (relative to copter-directory/) ──────────────

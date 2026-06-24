@@ -9,9 +9,11 @@ Canonical formats used at every machine boundary (tool args + dynamic_vars):
 Weekday names are English (Monday..Sunday). The weekday in the string MUST match
 the calendar — `2026-05-23 (Sunday)` is rejected (that day is Saturday).
 
-`SIMULATION_DATE` lives in `simulator.config` as a hard-coded constant so
-trajectories are reproducible across replays. Bump it manually before each
-benchmark by editing `simulator/config.py`.
+"Today" is the real current date in the Asia/Bangkok zone (UTC+7, no DST) — see
+`now_bangkok()` / `_today()`. Every date the agent speaks or records is relative
+to the live Thai date, so the demo always tracks the real calendar. (The former
+fixed `SIMULATION_DATE` in `simulator.config` is no longer the live anchor; it
+remains only for offline/eval reproducibility.)
 """
 
 import datetime as _dt
@@ -34,10 +36,21 @@ DATETIME_RE = re.compile(
 )
 
 
-def _simulation_date() -> _dt.date:
-    """Read SIMULATION_DATE from config at call time (avoids import cycle)."""
-    from simulator.config import SIMULATION_DATE
-    return _dt.date.fromisoformat(SIMULATION_DATE)
+# Thailand observes Indochina Time (UTC+7) year-round with no DST, so a fixed
+# offset is exact and avoids any dependency on the system tz database.
+BANGKOK_TZ = _dt.timezone(_dt.timedelta(hours=7), name="ICT")
+
+
+def now_bangkok() -> _dt.datetime:
+    """Current wall-clock time in the Asia/Bangkok zone (UTC+7, no DST)."""
+    return _dt.datetime.now(BANGKOK_TZ)
+
+
+def _today() -> _dt.date:
+    """Today's date in the Asia/Bangkok zone — the live anchor for every
+    'today'/'tomorrow'/... the agent computes (replaces the old fixed
+    SIMULATION_DATE)."""
+    return now_bangkok().date()
 
 
 def _format_date(d: _dt.date) -> str:
@@ -127,27 +140,30 @@ def render_datetime_thai(s: str) -> str:
 
 
 def today_iso() -> str:
-    """SIMULATION_DATE formatted as `YYYY-MM-DD (Weekday)`."""
-    return _format_date(_simulation_date())
+    """Real Asia/Bangkok 'today' formatted as `YYYY-MM-DD (Weekday)`."""
+    return _format_date(_today())
 
 
 def relative_iso(offset_days: int) -> str:
     """today + offset_days, formatted as `YYYY-MM-DD (Weekday)`."""
-    return _format_date(_simulation_date() + _dt.timedelta(days=offset_days))
+    return _format_date(_today() + _dt.timedelta(days=offset_days))
 
 
 def datetime_lookup_table() -> dict:
     """Anchors returned by the `get_current_datetime` backend tool.
 
-    Pre-computed so the LLM never has to do weekday arithmetic for the most
-    common offsets it speaks about. Strict-format strings — pass directly into
-    tool args / dynamic_vars without modification.
+    Computed from the real current Asia/Bangkok date/time. Pre-computed so the
+    LLM never has to do weekday arithmetic for the most common offsets it speaks
+    about. The date strings are strict-format `YYYY-MM-DD (Weekday)` — pass
+    directly into tool args / dynamic_vars without modification. `current_time`
+    is the live wall-clock time in Thailand as `HH:MM` (24-hour).
     """
     return {
         "today": relative_iso(0),
         "tomorrow": relative_iso(1),
         "day_after_tomorrow": relative_iso(2),
         "in_one_week": relative_iso(7),
+        "current_time": now_bangkok().strftime("%H:%M"),
     }
 
 

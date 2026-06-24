@@ -24,6 +24,7 @@ to a hard tool-level check, mirroring the Phase D KYC → tool pattern.
 import secrets
 
 from simulator import datetime_utils
+from simulator.tool_logging import LOG_TOOLS, logger as tlog, short
 
 
 def _gen_id(prefix: str) -> str:
@@ -184,8 +185,9 @@ class CaseBackend:
         return {"recorded": True, "id": _gen_id("PP")}
 
     def get_current_datetime(self) -> dict:
-        """Phase H: return the standard-format anchors the LLM should use for
-        any non-today date. Independent of CRM / KYC state.
+        """Phase H: return the standard-format anchors — computed from the real
+        current Asia/Bangkok date/time — the LLM should use for any non-today
+        date. Independent of CRM / KYC state.
         """
         return datetime_utils.datetime_lookup_table()
 
@@ -201,6 +203,20 @@ class CaseBackend:
         return {"transferred": True, "ticket_id": _gen_id("HUM"), "reason": reason}
 
     def dispatch(self, name: str, args: dict) -> dict:
+        """Route a non-reply tool call to its handler, logging the model's call
+        and the deterministic result so the demo console shows exactly what the
+        model asked for and how the backend handled it (see simulator.tool_logging).
+        The customer-facing `reply` tool never reaches here — it (and its guard
+        rejections / fallbacks) is logged from agents.communicator instead.
+        """
+        if LOG_TOOLS:
+            tlog.info("[tool-call] model → %s(%s)", name, short(args))
+        result = self._dispatch(name, args)
+        if LOG_TOOLS:
+            tlog.info("[backend]   handled %s → %s", name, short(result))
+        return result
+
+    def _dispatch(self, name: str, args: dict) -> dict:
         if name == "verify_identity":
             return self.verify_identity(args.get("last_4_digits", ""))
         if name == "check_account_status":
