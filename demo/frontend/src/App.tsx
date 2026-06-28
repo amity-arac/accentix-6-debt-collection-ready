@@ -9,8 +9,10 @@ import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
 import { useSession } from "./hooks/useSession";
 import { useSpeechRecognition, type MicState } from "./hooks/useSpeechRecognition";
+import { useChirpSpeech } from "./hooks/useChirpSpeech";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 import { requestMicPermission } from "./speech";
+import { isChirpSupported } from "./sttSocket";
 import { fetchCases, saveTrajectory, type PersonaCase } from "./api";
 import * as audio from "./audio";
 
@@ -151,7 +153,27 @@ export default function App() {
   }, [started, bargeIn]);
 
   const callLive = started && !state.done;
-  const mic = useSpeechRecognition({ enabled: callLive, onFinal, onSpeechStart });
+
+  // STT engine: prefer the Chirp 3 backend (WebSocket → Silero VAD → Chirp
+  // recognize); fall back to the browser Web Speech API if Chirp is
+  // unsupported or its backend is unavailable (no torch / no GCP creds). Both
+  // hooks expose the same shape; only the active one captures the mic (the
+  // other is held idle via `enabled: false`).
+  const [sttEngine, setSttEngine] = useState<"chirp" | "browser">(() =>
+    isChirpSupported() ? "chirp" : "browser",
+  );
+  const chirpMic = useChirpSpeech({
+    enabled: callLive && sttEngine === "chirp",
+    onFinal,
+    onSpeechStart,
+    onUnavailable: () => setSttEngine("browser"),
+  });
+  const browserMic = useSpeechRecognition({
+    enabled: callLive && sttEngine === "browser",
+    onFinal,
+    onSpeechStart,
+  });
+  const mic = sttEngine === "chirp" ? chirpMic : browserMic;
 
   // Mute button state shown in the control bar:
   //   muted     — caller closed the line.

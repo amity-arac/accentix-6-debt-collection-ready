@@ -14,6 +14,18 @@ google-genai
 google-auth
 google-cloud-texttospeech
 
+# OPTIONAL — Chirp 3 backend speech-to-text (the /api/stt WebSocket).
+# Imported lazily by demo/server/stt_ws.py, only when a client connects to the
+# STT socket; the backend imports fine without these and the frontend falls
+# back to the browser Web Speech API. Install to enable Chirp 3 STT:
+#   - google-cloud-speech : Chirp 3 recognize() (Speech-to-Text V2)
+#   - torch               : runs the Silero VAD that gates utterances (heavy;
+#                           this is the dep the trimmed deliverable dropped).
+# The Silero model itself is fetched on first use via torch.hub
+# (snakers4/silero-vad) and cached under ~/.cache/torch/hub.
+google-cloud-speech
+torch
+
 # NOTE: vLLM is NOT listed here — install it on the GPU host separately, e.g.
 #   pip install vllm==0.19.0
 # (Pinned to the version this adapter was served + validated under. See README.)

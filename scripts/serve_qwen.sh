@@ -60,4 +60,4 @@ exec python3 -m vllm.entrypoints.openai.api_server \
   --enable-auto-tool-choice --tool-call-parser qwen3_xml \
   --default-chat-template-kwargs '{"enable_thinking": false}' \
   --enable-lora --max-lora-rank 32 --lora-modules "$MODEL_NAME=$ADAPTER" \
-  --gpu-memory-utilization "$GPU_MEM_UTIL"
+  --gpu-memory-utilization 0.85
