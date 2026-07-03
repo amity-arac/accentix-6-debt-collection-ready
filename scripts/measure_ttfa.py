@@ -230,7 +230,41 @@ def build_customer_data(case: dict[str, Any], company: str) -> dict[str, Any]:
     return cd
 
 
-def build_agent(company: str, customer_data: dict[str, Any]):
+def resolve_vllm(base_url: str | None, configured: str | None) -> tuple[str, str, list[str]]:
+    """Resolve (base_url, model, served_ids) against the running vLLM server.
+
+    vLLM 404s the whole request if the requested model id isn't served — and the
+    served id for a LoRA is the *module name* from serve_qwen.sh (--lora-modules
+    NAME=path, default sft_v2_3), NOT the base "Qwen/Qwen3.5-9B". This queries
+    /v1/models so we (a) validate a configured id and (b) auto-pick the adapter
+    when none is set — turning a cryptic mid-run 404 into a clear up-front error.
+    """
+    from openai import OpenAI
+
+    base_url = base_url or "http://localhost:8000/v1"
+    client = OpenAI(base_url=base_url, api_key=os.getenv("VLLM_API_KEY", "unused"))
+    try:
+        served = [m.id for m in client.models.list().data]
+    except Exception as e:  # noqa: BLE001
+        raise SystemExit(f"[error] cannot reach vLLM at {base_url}: {e}\n"
+                         "Start it with scripts/serve_qwen.sh and set AAX6_VLLM_BASE_URL.")
+    if not served:
+        raise SystemExit(f"[error] vLLM at {base_url} serves no models.")
+    if configured:
+        if configured in served:
+            return base_url, configured, served
+        raise SystemExit(
+            f"[error] model {configured!r} is not served by vLLM at {base_url}.\n"
+            f"        served: {served}\n"
+            "        Set AAX6_VLLM_MODEL (or --model) to the served adapter name "
+            "(serve_qwen.sh defaults to sft_v2_3)."
+        )
+    # None configured → prefer a LoRA module (name without a "/") over the base.
+    lora = [m for m in served if "/" not in m]
+    return base_url, (lora[0] if lora else served[0]), served
+
+
+def build_agent(company: str, customer_data: dict[str, Any], *, base_url: str, model: str):
     """Mirror LiveSession._init_agent: the Qwen pre-script communicator with the
     v6/v8/v9 per-company prompt + full script catalog. stream_tool_calls stays
     off here for clean per-hop timing; temp 0 for determinism."""
@@ -242,21 +276,16 @@ def build_agent(company: str, customer_data: dict[str, Any]):
     full_db = json.loads((REPO_ROOT / PRE_SCRIPT_DB_FILE).read_text(encoding="utf-8"))
     company_scripts = [s for s in full_db if s["company"] == company]
 
-    kwargs: dict[str, Any] = {
-        "system_prompt": system_prompt,
-        "script_db": company_scripts,
-        "agent_context_data": customer_data,
-        "append_script_catalog": True,
-        "temperature": 0,
-        "seed": 1,
-    }
-    base_url = os.environ.get("AAX6_VLLM_BASE_URL")
-    model = os.environ.get("AAX6_VLLM_MODEL")
-    if base_url:
-        kwargs["base_url"] = base_url
-    if model:
-        kwargs["model"] = model
-    return CommunicatorQwenPreScript(**kwargs)
+    return CommunicatorQwenPreScript(
+        system_prompt=system_prompt,
+        script_db=company_scripts,
+        agent_context_data=customer_data,
+        append_script_catalog=True,
+        temperature=0,
+        seed=1,
+        base_url=base_url,
+        model=model,
+    )
 
 
 def measure_llm(agent, customer_data: dict[str, Any], transcript: str) -> dict[str, Any]:
@@ -342,8 +371,16 @@ async def run_probe(args: argparse.Namespace) -> int:
     )
     vad_hang_ms = float(os.environ.get("AAX6_VAD_SILENCE_HANG_MS", "350"))
 
+    # Resolve the vLLM model against the running server BEFORE building anything,
+    # so a name mismatch is a clear error here — not a swallowed 404 at prewarm
+    # that only crashes on the first real reply().
+    base_url, vllm_model, served = resolve_vllm(
+        os.environ.get("AAX6_VLLM_BASE_URL"), args.model or os.environ.get("AAX6_VLLM_MODEL")
+    )
+
     print(f"[setup] {len(wavs)} wav(s) x {args.runs} run(s) | case={args.case_id} "
           f"company={company} | STT={stt_model} | vad_hang={vad_hang_ms:.0f}ms")
+    print(f"[setup] vLLM {base_url} | model={vllm_model} | served={served}")
     print("[setup] building engines (Silero VAD, Chirp STT, Qwen agent)...")
 
     from simulator.config import FILLER_TEXT
@@ -352,7 +389,7 @@ async def run_probe(args: argparse.Namespace) -> int:
     customer_data = build_customer_data(case, company)
     vad = build_vad(vad_threshold)
     stt = build_stt(stt_model)
-    agent = build_agent(company, customer_data)
+    agent = build_agent(company, customer_data, base_url=base_url, model=vllm_model)
 
     # Warm the vLLM prefix cache once (all WAVs share the same system prompt).
     print("[setup] prewarming vLLM prefix cache...")
@@ -568,6 +605,9 @@ def main() -> int:
     ap.add_argument("--company", default=None, help="override company (default: derived from case-id)")
     ap.add_argument("--runs", type=int, default=1, help="repeat each WAV N times (default 1)")
     ap.add_argument("--limit", type=int, default=0, help="cap number of WAVs (0 = all)")
+    ap.add_argument("--model", default=None,
+                    help="vLLM model/adapter id to request (default: AAX6_VLLM_MODEL, else the "
+                         "served LoRA adapter auto-picked from /v1/models)")
     ap.add_argument("--stt-model", default=None,
                     help="override AAX6_STT_MODEL; Thai (th-TH) works with chirp_3/chirp_2/chirp only "
                          "('short'/'long' 400 in asia-southeast1)")
