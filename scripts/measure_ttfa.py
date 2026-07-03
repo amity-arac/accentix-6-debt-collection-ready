@@ -30,8 +30,16 @@ REQUIREMENTS (real run, on the GPU host):
   * Deps already in requirements.txt: torch, google-cloud-speech,
     google-cloud-texttospeech, openai, python-dotenv. (numpy optional.)
 
+LLM mode (blocking vs streaming):
+    Default is BLOCKING (one chat.completions call per hop; clean per-hop timing).
+    --stream uses the demo's streaming path, which fires the "please wait" filler
+    at FIRST TOKEN — so the report's `LLM first token` and TTFA-first-audio reflect
+    the real live-demo first-audio, not the conservative full-first-hop estimate.
+    Total/substantive-reply numbers are the same either way (same tokens decoded).
+
 USAGE:
     python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs [--json out.json]
+    python scripts/measure_ttfa.py --wav-dir wavs --stream           # real streaming first-audio
     python scripts/measure_ttfa.py --wav-dir wavs --case-id TC-AEON-AAX-025 --runs 3
     AAX6_STT_MODEL=chirp_2 python scripts/measure_ttfa.py --wav-dir wavs   # A/B a knob (Thai: chirp_3/chirp_2/chirp only; "short" is not th-TH here)
     python scripts/measure_ttfa.py --self-test    # pure-logic check, no GPU/GCP/torch
@@ -264,10 +272,15 @@ def resolve_vllm(base_url: str | None, configured: str | None) -> tuple[str, str
     return base_url, (lora[0] if lora else served[0]), served
 
 
-def build_agent(company: str, customer_data: dict[str, Any], *, base_url: str, model: str):
+def build_agent(company: str, customer_data: dict[str, Any], *, base_url: str, model: str,
+                stream_tool_calls: bool = False):
     """Mirror LiveSession._init_agent: the Qwen pre-script communicator with the
-    v6/v8/v9 per-company prompt + full script catalog. stream_tool_calls stays
-    off here for clean per-hop timing; temp 0 for determinism."""
+    v6/v8/v9 per-company prompt + full script catalog. temp 0 for determinism.
+
+    stream_tool_calls=False (default) → blocking chat.completions per hop, clean
+    per-hop wall-time. stream_tool_calls=True → the demo's streaming path, which
+    emits `tool_call_pending` at first-token (when the filler fires) so the probe
+    can measure the real streaming first-audio latency."""
     from agents.communicator import CommunicatorQwenPreScript
     from agents.prompt_loader import load_prescript_prompt
     from simulator.config import PRE_SCRIPT_DB_FILE
@@ -285,6 +298,7 @@ def build_agent(company: str, customer_data: dict[str, Any], *, base_url: str, m
         seed=1,
         base_url=base_url,
         model=model,
+        stream_tool_calls=stream_tool_calls,
     )
 
 
@@ -308,7 +322,17 @@ def measure_llm(agent, customer_data: dict[str, Any], transcript: str) -> dict[s
         agent.on_hop = None
     total_ms = (time.perf_counter() - start) * 1000.0
 
-    first_hop_ms = hops_log[0][2] if hops_log else total_ms
+    # first_token_ms: when the streaming path emits `tool_call_pending` — i.e. the
+    # instant the tool NAME is decoded and the live demo fires the "please wait"
+    # filler. None in blocking mode or on a reply-only turn (no filler fires).
+    first_token_ms = next(
+        (ms for kind, _name, ms in hops_log if kind == "tool_call_pending"), None
+    )
+    # first_hop_ms: the first COMPLETE hop (tool_call / rendered_text), excluding
+    # the streaming-only `tool_call_pending` marker.
+    first_hop_ms = next(
+        (ms for kind, _name, ms in hops_log if kind in ("tool_call", "rendered_text")), total_ms
+    )
     to_first_reply_ms = next(
         (ms for kind, _name, ms in hops_log if kind == "rendered_text"), total_ms
     )
@@ -317,6 +341,7 @@ def measure_llm(agent, customer_data: dict[str, Any], transcript: str) -> dict[s
     )
     hop_count = sum(1 for kind, _n, _m in hops_log if kind == "tool_call")
     return {
+        "first_token_ms": first_token_ms,
         "first_hop_ms": first_hop_ms,
         "to_first_reply_ms": to_first_reply_ms,
         "total_ms": total_ms,
@@ -378,9 +403,10 @@ async def run_probe(args: argparse.Namespace) -> int:
         os.environ.get("AAX6_VLLM_BASE_URL"), args.model or os.environ.get("AAX6_VLLM_MODEL")
     )
 
+    llm_mode = "streaming (early filler)" if args.stream else "blocking"
     print(f"[setup] {len(wavs)} wav(s) x {args.runs} run(s) | case={args.case_id} "
           f"company={company} | STT={stt_model} | vad_hang={vad_hang_ms:.0f}ms")
-    print(f"[setup] vLLM {base_url} | model={vllm_model} | served={served}")
+    print(f"[setup] vLLM {base_url} | model={vllm_model} | LLM mode={llm_mode} | served={served}")
     print("[setup] building engines (Silero VAD, Chirp STT, Qwen agent)...")
 
     from simulator.config import FILLER_TEXT
@@ -389,7 +415,8 @@ async def run_probe(args: argparse.Namespace) -> int:
     customer_data = build_customer_data(case, company)
     vad = build_vad(vad_threshold)
     stt = build_stt(stt_model)
-    agent = build_agent(company, customer_data, base_url=base_url, model=vllm_model)
+    agent = build_agent(company, customer_data, base_url=base_url, model=vllm_model,
+                        stream_tool_calls=args.stream)
 
     # Warm the vLLM prefix cache once (all WAVs share the same system prompt).
     print("[setup] prewarming vLLM prefix cache...")
@@ -421,10 +448,23 @@ async def run_probe(args: argparse.Namespace) -> int:
             llm = await asyncio.to_thread(measure_llm, agent, customer_data, transcript)
             reply_ttfb, reply_total = await measure_tts(llm["reply_text"])
 
-            first_audio_ttfb = filler_ttfb if llm["any_non_reply"] else reply_ttfb
+            # LLM contribution to the FIRST audible sound:
+            #  - tool turn: the "please wait" filler. Streaming fires it at
+            #    first-token (first_token_ms); blocking only after the full first
+            #    hop (first_hop_ms). Fall back to first_hop_ms if no token mark.
+            #  - reply-only turn: no filler — first audio is the reply itself.
+            if llm["any_non_reply"]:
+                llm_first_audio_ms = (
+                    llm["first_token_ms"] if llm["first_token_ms"] is not None
+                    else llm["first_hop_ms"]
+                )
+                first_audio_ttfb = filler_ttfb
+            else:
+                llm_first_audio_ms = llm["to_first_reply_ms"]
+                first_audio_ttfb = reply_ttfb
             const = vad_hang_ms + args.mic_chunk_ms + args.handoff_ms + args.browser_decode_ms
             ttfa_first = (
-                const + vad_compute + stt_ms + llm["first_hop_ms"] + first_audio_ttfb
+                const + vad_compute + stt_ms + llm_first_audio_ms + first_audio_ttfb
             )
             ttfa_sub = (
                 const + vad_compute + stt_ms + llm["to_first_reply_ms"] + reply_ttfb
@@ -438,7 +478,9 @@ async def run_probe(args: argparse.Namespace) -> int:
                 "transcript": transcript,
                 "vad_compute_ms": vad_compute,
                 "stt_ms": stt_ms,
+                "llm_first_token_ms": llm["first_token_ms"],  # None unless streaming + tool turn
                 "llm_first_hop_ms": llm["first_hop_ms"],
+                "llm_first_audio_ms": llm_first_audio_ms,     # what feeds TTFA-first-audio
                 "llm_to_reply_ms": llm["to_first_reply_ms"],
                 "llm_total_ms": llm["total_ms"],
                 "hop_count": llm["hop_count"],
@@ -449,9 +491,11 @@ async def run_probe(args: argparse.Namespace) -> int:
                 "ttfa_substantive_ms": ttfa_sub,
             }
             rows.append(row)
-            print(f"  [ok] {wav.name:<28} STT={stt_ms:6.0f}  LLM(1st/reply)={llm['first_hop_ms']:6.0f}/"
-                  f"{llm['to_first_reply_ms']:6.0f}  TTS={reply_ttfb:5.0f}  "
-                  f"hops={llm['hop_count']}  ->  TTFA(first/sub)={ttfa_first:6.0f}/{ttfa_sub:6.0f}ms")
+            ft = f"{llm['first_token_ms']:.0f}" if llm["first_token_ms"] is not None else "—"
+            print(f"  [ok] {wav.name:<28} STT={stt_ms:6.0f}  "
+                  f"LLM(tok/1st/reply)={ft:>6}/{llm['first_hop_ms']:6.0f}/{llm['to_first_reply_ms']:6.0f}  "
+                  f"TTS={reply_ttfb:5.0f}  hops={llm['hop_count']}  ->  "
+                  f"TTFA(first/sub)={ttfa_first:6.0f}/{ttfa_sub:6.0f}ms")
 
     if not rows:
         print("\nNo successful trips (all empty/skipped). Nothing to aggregate.")
@@ -482,11 +526,16 @@ async def run_probe(args: argparse.Namespace) -> int:
 
 def _summaries(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
     keys = [
-        "vad_compute_ms", "stt_ms", "llm_first_hop_ms", "llm_to_reply_ms",
-        "llm_total_ms", "tts_ttfb_ms", "tts_total_ms",
+        "vad_compute_ms", "stt_ms", "llm_first_hop_ms", "llm_first_audio_ms",
+        "llm_to_reply_ms", "llm_total_ms", "tts_ttfb_ms", "tts_total_ms",
         "ttfa_first_audio_ms", "ttfa_substantive_ms",
     ]
-    return {k: _summary([r[k] for r in rows]) for k in keys}
+    out = {k: _summary([r[k] for r in rows]) for k in keys}
+    # first_token is None on reply-only turns / blocking mode → summarize only
+    # the trips where the streaming filler actually fired.
+    ft = [r["llm_first_token_ms"] for r in rows if r.get("llm_first_token_ms") is not None]
+    out["llm_first_token_ms"] = _summary(ft)
+    return out
 
 
 def _print_report(rows: list[dict[str, Any]], empties: int, cfg: dict[str, Any]) -> None:
@@ -508,7 +557,11 @@ def _print_report(rows: list[dict[str, Any]], empties: int, cfg: dict[str, Any])
 
     line("VAD compute", "vad_compute_ms", "vad_compute")
     line("STT recognize", "stt_ms", "stt")
+    ft_n = s["llm_first_token_ms"]["n"]
+    if ft_n:
+        line(f"LLM first token* ({ft_n})", "llm_first_token_ms", None)
     line("LLM first hop", "llm_first_hop_ms", "llm_first_hop")
+    line("LLM first-audio†", "llm_first_audio_ms", None)
     line("LLM to reply", "llm_to_reply_ms", "llm_to_reply")
     line("LLM total", "llm_total_ms", None)
     line("TTS first chunk", "tts_ttfb_ms", "tts_ttfb")
@@ -525,6 +578,11 @@ def _print_report(rows: list[dict[str, Any]], empties: int, cfg: dict[str, Any])
     avg_hops = statistics.fmean([r["hop_count"] for r in rows])
     print(f"avg LLM hops/turn = {avg_hops:.1f}  |  "
           f"tool turns (filler shown) = {sum(r['any_non_reply'] for r in rows)}/{n}")
+    if ft_n:
+        print(f"* LLM first token = streaming path only: the moment the 'please wait' "
+              f"filler fires ({ft_n}/{n} trips were tool turns).")
+    print("† LLM first-audio = what feeds TTFA-first-audio: first_token on tool turns "
+          "(streaming) or first_hop (blocking), else to-reply on reply-only turns.")
 
 
 # ---------------------------------------------------------------------------
@@ -608,6 +666,9 @@ def main() -> int:
     ap.add_argument("--model", default=None,
                     help="vLLM model/adapter id to request (default: AAX6_VLLM_MODEL, else the "
                          "served LoRA adapter auto-picked from /v1/models)")
+    ap.add_argument("--stream", action="store_true",
+                    help="use the demo's streaming LLM path (measures the real first-audio: the "
+                         "'please wait' filler fires at first-token). Default is blocking per-hop timing.")
     ap.add_argument("--stt-model", default=None,
                     help="override AAX6_STT_MODEL; Thai (th-TH) works with chirp_3/chirp_2/chirp only "
                          "('short'/'long' 400 in asia-southeast1)")

@@ -174,12 +174,20 @@ suffers. All are optional.
 ```bash
 source .venv/bin/activate
 # vLLM must be running and .env configured (creds + AAX6_VLLM_BASE_URL/MODEL)
-python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs --json ttfa.json
+python scripts/measure_ttfa.py --wav-dir scripts/thai-wav-dataset --json ttfa.json
+# --stream: measure the REAL streaming first-audio (the "please wait" filler
+# fires at first-token, like the live demo). Default is blocking per-hop timing.
+python scripts/measure_ttfa.py --wav-dir scripts/thai-wav-dataset --stream
 # A/B a knob: rerun with an override to quantify the tradeoff (Thai: chirp_3/chirp_2/chirp)
-AAX6_STT_MODEL=chirp_2 python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs
+AAX6_STT_MODEL=chirp_2 python scripts/measure_ttfa.py --wav-dir scripts/thai-wav-dataset
 # Sanity-check the pure logic anywhere (no GPU/GCP needed):
 python scripts/measure_ttfa.py --self-test
 ```
+
+The probe auto-detects the served vLLM model from `/v1/models` (pin with `--model`).
+In `--stream` mode the report adds an **`LLM first token`** row (when the filler
+fires) and its **TTFA-first-audio** reflects that early fire; `--stream` and the
+default blocking mode report the same total/substantive-reply numbers.
 
 ---
 
