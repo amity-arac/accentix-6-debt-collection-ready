@@ -48,6 +48,7 @@ import logging
 import os
 import queue
 import threading
+import time
 from typing import Any, Callable
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -141,6 +142,7 @@ def _vad_gate_worker(
     silent_ms = 0.0
     run_ms = 0.0  # sustained-speech accumulator (pre-`speech_begin` gate)
     last_interim_len = 0
+    t_last_voice = 0.0  # perf_counter() at the last super-threshold frame → endpoint_ms
 
     interim_every_bytes = INTERIM_EVERY_MS * _BYTES_PER_MS
     min_interim_bytes = MIN_INTERIM_MS * _BYTES_PER_MS
@@ -148,8 +150,13 @@ def _vad_gate_worker(
     vad.reset()
 
     def finalize() -> None:
-        nonlocal buf, in_speech, silent_ms, run_ms, prev_chunk, last_interim_len
-        send({"type": "speech_end"})
+        nonlocal buf, in_speech, silent_ms, run_ms, prev_chunk, last_interim_len, t_last_voice
+        # Endpoint dead-time: wall-clock from the last voiced frame to this
+        # finalize decision (≈ SILENCE_HANG_MS). This is the user-perceived "VAD
+        # latency" — the trailing silence the caller waits through after they
+        # stop talking, before the turn is finalized and STT can start.
+        endpoint_ms = round((time.perf_counter() - t_last_voice) * 1000, 1) if t_last_voice else None
+        send({"type": "speech_end", "endpoint_ms": endpoint_ms})
         req_q.put(("final", bytes(buf)))
         buf = bytearray()
         in_speech = False
@@ -157,6 +164,7 @@ def _vad_gate_worker(
         run_ms = 0.0
         prev_chunk = b""
         last_interim_len = 0
+        t_last_voice = 0.0
         vad.reset()
 
     while not stop.is_set():
@@ -176,6 +184,7 @@ def _vad_gate_worker(
             if prob >= SILERO_THRESHOLD:
                 run_ms += vad.frame_ms
                 silent_ms = 0.0
+                t_last_voice = time.perf_counter()
                 if not in_speech and run_ms >= MIN_SPEECH_MS:
                     in_speech = True
                     send({"type": "speech_begin"})
@@ -244,6 +253,7 @@ def _stt_worker(
                 if kind == "final":
                     break
 
+        t0 = time.perf_counter()
         try:
             text = stt.transcribe_pcm(pcm, sample_rate=STT_SAMPLE_RATE).strip()
         except Exception as e:  # noqa: BLE001 — surface, keep listening
@@ -252,6 +262,9 @@ def _stt_worker(
             if kind == "final":
                 last_interim_text = None
             continue
+        # Pure batch recognize() gRPC wall-time (the "STT latency" number). The
+        # client-perceived STT also includes queue wait + the WS leg.
+        recognize_ms = round((time.perf_counter() - t0) * 1000, 1)
 
         if kind == "interim":
             # Only push changes — avoids spamming identical interim frames.
@@ -261,9 +274,9 @@ def _stt_worker(
         else:  # final
             last_interim_text = None
             if text:
-                send({"type": "stt_final", "text": text})
+                send({"type": "stt_final", "text": text, "recognize_ms": recognize_ms})
             else:
-                send({"type": "turn_empty"})
+                send({"type": "turn_empty", "recognize_ms": recognize_ms})
 
 
 async def run_session(ws: WebSocket) -> None:

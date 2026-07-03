@@ -23,7 +23,7 @@ PORT="${PORT:-8000}"
 # adapter:  AAX6_VLLM_MODEL=sft_v2 bash scripts/serve_qwen.sh
 # The served LoRA module name == $MODEL_NAME, exactly what the backend must send
 # (AAX6_VLLM_MODEL) so the adapter is applied on top of the base model.
-MODEL_NAME="${AAX6_VLLM_MODEL:-sft_v2_3}"
+MODEL_NAME="${AAX6_VLLM_MODEL:-sft_v2_3_1-h20}"
 ADAPTER="checkpoints/$MODEL_NAME"
 # Fraction of GPU memory vLLM may use. vLLM's default (0.9) sizes the KV cache so
 # aggressively that on a ~96 GB card (e.g. H20) the CUDA-graph pool overshoots its
@@ -60,4 +60,4 @@ exec python3 -m vllm.entrypoints.openai.api_server \
   --enable-auto-tool-choice --tool-call-parser qwen3_xml \
   --default-chat-template-kwargs '{"enable_thinking": false}' \
   --enable-lora --max-lora-rank 32 --lora-modules "$MODEL_NAME=$ADAPTER" \
-  --gpu-memory-utilization 0.85
+  --gpu-memory-utilization "$GPU_MEM_UTIL"

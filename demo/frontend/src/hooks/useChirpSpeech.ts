@@ -5,6 +5,7 @@ import {
   type ChirpHandle,
 } from "../sttSocket";
 import type { SpeechErrorCode } from "../speech";
+import * as latency from "../latency";
 
 // Chirp 3 backend STT, exposed with the SAME shape as useSpeechRecognition so
 // App.tsx can use either interchangeably (see the engine switch in App.tsx).
@@ -102,11 +103,14 @@ export function useChirpSpeech({
       },
       onSpeechBegin: () => {
         setInterim(""); // fresh utterance — clear any leftover interim
+        latency.markSpeechBegin();
         onSpeechStartRef.current?.();
       },
+      onSpeechEnd: (endpointMs) => latency.markSpeechEnd(endpointMs),
       onInterim: (text) => setInterim(text),
-      onFinal: (text) => {
+      onFinal: (text, recognizeMs) => {
         setInterim(""); // committed — the final bubble takes over
+        latency.markSttFinal(recognizeMs ?? null);
         const trimmed = text.trim();
         if (trimmed) onFinalRef.current(trimmed);
       },

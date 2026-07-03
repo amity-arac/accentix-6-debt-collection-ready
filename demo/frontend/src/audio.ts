@@ -6,6 +6,8 @@
  * download before any audio is heard. Resolves when audio playback ends or fails.
  */
 
+import * as latency from "./latency";
+
 let audio: HTMLAudioElement | null = null;
 let resolveCurrent: (() => void) | null = null;
 
@@ -65,21 +67,31 @@ export function play(text: string): Promise<void> {
 
   const a = ensureAudio();
   a.src = `/api/tts?text=${encodeURIComponent(trimmed)}`;
+  // TTS request fired — the start of the time-to-first-audio measurement (only
+  // the first clip of a turn counts; the store guards subsequent calls).
+  latency.markTtsRequest();
 
   return new Promise<void>((resolve) => {
     resolveCurrent = resolve;
 
+    // First audible sample: the end of the TTS latency measurement.
+    const onPlaying = () => {
+      latency.markTtsPlaying();
+    };
     const onEnded = () => {
+      a.removeEventListener("playing", onPlaying);
       a.removeEventListener("ended", onEnded);
       a.removeEventListener("error", onError);
       settle();
     };
     const onError = () => {
+      a.removeEventListener("playing", onPlaying);
       a.removeEventListener("ended", onEnded);
       a.removeEventListener("error", onError);
       settle();
     };
 
+    a.addEventListener("playing", onPlaying);
     a.addEventListener("ended", onEnded);
     a.addEventListener("error", onError);
 

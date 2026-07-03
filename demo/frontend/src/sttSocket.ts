@@ -13,9 +13,9 @@ export type ChirpEvent =
   | { type: "ready"; sample_rate: number }
   | { type: "speech_begin" }
   | { type: "stt_interim"; text: string }
-  | { type: "speech_end" }
-  | { type: "stt_final"; text: string }
-  | { type: "turn_empty" }
+  | { type: "speech_end"; endpoint_ms?: number | null }
+  | { type: "stt_final"; text: string; recognize_ms?: number | null }
+  | { type: "turn_empty"; recognize_ms?: number | null }
   | { type: "error"; message: string; fatal?: boolean };
 
 export type ChirpHandle = { stop: () => void };
@@ -25,10 +25,14 @@ export type ChirpCallbacks = {
   onReady?: () => void;
   /** Silero detected the caller started talking (drives barge-in). */
   onSpeechBegin?: () => void;
+  /** Trailing silence detected → utterance over. `endpointMs` = the server's
+   *  measured endpoint dead-time (the "VAD latency" number). */
+  onSpeechEnd?: (endpointMs: number | null) => void;
   /** Growing transcript while the caller is still talking (live words). */
   onInterim?: (text: string) => void;
-  /** A finalized Thai transcript for one utterance. */
-  onFinal?: (text: string) => void;
+  /** A finalized Thai transcript for one utterance. `recognizeMs` = the server's
+   *  batch recognize() wall-time (the "STT latency" number). */
+  onFinal?: (text: string, recognizeMs?: number | null) => void;
   /** A non-fatal error frame from the server. */
   onError?: (message: string, fatal: boolean) => void;
   /** Socket closed (caller decides whether to fall back). */
@@ -140,13 +144,16 @@ export async function startChirp(cb: ChirpCallbacks): Promise<ChirpHandle> {
       case "stt_interim":
         cb.onInterim?.(msg.text);
         break;
+      case "speech_end":
+        cb.onSpeechEnd?.(msg.endpoint_ms ?? null);
+        break;
       case "stt_final":
-        cb.onFinal?.(msg.text);
+        cb.onFinal?.(msg.text, msg.recognize_ms ?? null);
         break;
       case "error":
         cb.onError?.(msg.message, !!msg.fatal);
         break;
-      // speech_end / turn_empty: no client action needed.
+      // turn_empty: no client action needed (no transcript → no turn).
     }
   };
   ws.onerror = () => {

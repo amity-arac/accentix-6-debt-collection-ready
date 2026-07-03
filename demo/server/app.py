@@ -82,6 +82,12 @@ class TurnBody(BaseModel):
     message: str = ""
 
 
+class SaveBody(BaseModel):
+    # Optional tester note attached to the saved trajectory. Defaulted so a
+    # body-less POST stays valid.
+    comment: str = ""
+
+
 # ---------------------------------------------------------------------------
 # NDJSON helpers
 # ---------------------------------------------------------------------------
@@ -115,7 +121,15 @@ async def _stream_turn(session: sessions.Session, msg: str) -> AsyncIterator[byt
         return
     async for hop in session.aiter_turn(msg):  # type: ignore[attr-defined]
         yield _line({"type": "hop", "hop": hop}).encode("utf-8")
-    yield _line({"type": "done", "session_done": session.done}).encode("utf-8")
+    # Attach this turn's LLM timing (set by LiveSession._aiter_run). Absent for
+    # ReplaySession → llm_ms/llm_hops are null (the UI shows "—").
+    timing = getattr(session, "_last_turn_timing", None) or {}
+    yield _line({
+        "type": "done",
+        "session_done": session.done,
+        "llm_ms": timing.get("llm_ms"),
+        "llm_hops": timing.get("llm_hops"),
+    }).encode("utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +218,7 @@ async def reset_session(session_id: str) -> StreamingResponse:
 
 
 @app.post("/api/session/{session_id}/save")
-async def save_trajectory(session_id: str) -> JSONResponse:
+async def save_trajectory(session_id: str, body: SaveBody = SaveBody()) -> JSONResponse:
     """Persist the live conversation to data/demo-saved-trajectory/<dd-mm-yy>/.
 
     Writes a JSON list of one canonical case (replay-/eval-compatible) plus the
@@ -216,7 +230,7 @@ async def save_trajectory(session_id: str) -> JSONResponse:
     if not isinstance(session, sessions.LiveSession) or not session._transcript:
         return JSONResponse({"saved": False, "reason": "nothing to save"}, status_code=400)
 
-    case = sessions.build_trajectory_case(session)
+    case = sessions.build_trajectory_case(session, comment=body.comment.strip())
     now = datetime.datetime.now()
     day = now.strftime("%d-%m-%y")
     out_dir = sessions.REPO_ROOT / "data" / "demo-saved-trajectory" / day
@@ -249,6 +263,10 @@ async def tts_stream(text: str = Query(..., min_length=1, max_length=4096)) -> S
             # will fire `error` if the stream is empty.
             return
 
+    # Whether this text is already synthesized — known up front, so it can ride a
+    # header (unlike the measured synth time, which isn't known until the first
+    # chunk, after headers flush). Lets the client attribute TTS latency.
+    cache_state = "hit" if tts.is_cached(text) else "miss"
     return StreamingResponse(
         _gen(),
         media_type=tts.AUDIO_MEDIA_TYPE,
@@ -256,6 +274,10 @@ async def tts_stream(text: str = Query(..., min_length=1, max_length=4096)) -> S
             "Cache-Control": "no-store",
             # Some intermediate proxies buffer otherwise.
             "X-Accel-Buffering": "no",
+            # Client reads this via PerformanceObserver (serverTiming). Same-origin
+            # in dev/prod; Timing-Allow-Origin keeps it readable if ever cross-origin.
+            "Server-Timing": f'cache;desc="{cache_state}"',
+            "Timing-Allow-Origin": "*",
         },
     )
 

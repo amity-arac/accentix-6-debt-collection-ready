@@ -267,6 +267,8 @@ class LiveSession:
 
         self._turn_count = 0
         self.done = False
+        # Per-turn LLM timing, stashed at the end of each turn for the done line.
+        self._last_turn_timing: dict[str, Any] | None = None
 
         # Build the actual session objects.
         self._init_agent()
@@ -419,6 +421,7 @@ class LiveSession:
                         "kind": "tool_call",
                         "name": name,
                         "args": item.get("args", {}),
+                        "hop_ms": item.get("hop_ms"),
                     })
                     if name == "reply":
                         last_reply_args = item.get("args", {}) or {}
@@ -439,6 +442,16 @@ class LiveSession:
                     yield _emit(item)
         finally:
             result = await task
+            # Stash this turn's LLM timing so app.py can attach it to the done
+            # line. total_ms = sum of per-hop LLM-call wall-times; llm_hops =
+            # number of LLM round-trips (one tool_call hop per call).
+            self._last_turn_timing = {
+                "llm_ms": round((result or {}).get("total_ms") or 0.0, 1),
+                "llm_hops": sum(
+                    1 for h in ((result or {}).get("hops") or [])
+                    if isinstance(h, dict) and h.get("kind") == "tool_call"
+                ),
+            }
 
         self._transcript.append({"user": user_msg, "hops": turn_hops})
         self._turn_count += 1
@@ -453,7 +466,7 @@ class LiveSession:
 # ---------------------------------------------------------------------------
 
 
-def build_trajectory_case(session: "LiveSession") -> dict[str, Any]:
+def build_trajectory_case(session: "LiveSession", comment: str = "") -> dict[str, Any]:
     """Assemble a saved-trajectory case from a LiveSession's recorded transcript.
 
     Matches the canonical schema in `data/trajectories/` (so the file is
@@ -496,6 +509,7 @@ def build_trajectory_case(session: "LiveSession") -> dict[str, Any]:
         "conversation": conversation,
         "full-trajectory": full,
         # Demo-specific extras — canonical eval/replay tooling ignores unknown keys.
+        "comment": comment,
         "session_id": session.session_id,
         "saved_at": datetime.datetime.now().isoformat(timespec="seconds"),
         "agent_messages": getattr(session._agent, "history", []),

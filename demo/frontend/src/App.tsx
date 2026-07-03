@@ -5,6 +5,7 @@ import { ChatStream } from "./components/ChatStream";
 import { ControlBar } from "./components/ControlBar";
 import { ResetConfirmModal } from "./components/ResetConfirmModal";
 import { PersonaPickerModal } from "./components/PersonaPickerModal";
+import { SaveDialog } from "./components/SaveDialog";
 import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
 import { useSession } from "./hooks/useSession";
@@ -36,6 +37,7 @@ export default function App() {
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [personaModalOpen, setPersonaModalOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [cases, setCases] = useState<PersonaCase[]>([]);
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
   const initRef = useRef(false);
@@ -98,25 +100,29 @@ export default function App() {
 
   const canSave = started && state.bubbles.length > 0 && !state.busy;
 
-  const handleSave = useCallback(async () => {
-    if (!state.sessionId) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    setSaveState({ phase: "saving", message: "Saving…" });
-    try {
-      const res = await saveTrajectory(state.sessionId);
-      if (res.saved) {
-        setSaveState({ phase: "saved", message: `Saved to demo-saved-trajectory/${res.path}` });
-      } else {
-        setSaveState({ phase: "error", message: res.reason ?? "Nothing to save yet" });
+  const handleSave = useCallback(
+    async (comment: string) => {
+      if (!state.sessionId) return;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      setSaveState({ phase: "saving", message: "Saving…" });
+      try {
+        const res = await saveTrajectory(state.sessionId, comment);
+        if (res.saved) {
+          setSaveState({ phase: "saved", message: `Saved to demo-saved-trajectory/${res.path}` });
+          setSaveOpen(false);
+        } else {
+          setSaveState({ phase: "error", message: res.reason ?? "Nothing to save yet" });
+        }
+      } catch (e: any) {
+        setSaveState({ phase: "error", message: `Save failed: ${e?.message ?? e}` });
       }
-    } catch (e: any) {
-      setSaveState({ phase: "error", message: `Save failed: ${e?.message ?? e}` });
-    }
-    saveTimerRef.current = setTimeout(
-      () => setSaveState({ phase: "idle", message: "" }),
-      3500,
-    );
-  }, [state.sessionId]);
+      saveTimerRef.current = setTimeout(
+        () => setSaveState({ phase: "idle", message: "" }),
+        3500,
+      );
+    },
+    [state.sessionId],
+  );
 
   // The mic runs continuously for the whole call so the caller can talk over
   // the agent (barge-in). Two turn signals govern what we do with what it
@@ -276,7 +282,7 @@ export default function App() {
         onPause={togglePause}
         onRequestReset={() => setResetModalOpen(true)}
         onTypedSubmit={handleTyped}
-        onSave={() => void handleSave()}
+        onSave={() => setSaveOpen(true)}
         canSave={canSave}
         saving={saveState.phase === "saving"}
       />
@@ -319,10 +325,16 @@ export default function App() {
           onRestart={() => {
             void reset();
           }}
-          onSave={() => void handleSave()}
+          onSave={() => setSaveOpen(true)}
           saving={saveState.phase === "saving"}
         />
       )}
+      <SaveDialog
+        open={saveOpen}
+        saving={saveState.phase === "saving"}
+        onConfirm={(c) => void handleSave(c)}
+        onCancel={() => setSaveOpen(false)}
+      />
       {saveState.phase !== "idle" && (
         <div className={`save-toast ${saveState.phase}`} role="status">
           {saveState.message}

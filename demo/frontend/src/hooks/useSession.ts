@@ -8,6 +8,7 @@ import {
   type Hop,
 } from "../api";
 import * as audio from "../audio";
+import * as latency from "../latency";
 
 export type BubbleEntry =
   | { id: number; kind: "user"; text: string; viaMic: boolean }
@@ -193,6 +194,9 @@ export function useSession() {
 
   const onHop = useCallback(
     (hop: Hop) => {
+      // First hop of a turn → record time-to-first-activity (no-op outside a
+      // turn, e.g. session-open/reset streams).
+      latency.markFirstHop();
       // Warm the TTS cache the moment a reply hop arrives so the Chirp 3 HD
       // round-trip overlaps with rendering and any earlier clip still playing
       // on the audio queue.
@@ -206,6 +210,7 @@ export function useSession() {
   // ---- public ops ----
 
   const start = useCallback(async () => {
+    latency.reset();
     setState((s) => ({ ...s, busy: true, streamError: null }));
     let capturedSession: { id: string; done: boolean } | null = null;
     try {
@@ -275,10 +280,14 @@ export function useSession() {
         busy: true,
         streamError: null,
       }));
+      // Turn POST fired (mic transcript or typed). Promotes any pending mic
+      // capture (VAD/STT stamps) into this turn; typed turns mark VAD/STT N/A.
+      latency.markTurnPost(viaMic);
       try {
         await streamTurn(sid, trimmed, {
           onHop: (m) => onHop(m.hop),
           onDone: (m) => {
+            latency.markDone(m.llm_ms ?? null, m.llm_hops ?? null);
             if (m.session_done) {
               setState((s) => ({ ...s, done: true }));
             }
@@ -307,6 +316,7 @@ export function useSession() {
     if (resetInFlightRef.current) return;
     resetInFlightRef.current = true;
     audio.stop();
+    latency.reset();
     queueRef.current = [];
     drainingRef.current = false;
     pausedRef.current = false;

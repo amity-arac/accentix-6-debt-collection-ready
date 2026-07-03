@@ -64,6 +64,13 @@ _CACHE_LOCKS: dict[str, asyncio.Lock] = {}
 _STREAM_DONE: Final[object] = object()
 
 
+def is_cached(text: str) -> bool:
+    """True if `text` is already synthesized in the in-process cache (→ a
+    /api/tts request emits instantly). The route uses this to tag the response's
+    cache state so the client can attribute TTS latency (hit ≈ 0 vs cold synth)."""
+    return text.strip() in _CACHE
+
+
 def _chunk_text(text: str) -> Iterator[str]:
     """Split text into chunks at natural sentence boundaries.
 

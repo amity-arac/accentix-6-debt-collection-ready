@@ -1271,6 +1271,45 @@ button.bubble.tool-result {
   background: rgba(185, 28, 28, 1);
 }
 
+/* ─────────────── save dialog ─────────────── */
+.save-dialog {
+  max-width: 440px;
+  text-align: left;
+}
+.save-dialog-body {
+  margin-bottom: 12px;
+}
+.save-dialog-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 20px 0;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  resize: vertical;
+  min-height: 84px;
+}
+.save-dialog-textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.save-dialog-textarea:disabled {
+  opacity: 0.6;
+}
+.save-dialog-confirm {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+.save-dialog-confirm:hover:not(:disabled) {
+  background: var(--brand-strong);
+}
+
 /* ─────────────── thinking dot ─────────────── */
 .thinking-dot {
   display: inline-flex;
@@ -1288,6 +1327,91 @@ button.bubble.tool-result {
 @keyframes blink {
   0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
   40%           { opacity: 1;   transform: translateY(-2px); }
+}
+
+/* ─────────────── latency readout (per-turn VAD/STT/LLM/TTS) ─────────────── */
+.latency-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+.latency-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.latency-icon { color: var(--ink-faint); flex: none; }
+.latency-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--brand-soft);
+  border: 1px solid var(--hairline);
+  font-size: var(--fs-micro);
+  line-height: 1;
+}
+.latency-chip-label {
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-micro);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+.latency-chip-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-strong);
+  font-weight: var(--fw-medium);
+}
+.latency-chip.na { background: transparent; }
+.latency-chip.na .latency-chip-value { color: var(--ink-faint); }
+.latency-chip.pending .latency-chip-value { color: var(--brand); }
+.latency-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 6px;
+  flex: none;
+}
+.latency-toggle:hover { color: var(--ink); background: var(--hairline); }
+.latency-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-micro);
+  color: var(--ink-soft);
+}
+.latency-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+}
+.latency-detail-grid > span:nth-child(odd) { color: var(--ink-faint); }
+.latency-detail-grid > span:nth-child(even) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink);
+}
+.latency-avg {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+.latency-note {
+  margin: 0;
+  color: var(--ink-faint);
+  line-height: 1.4;
 }
 
 /* ─────────────── banners ─────────────── */

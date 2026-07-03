@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, X } from "lucide-react";
 import { ThinkingDot } from "./ThinkingDot";
+import { LatencyMetrics } from "./LatencyMetrics";
 import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
 import type { Agent } from "../api";
@@ -141,6 +142,7 @@ export function ControlBar({
 
   return (
     <div className="control-bar">
+      <LatencyMetrics />
       {micError && micErrorCode === "permission-denied" && (
         <div className="mic-permission-recovery" role="alert">
           <div className="mic-permission-head">

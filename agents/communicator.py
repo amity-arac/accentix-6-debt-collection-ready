@@ -869,7 +869,7 @@ class CommunicatorQwenPreScript:
                     }],
                     "content": text,
                 })
-                hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": dynamic_vars}})
+                hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": dynamic_vars}, "hop_ms": round(hop_ms, 1)})
                 hops.append({"kind": "rendered_text", "text": text, **({"placeholder_leak": leaks} if leaks else {})})
                 agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
                 return {
@@ -889,7 +889,7 @@ class CommunicatorQwenPreScript:
             result = backend.dispatch(name, args)
             _hop_log(self.verbose, hop_idx + 1, "tool_call", name=name, args=args, elapsed_ms=hop_ms)
             _hop_log(self.verbose, hop_idx + 1, "tool_result", result=result)
-            hops.append({"kind": "tool_call", "name": name, "args": args})
+            hops.append({"kind": "tool_call", "name": name, "args": args, "hop_ms": round(hop_ms, 1)})
             hops.append({"kind": "tool_result", "name": name, "result": result})
             self.history.append({
                 "role": "assistant",
@@ -1495,7 +1495,7 @@ class CommunicatorGeminiPreScript:
                         types.Part(text=text),
                     ]
                 self.history.append(types.Content(role="model", parts=model_parts))
-                hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": dynamic_vars}})
+                hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": dynamic_vars}, "hop_ms": round(hop_ms, 1)})
                 hops.append({"kind": "rendered_text", "text": text, **({"placeholder_leak": leaks} if leaks else {})})
                 agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
                 return {
@@ -1515,7 +1515,7 @@ class CommunicatorGeminiPreScript:
             result = backend.dispatch(name, args)
             _hop_log(self.verbose, hop_idx + 1, "tool_call", name=name, args=args, elapsed_ms=hop_ms)
             _hop_log(self.verbose, hop_idx + 1, "tool_result", result=result)
-            hops.append({"kind": "tool_call", "name": name, "args": args})
+            hops.append({"kind": "tool_call", "name": name, "args": args, "hop_ms": round(hop_ms, 1)})
             hops.append({"kind": "tool_result", "name": name, "result": result})
             # Append the model's actual response Content (preserves thought_signature on the function_call Part).
             if model_content is not None:

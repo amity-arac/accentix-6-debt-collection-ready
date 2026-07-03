@@ -74,7 +74,15 @@ export type StreamSessionMsg = {
   customer_data: CustomerData;
 };
 export type StreamHopMsg = { type: "hop"; hop: Hop };
-export type StreamDoneMsg = { type: "done"; session_done: boolean };
+export type StreamDoneMsg = {
+  type: "done";
+  session_done: boolean;
+  /** Sum of per-hop LLM-call wall-times for the turn (live turns only; null in
+   *  replay or session-only streams). */
+  llm_ms?: number | null;
+  /** Number of LLM round-trips (tool-call hops) the turn took. */
+  llm_hops?: number | null;
+};
 export type StreamMsg = StreamSessionMsg | StreamHopMsg | StreamDoneMsg;
 
 export type StreamHandlers = {
@@ -174,10 +182,18 @@ export type SaveResult = {
   reason?: string;
 };
 
-/** Persist the current live conversation server-side. The backend's 400
- * "nothing to save" is returned as a normal `{ saved: false }`, not an error. */
-export async function saveTrajectory(sessionId: string): Promise<SaveResult> {
-  const resp = await fetch(`/api/session/${sessionId}/save`, { method: "POST" });
+/** Persist the current live conversation server-side, with an optional tester
+ * note attached to the saved trajectory. The backend's 400 "nothing to save"
+ * is returned as a normal `{ saved: false }`, not an error. */
+export async function saveTrajectory(
+  sessionId: string,
+  comment?: string,
+): Promise<SaveResult> {
+  const resp = await fetch(`/api/session/${sessionId}/save`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ comment: comment ?? "" }),
+  });
   if (resp.status === 400) return (await resp.json()) as SaveResult;
   if (!resp.ok) throw new Error(`/api/session/${sessionId}/save ${resp.status}`);
   return (await resp.json()) as SaveResult;
