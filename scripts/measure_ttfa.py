@@ -33,7 +33,7 @@ REQUIREMENTS (real run, on the GPU host):
 USAGE:
     python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs [--json out.json]
     python scripts/measure_ttfa.py --wav-dir wavs --case-id TC-AEON-AAX-025 --runs 3
-    AAX6_STT_MODEL=chirp_3 python scripts/measure_ttfa.py --wav-dir wavs   # A/B a knob
+    AAX6_STT_MODEL=chirp_2 python scripts/measure_ttfa.py --wav-dir wavs   # A/B a knob (Thai: chirp_3/chirp_2/chirp only; "short" is not th-TH here)
     python scripts/measure_ttfa.py --self-test    # pure-logic check, no GPU/GCP/torch
 
 Only the top-level imports are stdlib, so --self-test runs on any host (incl. a
@@ -334,7 +334,7 @@ async def run_probe(args: argparse.Namespace) -> int:
         raise SystemExit(f"no .wav files in {wav_dir}")
 
     company = args.company or args.case_id.split("-")[1]
-    stt_model = args.stt_model or os.environ.get("AAX6_STT_MODEL", "short")
+    stt_model = args.stt_model or os.environ.get("AAX6_STT_MODEL", "chirp_3")
     vad_threshold = (
         args.vad_threshold
         if args.vad_threshold is not None
@@ -568,7 +568,9 @@ def main() -> int:
     ap.add_argument("--company", default=None, help="override company (default: derived from case-id)")
     ap.add_argument("--runs", type=int, default=1, help="repeat each WAV N times (default 1)")
     ap.add_argument("--limit", type=int, default=0, help="cap number of WAVs (0 = all)")
-    ap.add_argument("--stt-model", default=None, help="override AAX6_STT_MODEL (short|chirp_3)")
+    ap.add_argument("--stt-model", default=None,
+                    help="override AAX6_STT_MODEL; Thai (th-TH) works with chirp_3/chirp_2/chirp only "
+                         "('short'/'long' 400 in asia-southeast1)")
     ap.add_argument("--vad-threshold", type=float, default=None, help="override Silero threshold")
     ap.add_argument("--handoff-ms", type=float, default=15.0,
                     help="constant: STT->browser->POST handoff (default 15)")

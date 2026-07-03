@@ -99,9 +99,12 @@ def _build_engines():
         if _stt_singleton is None:
             from services.speech.stt import STTService
 
-            # Env-tunable latency knob. Default "short" (~200-400ms, lower Thai
-            # accuracy); set AAX6_STT_MODEL=chirp_3 for the accurate/slower model.
-            model = os.environ.get("AAX6_STT_MODEL", "short")
+            # Env-tunable STT model knob. Default "chirp_3": the low-latency
+            # "short"/"long" conformer models do NOT support th-TH in
+            # asia-southeast1 (Google 400s: language "th-TH" not supported by
+            # model "short" in that location), so they can't be the Thai default.
+            # chirp_2 / chirp are the other Thai-capable candidates worth A/B-ing.
+            model = os.environ.get("AAX6_STT_MODEL", "chirp_3")
             _stt_singleton = STTService(model=model)
         stt = _stt_singleton
         if not _stt_warmed:

@@ -159,7 +159,7 @@ suffers. All are optional.
 
 | Variable | Default | Effect |
 |---|---|---|
-| `AAX6_STT_MODEL` | `short` | Chirp STT model. `short` ≈ 200–400 ms (lower Thai accuracy); set `chirp_3` for the accurate/slower model (~500–900 ms). |
+| `AAX6_STT_MODEL` | `chirp_3` | STT model. **Thai (`th-TH`) is only served by `chirp_3` / `chirp_2` / `chirp` in `asia-southeast1`** — the low-latency `short` / `long` conformer models return a 400 (`language "th-TH" not supported by model "short"`), so they can't be the Thai default. Try `chirp_2` / `chirp` and measure with the probe if you want lower latency. |
 | `AAX6_VAD_SILENCE_HANG_MS` | `350` | Trailing silence (ms) before an utterance is finalized. Lower = snappier; too low cuts callers off mid-thought / lets TTS echo trip a false barge-in. Was `500`. |
 | `AAX6_VAD_THRESHOLD` | `0.4` | Silero speech-probability gate (0–1). Higher = stricter (fewer false triggers, may clip soft speech). |
 | `AAX6_VAD_MIN_SPEECH_MS` | `100` | Sustained speech required before `speech_begin` fires (barge-in debounce). |
@@ -175,8 +175,8 @@ suffers. All are optional.
 source .venv/bin/activate
 # vLLM must be running and .env configured (creds + AAX6_VLLM_BASE_URL/MODEL)
 python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs --json ttfa.json
-# A/B a knob: rerun with an override to quantify the tradeoff
-AAX6_STT_MODEL=chirp_3 python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs
+# A/B a knob: rerun with an override to quantify the tradeoff (Thai: chirp_3/chirp_2/chirp)
+AAX6_STT_MODEL=chirp_2 python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs
 # Sanity-check the pure logic anywhere (no GPU/GCP needed):
 python scripts/measure_ttfa.py --self-test
 ```
