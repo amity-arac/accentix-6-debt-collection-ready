@@ -150,6 +150,39 @@ If these are unset, audio requests fail silently and the chat continues normally
 
 ---
 
+## Latency tuning (voice pipeline)
+
+When the voice path is on, time-to-first-audio (TTFA) is the sum of four serial
+stages: **VAD endpointing → STT → LLM → TTS**. These env knobs trade latency for
+robustness/accuracy. Defaults are already tuned for speed; raise them if quality
+suffers. All are optional.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `AAX6_STT_MODEL` | `short` | Chirp STT model. `short` ≈ 200–400 ms (lower Thai accuracy); set `chirp_3` for the accurate/slower model (~500–900 ms). |
+| `AAX6_VAD_SILENCE_HANG_MS` | `350` | Trailing silence (ms) before an utterance is finalized. Lower = snappier; too low cuts callers off mid-thought / lets TTS echo trip a false barge-in. Was `500`. |
+| `AAX6_VAD_THRESHOLD` | `0.4` | Silero speech-probability gate (0–1). Higher = stricter (fewer false triggers, may clip soft speech). |
+| `AAX6_VAD_MIN_SPEECH_MS` | `100` | Sustained speech required before `speech_begin` fires (barge-in debounce). |
+| `AAX6_TTS_ENDPOINT` | *(unset → global)* | Optional regional TTS endpoint, e.g. `asia-southeast1-texttospeech.googleapis.com`, to cut first-chunk latency. ⚠️ Regional endpoints don't carry every model — a wrong value can 404 Chirp-3-HD streaming. Measure a candidate with the probe below before committing. Needs a backend restart. |
+
+### Measure it
+
+`scripts/measure_ttfa.py` drives real WAV files through the whole pipeline
+(VAD → STT → LLM → TTS) and prints the measured per-stage + end-to-end TTFA
+(mean / p50 / p95), replacing estimates with real numbers:
+
+```bash
+source .venv/bin/activate
+# vLLM must be running and .env configured (creds + AAX6_VLLM_BASE_URL/MODEL)
+python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs --json ttfa.json
+# A/B a knob: rerun with an override to quantify the tradeoff
+AAX6_STT_MODEL=chirp_3 python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs
+# Sanity-check the pure logic anywhere (no GPU/GCP needed):
+python scripts/measure_ttfa.py --self-test
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |

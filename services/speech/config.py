@@ -67,10 +67,24 @@ def _get_project_id() -> str:
 
 @lru_cache(maxsize=1)
 def get_tts_client():
-    """Return a cached Cloud Text-to-Speech client."""
+    """Return a cached Cloud Text-to-Speech client.
+
+    By default this uses Google's global TTS endpoint. Setting AAX6_TTS_ENDPOINT
+    (e.g. "asia-southeast1-texttospeech.googleapis.com") pins a regional endpoint
+    to cut first-chunk latency — but regional endpoints don't carry every model,
+    so a wrong value can 404 Chirp-3-HD streaming. Left unset (global) by default;
+    measure a candidate with scripts/measure_ttfa.py before committing to it.
+    Read once at first call (cached); a change needs a process restart.
+    """
     from google.cloud import texttospeech
 
     credentials = _load_credentials()
+    endpoint = os.environ.get("AAX6_TTS_ENDPOINT")
+    if endpoint:
+        return texttospeech.TextToSpeechClient(
+            credentials=credentials,
+            client_options=ClientOptions(api_endpoint=endpoint),
+        )
     return texttospeech.TextToSpeechClient(credentials=credentials)
 
 

@@ -45,6 +45,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import queue
 import threading
 from typing import Any, Callable
@@ -58,14 +59,18 @@ STT_SAMPLE_RATE = 16000
 _BYTES_PER_MS = STT_SAMPLE_RATE * 2 // 1000  # 16-bit mono
 
 # Silero gating — matches the reference (web/server.py).
-SILERO_THRESHOLD = 0.4
+# All three are env-tunable latency knobs (aggressive defaults; raise to trade
+# latency back for robustness). See README "Latency tuning".
+SILERO_THRESHOLD = float(os.environ.get("AAX6_VAD_THRESHOLD", "0.4"))
 # Trailing silence (after speech) that ends an utterance → finalize + transcribe.
-SILENCE_HANG_MS = 500
+# Default lowered 500 → 350 ms for snappier endpointing; raise if callers get
+# cut off mid-thought or TTS echo trips a false barge-in.
+SILENCE_HANG_MS = int(os.environ.get("AAX6_VAD_SILENCE_HANG_MS", "350"))
 # Sustained speech required before we emit `speech_begin`. The reference's
 # primary endpointer fires on the first speech frame; we add a small gate
 # because this single continuous stream ALSO drives barge-in, and we don't want
 # transient noise / TTS echo leaking a false interrupt. ~100 ms stays snappy.
-MIN_SPEECH_MS = 100
+MIN_SPEECH_MS = int(os.environ.get("AAX6_VAD_MIN_SPEECH_MS", "100"))
 
 # Live interim transcription: re-run recognize() on the growing utterance every
 # ~this much newly-captured speech, and don't bother below MIN_INTERIM_MS.
@@ -93,7 +98,10 @@ def _build_engines():
         if _stt_singleton is None:
             from services.speech.stt import STTService
 
-            _stt_singleton = STTService(model="chirp_3")
+            # Env-tunable latency knob. Default "short" (~200-400ms, lower Thai
+            # accuracy); set AAX6_STT_MODEL=chirp_3 for the accurate/slower model.
+            model = os.environ.get("AAX6_STT_MODEL", "short")
+            _stt_singleton = STTService(model=model)
         stt = _stt_singleton
         if not _stt_warmed:
             logger.info("[stt] warming up Chirp gRPC channel...")

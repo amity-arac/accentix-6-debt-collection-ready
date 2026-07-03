@@ -29,14 +29,32 @@ function settle() {
 }
 
 /** Fire-and-forget warm-up of the server cache for `text`. When play(text)
- *  runs later, the server has already synthesized (or is mid-synthesis), so
- *  the audio element gets bytes faster. Safe to call multiple times; the
- *  server dedupes concurrent requests for the same text. */
+ *  runs later, the server has already synthesized the clip, so the audio
+ *  element gets bytes immediately. Safe to call multiple times; the server
+ *  dedupes concurrent requests for the same text via a per-text lock.
+ *
+ *  We DRAIN the response body to completion rather than cancelling it: the
+ *  server only writes `_CACHE[text]` after its stream fully drains
+ *  (demo/server/tts.py), and it holds the per-text lock until then. Cancelling
+ *  (the old `r.body.cancel()`) aborted the server generator before it cached,
+ *  so the later play() re-synthesized from scratch. Draining lets the cache
+ *  populate and makes play() a warm-cache hit. */
 export function prefetch(text: string): void {
   const trimmed = text.trim();
   if (!trimmed) return;
   fetch(`/api/tts?text=${encodeURIComponent(trimmed)}`, { method: "GET" })
-    .then((r) => r.body && r.body.cancel().catch(() => {}))
+    .then(async (r) => {
+      const body = r.body;
+      if (!body) return;
+      const reader = body.getReader();
+      // Read to end and discard — this is what lets the server finish the
+      // stream and cache the bytes for the subsequent play().
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done } = await reader.read();
+        if (done) break;
+      }
+    })
     .catch(() => {});
 }
 
