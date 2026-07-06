@@ -152,10 +152,11 @@ If these are unset, audio requests fail silently and the chat continues normally
 
 ## Latency tuning (voice pipeline)
 
-When the voice path is on, time-to-first-audio (TTFA) is the sum of four serial
-stages: **VAD endpointing → STT → LLM → TTS**. These env knobs trade latency for
-robustness/accuracy. Defaults are already tuned for speed; raise them if quality
-suffers. All are optional.
+When the voice path is on, time-to-first-audio (TTFA) is the serial chain
+**VAD endpointing → STT → LLM → TTS** (VAD *compute* overlaps speech and is off
+the critical path; the endpointing *hang* is what you feel). These env knobs trade
+latency for robustness/accuracy. Defaults are already tuned for speed; raise them
+if quality suffers. All are optional.
 
 | Variable | Default | Effect |
 |---|---|---|
@@ -188,6 +189,37 @@ The probe auto-detects the served vLLM model from `/v1/models` (pin with `--mode
 In `--stream` mode the report adds an **`LLM first token`** row (when the filler
 fires) and its **TTFA-first-audio** reflects that early fire; `--stream` and the
 default blocking mode report the same total/substantive-reply numbers.
+
+**Reading the numbers (what the probe does and doesn't model).** The report
+separates **measured** stages (STT recognize, LLM hops, TTS) from **added
+constants** it can't observe from a WAV. Two of those constants matter on a real
+deployment and default conservatively:
+
+- `--stt-queue-ms` (default `300`): on the live server the final `recognize()`
+  queues behind the in-flight ~700 ms-cadence interim on the single STT worker, so
+  the caller-felt STT is `recognize + queue-wait`. Set `0` for isolated recognize.
+- `--rtt-ms` (default `0`): browser↔server round-trips (hop NDJSON + `/api/tts`
+  GET). ~0 on localhost; set **~400–1000** for a RunPod-proxy-style remote host.
+
+VAD Silero compute is reported **off the critical path** (it runs per-chunk while
+the caller is still talking; only ~1–2 ms is serial). The "please wait" filler is
+a process-wide TTS cache hit after the first turn, so its steady-state first-audio
+cost is ~0. The LLM stage is **deterministic** (temp 0 / seed 1 / one persona /
+fresh turn-1) — its spread reflects transcript variation only, not the live demo's
+unpinned sampling, retries, or multi-hop turns; read it as a best-case first turn.
+
+**`--tts-playback` — the substantive number depends on the frontend.** The shipped
+frontend *prefetch-replays* reply audio: [useSession.ts](demo/frontend/src/hooks/useSession.ts)
+fires `audio.prefetch(text)` the moment a reply hop arrives, which drains the full
+Chirp synth into cache while [tts.py](demo/server/tts.py) holds a per-text
+`asyncio.Lock`; the near-simultaneous `play()` then blocks on that lock, so the
+caller hears the reply at **≈ `tts_total`** (a cold full synth — reply text is
+always novel and there's no prewarm), **not** `tts_ttfb`. The probe defaults to
+`--tts-playback prefetch-replay` to match this, and also prints a `└ if progressive`
+lower bound. **Biggest remaining win (product change, not measured here):** make
+`play()` stream the reply clip progressively (drop the prefetch race for the first
+clip of a turn) so first audio lands at `tts_ttfb` — worth **~1.5 s** of perceived
+latency. After that change, re-measure with `--tts-playback progressive`.
 
 ---
 
