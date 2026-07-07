@@ -27,7 +27,7 @@ import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Protocol
 
-from demo.server import replay
+from demo.server import replay, tts
 from demo.server.replay import FILLER_TEXT
 
 # Inter-hop delay used in replay mode to make bubble cadence feel agent-like.
@@ -432,9 +432,19 @@ class LiveSession:
                         "result": item.get("result"),
                     })
                 elif kind == "rendered_text":
+                    reply_text = item.get("text", "")
+                    # Server-side TTS prewarm: kick the Chirp synth NOW so it
+                    # overlaps NDJSON delivery + the client's prefetch GET (which
+                    # joins this in-flight synth via tts.py's per-text lock) rather
+                    # than starting cold after the round-trip. Fire-and-forget;
+                    # tts.prewarm swallows its own errors. Revert AAX6_TTS_PREWARM_REPLY=0.
+                    if reply_text and os.environ.get(
+                        "AAX6_TTS_PREWARM_REPLY", "1"
+                    ).strip().lower() not in ("0", "false", ""):
+                        asyncio.create_task(tts.prewarm([reply_text]))
                     yield _emit({
                         "kind": "reply",
-                        "text": item.get("text", ""),
+                        "text": reply_text,
                         "text_ids": last_reply_args.get("text_ids", []),
                         "dynamic_vars": last_reply_args.get("dynamic_vars", {}),
                     })

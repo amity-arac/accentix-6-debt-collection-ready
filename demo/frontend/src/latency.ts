@@ -174,7 +174,10 @@ export function markDone(llmMs: number | null, llmHops: number | null): void {
 
 // ---- TTS (audio) events ----
 
-/** First clip of the turn only — the time-to-first-audio basis. */
+/** First clip of the turn only — the time-to-first-audio basis. On a tool turn
+ *  that first clip is the spoken "please wait" filler (the server relabels the
+ *  pending tool_call into a spoken reply hop, see sessions.py), so this "TTS"
+ *  reading is the filler's client first-audio, not the substantive reply. */
 export function markTtsRequest(): void {
   if (!current || marks.tTtsReq != null) return;
   marks.tTtsReq = now();

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Serve the fine-tuned Qwen debt-collection agent (sft_v2_2) for the live demo.
+# Serve the fine-tuned Qwen debt-collection agent (sft_v2_3_1-h20) for the live demo.
 #
 # Brings up an OpenAI-compatible vLLM endpoint at :8000 serving the base model
-# Qwen/Qwen3.5-9B with the sft_v2_2 LoRA adapter applied. The demo backend talks
-# to this endpoint (AAX6_VLLM_BASE_URL=http://localhost:8000/v1).
+# Qwen/Qwen3.5-9B with the sft_v2_3_1-h20 LoRA adapter applied. The demo backend
+# talks to this endpoint (AAX6_VLLM_BASE_URL=http://localhost:8000/v1).
 #
 # Requirements (see README):
 #   - NVIDIA GPU, ~40 GB+ VRAM (9B + LoRA + KV cache)
@@ -18,9 +18,9 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${PORT:-8000}"
-# Which LoRA adapter to serve. Defaults to sft_v2_2 (v9 teacher: honest-AI
-# disclosure + transfer_to_human_agent escalation). Override to serve a different
-# adapter:  AAX6_VLLM_MODEL=sft_v2 bash scripts/serve_qwen.sh
+# Which LoRA adapter to serve. Defaults to sft_v2_3_1-h20 (v9-lineage adapter:
+# honest-AI disclosure + transfer_to_human_agent escalation). Override to serve a
+# different adapter:  AAX6_VLLM_MODEL=sft_v2_2 bash scripts/serve_qwen.sh
 # The served LoRA module name == $MODEL_NAME, exactly what the backend must send
 # (AAX6_VLLM_MODEL) so the adapter is applied on top of the base model.
 MODEL_NAME="${AAX6_VLLM_MODEL:-sft_v2_3_1-h20}"
@@ -54,9 +54,23 @@ echo "Serving Qwen/Qwen3.5-9B + LoRA '$MODEL_NAME' on :$PORT"
 echo "  -> request model name to use from the backend: $MODEL_NAME"
 echo "  -> gpu-memory-utilization: $GPU_MEM_UTIL (override with GPU_MEM_UTIL=...)"
 echo "  -> LD_PRELOAD: ${LD_PRELOAD:-<none>}"
+# Prefix caching keeps the ~2-3K-token system prompt + tool schemas warm across a
+# turn's multiple tool hops instead of re-prefilling each hop. vLLM's V1 engine
+# defaults this ON, so --enable-prefix-caching is mostly explicit intent.
+# CAVEAT: Qwen3.5 is a hybrid gated-deltanet model (--gdn-prefill-backend triton);
+# for GDN/Mamba hybrids prefix caching may need a hybrid-cache alignment flag, and
+# even then may not cache short prefixes (hybrid KV block can balloon ~2048 tokens).
+# If your vLLM exposes it, also try the alignment flag (name varies by version) —
+# but CONFIRM the engine accepts it first; an unknown flag aborts startup:
+#     --mamba-cache-mode align   # per the Qwen3.5 hybrid recipe; drop if rejected
+# If startup aborts complaining prefix caching is unsupported for this model,
+# remove --enable-prefix-caching below. VERIFY it helps on the host: scrape
+# /metrics for vllm:prefix_cache_hits_total vs queries across the first hop; a
+# hit rate stuck at ~0 means this lever does nothing for this model — accept it.
 exec python3 -m vllm.entrypoints.openai.api_server \
   --model Qwen/Qwen3.5-9B --trust-remote-code --gdn-prefill-backend triton \
   --host 0.0.0.0 --port "$PORT" --dtype bfloat16 --max-model-len 32768 \
+  --enable-prefix-caching \
   --enable-auto-tool-choice --tool-call-parser qwen3_xml \
   --default-chat-template-kwargs '{"enable_thinking": false}' \
   --enable-lora --max-lora-rank 32 --lora-modules "$MODEL_NAME=$ADAPTER" \

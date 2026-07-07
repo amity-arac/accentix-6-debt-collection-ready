@@ -36,7 +36,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 # `stt_ws` keeps torch / google-cloud-speech imports lazy (inside the handler),
 # so importing it here does NOT pull those heavy deps at startup.
-from demo.server import sessions, stt_ws, tts  # noqa: E402
+from demo.server import replay, sessions, stt_ws, tts  # noqa: E402
 
 logger = logging.getLogger("demo.server")
 
@@ -60,6 +60,31 @@ app.add_middleware(
 SESSIONS: dict[str, sessions.Session] = {}
 
 NDJSON_MEDIA = "application/x-ndjson"
+
+
+def _gcp_creds_present() -> bool:
+    return bool(
+        os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    )
+
+
+@app.on_event("startup")
+async def _prewarm_filler() -> None:
+    """Pre-synthesize the fixed "please wait" filler into the TTS cache once per
+    process. In live mode the filler is the FIRST audio the caller hears on any
+    tool turn (sessions.py relabels tool_call_pending → a spoken reply hop), and
+    live mode never prewarms TTS otherwise — so without this its first synth is a
+    cold Chirp call (~500ms). A warm cache makes it a hit (~50-100ms). Gated on
+    GCP creds (else the synth just 401s) + AAX6_TTS_PREWARM_FILLER (default on).
+    Fire-and-forget: never blocks startup, and there is runway before the first
+    caller speaks."""
+    if os.environ.get("AAX6_TTS_PREWARM_FILLER", "1").strip().lower() in ("0", "false", ""):
+        return
+    if not _gcp_creds_present():
+        return
+    asyncio.create_task(tts.prewarm([replay.FILLER_TEXT]))
 
 
 def _config() -> tuple[str, str, str]:
@@ -167,11 +192,7 @@ async def create_session(
     # Replay-mode optimization: fire-and-forget TTS pre-warm so subsequent
     # /api/tts calls are cache hits. Skip if neither GCP creds nor a project
     # is configured — the synth call would just 401/raise.
-    if isinstance(session, sessions.ReplaySession) and (
-        os.environ.get("GOOGLE_CLOUD_PROJECT")
-        or os.environ.get("GOOGLE_CREDENTIALS_JSON")
-        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    ):
+    if isinstance(session, sessions.ReplaySession) and _gcp_creds_present():
         texts = session.all_reply_texts()
         asyncio.create_task(tts.prewarm(texts))
 

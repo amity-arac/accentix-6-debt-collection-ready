@@ -20,6 +20,7 @@ subsequent calls (or `prewarm`-ed cache hits) emit instantly.
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from typing import AsyncIterator, Final, Iterator
 
@@ -53,7 +54,12 @@ AUDIO_MEDIA_TYPE: Final[str] = "audio/ogg"
 _BREAK_MARKERS: Final[tuple[str, ...]] = (
     "ค่ะ", "ครับ", "คะ", "ครับผม", ". ", "? ", "! ",
 )
-_CHUNK_TARGET: Final[int] = 30
+# First-chunk flush target: the earliest break-marker at/after this many chars
+# flushes the first audio chunk (minimal TTFB). Env-tunable so the host can A/B a
+# lower value for earlier reply first-audio — but listen for Thai prosody
+# artifacts before lowering, and note short replies with an early particle are
+# unaffected. Default 30 = no behavior change.
+_CHUNK_TARGET: Final[int] = int(os.environ.get("AAX6_TTS_CHUNK_TARGET", "30"))
 _CHUNK_MAX: Final[int] = 80
 
 # In-process cache keyed by exact text → concatenated OGG bytes.

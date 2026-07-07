@@ -102,7 +102,11 @@ export function play(text: string): Promise<void> {
 }
 
 export function stop(): void {
-  if (audio) {
+  // Only tear the element down if it actually has a source loaded. play() calls
+  // stop() first every time; calling load() on an already-idle element (e.g. a
+  // play() right after a prior stop/barge-in/reset) forces a needless
+  // media-pipeline re-init (~10-40ms) for no reason.
+  if (audio && (audio.src || audio.currentSrc)) {
     try {
       audio.pause();
     } catch {

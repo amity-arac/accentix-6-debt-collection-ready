@@ -161,10 +161,16 @@ if quality suffers. All are optional.
 | Variable | Default | Effect |
 |---|---|---|
 | `AAX6_STT_MODEL` | `chirp_3` | STT model. **Thai (`th-TH`) is only served by `chirp_3` / `chirp_2` / `chirp` in `asia-southeast1`** — the low-latency `short` / `long` conformer models return a 400 (`language "th-TH" not supported by model "short"`), so they can't be the Thai default. Try `chirp_2` / `chirp` and measure with the probe if you want lower latency. |
-| `AAX6_VAD_SILENCE_HANG_MS` | `350` | Trailing silence (ms) before an utterance is finalized. Lower = snappier; too low cuts callers off mid-thought / lets TTS echo trip a false barge-in. Was `500`. |
+| `AAX6_VAD_SILENCE_HANG_MS` | `250` | Trailing silence (ms) before an utterance is finalized — the leading term of TTFA on *every* turn. Lower = snappier; too low cuts callers off mid-thought / lets TTS echo trip a false barge-in (validate live). Was `500 → 350`. |
 | `AAX6_VAD_THRESHOLD` | `0.4` | Silero speech-probability gate (0–1). Higher = stricter (fewer false triggers, may clip soft speech). |
 | `AAX6_VAD_MIN_SPEECH_MS` | `100` | Sustained speech required before `speech_begin` fires (barge-in debounce). |
+| `AAX6_STT_DIRECT_FINAL` | `1` | Run the final `recognize()` on its own thread so it never queues behind an in-flight interim (~150–500 ms off STT). `0` reverts to the single-worker queue. |
+| `AAX6_TTS_PREWARM_FILLER` | `1` | Pre-synthesize the spoken "please wait" filler at startup so its first play (the **first audio** on a tool turn) is a cache hit (~50–100 ms) instead of a cold ~500 ms synth. `0` disables. |
+| `AAX6_TTS_PREWARM_REPLY` | `1` | Kick the reply's Chirp synth server-side the moment the reply is emitted, so it overlaps hop delivery + the client prefetch (~50–150 ms, more over WAN). `0` disables. |
+| `AAX6_TTS_CHUNK_TARGET` | `30` | First audio-chunk flush target (chars). Lower = earlier reply first-audio on long clauses, but risks Thai prosody artifacts; short replies with an early particle (ค่ะ/ครับ) are unaffected. |
 | `AAX6_TTS_ENDPOINT` | *(unset → global)* | Optional regional TTS endpoint, e.g. `asia-southeast1-texttospeech.googleapis.com`, to cut first-chunk latency. ⚠️ Regional endpoints don't carry every model — a wrong value can 404 Chirp-3-HD streaming. Measure a candidate with the probe below before committing. Needs a backend restart. |
+
+> vLLM prefix caching is enabled explicitly in `scripts/serve_qwen.sh` (`--enable-prefix-caching`). Qwen3.5 is a hybrid (gated-deltanet) model, so confirm it's actually taking on the host — scrape `/metrics` for `vllm:prefix_cache_hits_total` vs queries on the first hop; it may need a hybrid-cache alignment flag and may not cache short prefixes. If startup aborts complaining caching is unsupported, remove the flag.
 
 ### Measure it
 
@@ -195,31 +201,37 @@ separates **measured** stages (STT recognize, LLM hops, TTS) from **added
 constants** it can't observe from a WAV. Two of those constants matter on a real
 deployment and default conservatively:
 
-- `--stt-queue-ms` (default `300`): on the live server the final `recognize()`
-  queues behind the in-flight ~700 ms-cadence interim on the single STT worker, so
-  the caller-felt STT is `recognize + queue-wait`. Set `0` for isolated recognize.
+- `--stt-queue-ms` (default `300`): models the final `recognize()` queuing behind
+  an in-flight interim on the single STT worker. With `AAX6_STT_DIRECT_FINAL=1` (the
+  default) the final runs on its own thread and this wait is ~removed — set
+  `--stt-queue-ms 0` to model that; keep `300` for the legacy single-worker path.
 - `--rtt-ms` (default `0`): browser↔server round-trips (hop NDJSON + `/api/tts`
   GET). ~0 on localhost; set **~400–1000** for a RunPod-proxy-style remote host.
 
 VAD Silero compute is reported **off the critical path** (it runs per-chunk while
-the caller is still talking; only ~1–2 ms is serial). The "please wait" filler is
-a process-wide TTS cache hit after the first turn, so its steady-state first-audio
-cost is ~0. The LLM stage is **deterministic** (temp 0 / seed 1 / one persona /
+the caller is still talking; only ~1–2 ms is serial). The spoken "please wait"
+filler is prewarmed into the TTS cache at server startup (`AAX6_TTS_PREWARM_FILLER`),
+so its first-audio is a cache hit (~50–100 ms) from the very first turn. The LLM
+stage is **deterministic** (temp 0 / seed 1 / one persona /
 fresh turn-1) — its spread reflects transcript variation only, not the live demo's
 unpinned sampling, retries, or multi-hop turns; read it as a best-case first turn.
 
-**`--tts-playback` — the substantive number depends on the frontend.** The shipped
-frontend *prefetch-replays* reply audio: [useSession.ts](demo/frontend/src/hooks/useSession.ts)
-fires `audio.prefetch(text)` the moment a reply hop arrives, which drains the full
-Chirp synth into cache while [tts.py](demo/server/tts.py) holds a per-text
-`asyncio.Lock`; the near-simultaneous `play()` then blocks on that lock, so the
-caller hears the reply at **≈ `tts_total`** (a cold full synth — reply text is
-always novel and there's no prewarm), **not** `tts_ttfb`. The probe defaults to
-`--tts-playback prefetch-replay` to match this, and also prints a `└ if progressive`
-lower bound. **Biggest remaining win (product change, not measured here):** make
-`play()` stream the reply clip progressively (drop the prefetch race for the first
-clip of a turn) so first audio lands at `tts_ttfb` — worth **~1.5 s** of perceived
-latency. After that change, re-measure with `--tts-playback progressive`.
+**TTS is *client* first-audio, not server synth time.** The in-app control bar measures
+TTS as a clip's `a.src`→`playing` time in the browser (Chirp streaming first chunk +
+network + the browser's Opus buffer-to-playback) — the number the caller feels. A
+server-side probe can't observe the browser leg, so TTS is modeled as calibrated
+constants: `--tts-client-ms` (default **550**) for the substantive reply, and
+`--filler-tts-client-ms` (default **100**, a warm cache hit; ~**500** cold) for the
+spoken filler. The server-side `tts_ttfb` (~120 ms) / `tts_total` (whole-clip synth)
+are still measured but shown only informationally. **The filler *is* spoken:** the
+"please wait" bubble is emitted as a `reply` hop ([sessions.py](demo/server/sessions.py)
+relabels the pending tool_call → `{"kind":"reply","text":FILLER_TEXT}`) and
+[useSession.ts](demo/frontend/src/hooks/useSession.ts) speaks every `reply` hop — so on
+a tool turn the filler is the **first sound** (the headline `TTFA — first heard` clock),
+and the substantive answer follows. **Fragility:** replies are fetched via a
+prefetch-then-replay path that serializes on a per-text lock
+([tts.py](demo/server/tts.py)), so a *long* reply can spike the substantive clock toward
+its full synth — short debt-collection replies hide it.
 
 ---
 

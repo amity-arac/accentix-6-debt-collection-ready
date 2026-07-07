@@ -64,9 +64,10 @@ _BYTES_PER_MS = STT_SAMPLE_RATE * 2 // 1000  # 16-bit mono
 # latency back for robustness). See README "Latency tuning".
 SILERO_THRESHOLD = float(os.environ.get("AAX6_VAD_THRESHOLD", "0.4"))
 # Trailing silence (after speech) that ends an utterance → finalize + transcribe.
-# Default lowered 500 → 350 ms for snappier endpointing; raise if callers get
-# cut off mid-thought or TTS echo trips a false barge-in.
-SILENCE_HANG_MS = int(os.environ.get("AAX6_VAD_SILENCE_HANG_MS", "350"))
+# Default lowered 500 → 350 → 250 ms for snappier endpointing; this is the
+# leading term of time-to-first-audio on EVERY turn. Raise if callers get cut
+# off mid-thought or TTS echo trips a false barge-in (validate live on the host).
+SILENCE_HANG_MS = int(os.environ.get("AAX6_VAD_SILENCE_HANG_MS", "250"))
 # Sustained speech required before we emit `speech_begin`. The reference's
 # primary endpointer fires on the first speech frame; we add a small gate
 # because this single continuous stream ALSO drives barge-in, and we don't want
@@ -80,6 +81,14 @@ MIN_INTERIM_MS = 300
 # Safety cap: never buffer more than this into one utterance (Chirp recognize()
 # is the <1-min path). Forces a finalize so a stuck stream can't grow unbounded.
 MAX_UTTERANCE_MS = 30_000
+
+# Run the FINAL recognize on its own dedicated thread instead of enqueuing it on
+# the shared interim worker, so it never waits behind an in-flight ~774ms interim
+# recognize() (the bulk of the "STT queue-wait"). google-cloud-speech gRPC
+# clients are thread-safe for concurrent unary calls, and STTService holds no
+# lock around recognize(), so two concurrent recognize()s are safe. Set 0 to
+# revert to the single-worker queue.
+DIRECT_FINAL = os.environ.get("AAX6_STT_DIRECT_FINAL", "1").strip().lower() not in ("0", "false", "")
 
 # Process-wide STT client (cheap, thread-safe wrapper over an lru_cached gRPC
 # client) + one-time gRPC warmup flag. The VADService is per-connection because
@@ -129,6 +138,8 @@ def _vad_gate_worker(
     vad,
     pcm_q: "queue.Queue[bytes | None]",
     req_q: "queue.Queue[Any]",
+    final_q: "queue.Queue[bytes | None]",
+    finalizing: threading.Event,
     stop: threading.Event,
     send: Callable[[dict], None],
 ) -> None:
@@ -159,8 +170,16 @@ def _vad_gate_worker(
         # latency" — the trailing silence the caller waits through after they
         # stop talking, before the turn is finalized and STT can start.
         endpoint_ms = round((time.perf_counter() - t_last_voice) * 1000, 1) if t_last_voice else None
+        # Mark end-of-speech so the interim worker drops any pending/late interim
+        # (it must not land after stt_final). Cleared on the next speech_begin.
+        finalizing.set()
         send({"type": "speech_end", "endpoint_ms": endpoint_ms})
-        req_q.put(("final", bytes(buf)))
+        # DIRECT_FINAL: hand the final to its own worker so it never waits behind
+        # an in-flight interim recognize(); else keep the legacy single-queue path.
+        if DIRECT_FINAL:
+            final_q.put(bytes(buf))
+        else:
+            req_q.put(("final", bytes(buf)))
         buf = bytearray()
         in_speech = False
         silent_ms = 0.0
@@ -190,6 +209,7 @@ def _vad_gate_worker(
                 t_last_voice = time.perf_counter()
                 if not in_speech and run_ms >= MIN_SPEECH_MS:
                     in_speech = True
+                    finalizing.clear()  # new utterance → re-enable interim sends
                     send({"type": "speech_begin"})
                     if prev_chunk:
                         buf.extend(prev_chunk)
@@ -224,14 +244,17 @@ def _vad_gate_worker(
 def _stt_worker(
     stt,
     req_q: "queue.Queue[Any]",
+    finalizing: threading.Event,
     stop: threading.Event,
     send: Callable[[dict], None],
 ) -> None:
-    """Transcribe snapshots handed over by the VAD-gate thread.
+    """Transcribe interim snapshots handed over by the VAD-gate thread (and the
+    final too, when AAX6_STT_DIRECT_FINAL is off).
 
     Each batch recognize() blocks (~hundreds of ms), so this runs off the gate
     thread. When it falls behind, stale interim requests are coalesced to the
-    newest — but a `final` is never skipped.
+    newest — but a `final` is never skipped. Once `finalizing` is set (end-of-
+    speech), pending/late interims are dropped so none lands after stt_final.
     """
     last_interim_text: str | None = None
 
@@ -256,6 +279,13 @@ def _stt_worker(
                 if kind == "final":
                     break
 
+        # End-of-speech is being finalized → the dedicated final worker owns the
+        # result; drop this interim so a stale one can't land after stt_final.
+        # (A queued `final` — when AAX6_STT_DIRECT_FINAL is off — must still run.)
+        if kind == "interim" and finalizing.is_set():
+            last_interim_text = None
+            continue
+
         t0 = time.perf_counter()
         try:
             text = stt.transcribe_pcm(pcm, sample_rate=STT_SAMPLE_RATE).strip()
@@ -270,16 +300,46 @@ def _stt_worker(
         recognize_ms = round((time.perf_counter() - t0) * 1000, 1)
 
         if kind == "interim":
-            # Only push changes — avoids spamming identical interim frames.
-            if text and text != last_interim_text:
+            # Only push changes — avoids spamming identical interim frames, and
+            # never after finalize() started (guards a recognize that was
+            # in-flight when end-of-speech fired).
+            if text and text != last_interim_text and not finalizing.is_set():
                 last_interim_text = text
                 send({"type": "stt_interim", "text": text})
-        else:  # final
+        else:  # final (legacy single-queue path; DIRECT_FINAL uses _stt_final_worker)
             last_interim_text = None
             if text:
                 send({"type": "stt_final", "text": text, "recognize_ms": recognize_ms})
             else:
                 send({"type": "turn_empty", "recognize_ms": recognize_ms})
+
+
+def _stt_final_worker(
+    stt,
+    final_q: "queue.Queue[bytes | None]",
+    stop: threading.Event,
+    send: Callable[[dict], None],
+) -> None:
+    """Transcribe FINAL utterance snapshots on a dedicated thread (DIRECT_FINAL),
+    so the final recognize() never queues behind an in-flight interim. Runs one
+    recognize() at a time here, concurrently with the interim worker's
+    recognize() on the same thread-safe gRPC client."""
+    while not stop.is_set():
+        pcm = final_q.get()
+        if pcm is None:
+            break
+        t0 = time.perf_counter()
+        try:
+            text = stt.transcribe_pcm(pcm, sample_rate=STT_SAMPLE_RATE).strip()
+        except Exception as e:  # noqa: BLE001 — surface, keep listening
+            logger.exception("[stt] final recognize failed")
+            send({"type": "error", "message": f"STT: {e}"})
+            continue
+        recognize_ms = round((time.perf_counter() - t0) * 1000, 1)
+        if text:
+            send({"type": "stt_final", "text": text, "recognize_ms": recognize_ms})
+        else:
+            send({"type": "turn_empty", "recognize_ms": recognize_ms})
 
 
 async def run_session(ws: WebSocket) -> None:
@@ -308,6 +368,8 @@ async def run_session(ws: WebSocket) -> None:
 
     pcm_q: "queue.Queue[bytes | None]" = queue.Queue()
     req_q: "queue.Queue[Any]" = queue.Queue()
+    final_q: "queue.Queue[bytes | None]" = queue.Queue()
+    finalizing = threading.Event()
     stop = threading.Event()
 
     def send_threadsafe(obj: dict) -> None:
@@ -316,16 +378,25 @@ async def run_session(ws: WebSocket) -> None:
 
     gate = threading.Thread(
         target=_vad_gate_worker,
-        args=(vad, pcm_q, req_q, stop, send_threadsafe),
+        args=(vad, pcm_q, req_q, final_q, finalizing, stop, send_threadsafe),
         daemon=True,
     )
     transcriber = threading.Thread(
         target=_stt_worker,
-        args=(stt, req_q, stop, send_threadsafe),
+        args=(stt, req_q, finalizing, stop, send_threadsafe),
         daemon=True,
     )
-    gate.start()
-    transcriber.start()
+    workers = [gate, transcriber]
+    if DIRECT_FINAL:
+        # Dedicated final-recognize thread → the final never waits behind an
+        # in-flight interim (see DIRECT_FINAL). Shares the thread-safe stt client.
+        workers.append(threading.Thread(
+            target=_stt_final_worker,
+            args=(stt, final_q, stop, send_threadsafe),
+            daemon=True,
+        ))
+    for w in workers:
+        w.start()
 
     try:
         while True:
@@ -352,5 +423,6 @@ async def run_session(ws: WebSocket) -> None:
         stop.set()
         pcm_q.put(None)
         req_q.put(None)
-        await asyncio.to_thread(gate.join, 2.0)
-        await asyncio.to_thread(transcriber.join, 2.0)
+        final_q.put(None)
+        for w in workers:
+            await asyncio.to_thread(w.join, 2.0)

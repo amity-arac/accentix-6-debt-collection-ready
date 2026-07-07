@@ -11,35 +11,45 @@ Pipeline per WAV (serial, this is what the caller feels):
     ^ hang wait       ^ recognize()     ^ tool-call hop(s)       ^ browser plays
 
 For each WAV we run one full trip and time each stage; across all WAVs we report
-the mean (and percentiles). Two end-to-end clocks are reported:
-  * TTFA-first-audio  : first sound the caller hears (the "please wait" filler on
-    tool turns, else the reply itself).
-  * TTFA-substantive  : the agent's actual answer starts playing.
+the mean (and percentiles). Clocks reported:
+  * TTFA (first heard) : when the caller FIRST hears audio — the real
+    time-to-first-audio. On a tool turn the spoken "please wait" filler is first
+    (see the filler note below); on a reply-only turn the reply itself is first.
+  * substantive reply  : when the caller hears the actual answer (after the filler).
+  * first feedback     : when a caller WITH A SCREEN first sees a bubble. No audio;
+    informational; ~= the heard clock minus the filler's client first-audio.
 
-WHAT THIS MEASURES vs. what it can't (see the audit fixes in the report footer):
-  * Measured live: STT recognize(), LLM hop(s), TTS TTFB *and* full synth.
+TTS — the reply's client-perceived first-audio, NOT server synth time:
+    The live control bar measures TTS as the reply clip's a.src->'playing' time in
+    the browser (client first-audio), and it lands ~500-600 ms — the Chirp
+    streaming first chunk + network + the browser's Opus buffer-to-playback. This
+    is neither the server's tts_ttfb (~120 ms, too low: excludes browser buffering)
+    nor tts_total (whole-clip synth, too high). A server-side probe CANNOT observe
+    the browser leg, so TTS is modeled as a calibrated constant --tts-client-ms
+    (default 550, taken from the in-app control bar). The server tts_ttfb / tts_total
+    are still measured and reported, but only informationally.
+    NOTE (the filler IS spoken): the "please wait" filler is emitted as a spoken
+    `reply` hop (demo/server/sessions.py relabels the streaming tool_call_pending
+    -> {"kind":"reply","text":FILLER_TEXT}; useSession.ts speaks every reply hop).
+    So on a tool turn the filler is the FIRST sound — at first-token + the filler's
+    client first-audio (--filler-tts-client-ms; a warm cache hit ~0-100ms once the
+    server prewarms it, else a cold ~500ms synth). FRAGILITY: a LONG substantive
+    reply can still spike the substantive clock toward full synth (prefetch-replay
+    per-text lock, tts.py); short debt-collection replies hide this.
+
+WHAT THIS MEASURES vs. what it can't:
+  * Measured live: STT recognize(), LLM hop(s), TTS server ttfb/total (informational).
   * Added as labeled constants (a browserless server-side probe can't observe
     them): the VAD silence-hang endpointing wait (AAX6_VAD_SILENCE_HANG_MS), the
-    mic-chunk quantization, the STT->browser->POST handoff, the browser <audio>
-    decode/start, and TWO live-only terms the audit flagged as previously
-    unmodeled — the STT queue-wait (--stt-queue-ms: the final recognize() queues
-    behind the in-flight 700ms-cadence interim on the single STT worker) and the
-    browser<->server RTT (--rtt-ms: ~0 on localhost, seconds on a RunPod proxy).
+    mic-chunk quantization, the STT->browser->POST handoff, the TTS client
+    first-audio (--tts-client-ms), and TWO live-only terms — the STT queue-wait
+    (--stt-queue-ms: the final recognize() queues behind the in-flight
+    700ms-cadence interim on the single STT worker) and the browser<->server RTT
+    (--rtt-ms: ~0 on localhost, seconds on a RunPod proxy).
   * NOT on the critical path (informational only): VAD Silero compute. Live Silero
     runs per-chunk in the gate thread, concurrently with the caller still speaking
     (stt_ws.py); only ~1-2 ms of final-chunk inference is actually serial, so the
     measured whole-utterance compute is reported but NOT summed into TTFA.
-
-CRITICAL — reply TTS is a COLD FULL synth on the live path, not a TTFB stream:
-    The frontend prefetches the reply text the instant the reply hop arrives
-    (useSession.ts) — that GET drains the whole body while tts.py holds a per-text
-    asyncio.Lock until the full clip caches; the near-simultaneous play() then
-    blocks on that lock, so first audio lands at ~tts_total, NOT tts_ttfb. Reply
-    text is always novel and LiveSession gets no prewarm, so it is always cold.
-    Hence --tts-playback defaults to `prefetch-replay` (substantive clock uses
-    tts_total). Pass --tts-playback progressive to model the faster design where
-    play() streams the clip directly (substantive clock uses tts_ttfb) — only
-    valid once the frontend actually plays progressively (see README).
 
 REQUIREMENTS (real run, on the GPU host):
   * vLLM serving the adapter (scripts/serve_qwen.sh) + .env with GCP creds and
@@ -51,9 +61,10 @@ REQUIREMENTS (real run, on the GPU host):
 LLM mode (blocking vs streaming) — the LLM stage is effectively n=1:
     Default is BLOCKING (one chat.completions call per hop; clean per-hop timing).
     --stream uses the demo's streaming path, which fires the "please wait" filler
-    at FIRST TOKEN — so the report's `LLM first token` and TTFA-first-audio reflect
-    the real live-demo first-audio, not the conservative full-first-hop estimate.
-    Total/substantive-reply numbers are the same either way (same tokens decoded).
+    BUBBLE at FIRST TOKEN — so the report's `LLM first token` and the `first
+    feedback` clock reflect when a screen user first sees something. (The filler is
+    not spoken, so this affects the visual clock only, never the heard-reply clock.)
+    Total/heard-reply numbers are the same either way (same tokens decoded).
     CAVEAT: the probe pins temperature=0, seed=1, one persona, and a fresh turn-1
     history per WAV, so every WAV decodes the SAME hop sequence — the LLM stage is
     deterministic (n=1). Its p95/max reflect only STT-transcript variation, NOT the
@@ -409,6 +420,41 @@ async def measure_tts(text: str) -> tuple[float, float]:
     return (ttfb if ttfb is not None else total_ms), total_ms
 
 
+def compute_clocks(
+    llm: dict[str, Any],
+    *,
+    live_prefix: float,
+    tts_client_ms: float,
+    filler_tts_client_ms: float,
+) -> dict[str, float]:
+    """Derive the TTFA clocks from an llm-timing dict + the serial live prefix.
+
+    Pure function (no I/O) so --self-test can exercise the formula and its
+    None-safe first_token -> first_hop -> to_reply branching without a GPU.
+
+      * ttfa_heard_ms  : THE number — when the caller first HEARS audio. On a tool
+        turn the spoken filler is first, at first-token/first-hop + the filler's
+        client first-audio; on a reply-only turn the reply itself is first.
+      * ttfa_audio_ms  : when the caller hears the SUBSTANTIVE reply.
+      * first_feedback_ms : when a SCREEN user first sees a bubble (no audio term).
+    """
+    if llm["any_non_reply"]:
+        first_feedback_llm_ms = (
+            llm["first_token_ms"] if llm.get("first_token_ms") is not None
+            else llm["first_hop_ms"]
+        )
+        ttfa_heard = live_prefix + first_feedback_llm_ms + filler_tts_client_ms
+    else:
+        first_feedback_llm_ms = llm["to_first_reply_ms"]
+        ttfa_heard = live_prefix + llm["to_first_reply_ms"] + tts_client_ms
+    return {
+        "first_feedback_llm_ms": first_feedback_llm_ms,
+        "ttfa_heard_ms": ttfa_heard,
+        "ttfa_audio_ms": live_prefix + llm["to_first_reply_ms"] + tts_client_ms,
+        "first_feedback_ms": live_prefix + first_feedback_llm_ms,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Driver
 # ---------------------------------------------------------------------------
@@ -435,12 +481,13 @@ async def run_probe(args: argparse.Namespace) -> int:
         if args.vad_threshold is not None
         else float(os.environ.get("AAX6_VAD_THRESHOLD", "0.4"))
     )
-    vad_hang_ms = float(os.environ.get("AAX6_VAD_SILENCE_HANG_MS", "350"))
+    vad_hang_ms = float(os.environ.get("AAX6_VAD_SILENCE_HANG_MS", "250"))
     # Live-only constants the audit flagged (a server-side probe can't observe
     # them from a pre-segmented WAV). All override-able via flags.
     stt_queue_ms = args.stt_queue_ms   # final recognize() queues behind interims
     rtt_ms = args.rtt_ms               # browser<->server round-trips (0 local)
-    tts_playback = args.tts_playback   # prefetch-replay (cold total) | progressive (ttfb)
+    tts_client_ms = args.tts_client_ms  # reply client first-audio (a.src->playing)
+    filler_tts_client_ms = args.filler_tts_client_ms  # spoken filler first-audio (warm cache)
 
     # Resolve the vLLM model against the running server BEFORE building anything,
     # so a name mismatch is a clear error here — not a swallowed 404 at prewarm
@@ -454,7 +501,8 @@ async def run_probe(args: argparse.Namespace) -> int:
           f"company={company} | STT={stt_model} | vad_hang={vad_hang_ms:.0f}ms")
     print(f"[setup] vLLM {base_url} | model={vllm_model} | LLM mode={llm_mode} | served={served}")
     print(f"[setup] live constants: stt_queue={stt_queue_ms:.0f}ms rtt={rtt_ms:.0f}ms "
-          f"tts_playback={tts_playback}")
+          f"tts_client={tts_client_ms:.0f}ms (reply) "
+          f"filler_tts_client={filler_tts_client_ms:.0f}ms (spoken filler, warm-cache)")
     print("[setup] building engines (Silero VAD, Chirp STT, Qwen agent)...")
 
     from simulator.config import FILLER_TEXT
@@ -503,48 +551,26 @@ async def run_probe(args: argparse.Namespace) -> int:
                 continue
 
             llm = await asyncio.to_thread(measure_llm, agent, customer_data, transcript)
+            # Server-side TTS numbers — measured but INFORMATIONAL only. The heard
+            # latency is the browser's client first-audio (tts_client_ms), which a
+            # server-side probe can't observe; we still record ttfb/total to show
+            # the relationship and to flag long replies (fragility, see docstring).
             reply_ttfb, reply_total = await measure_tts(llm["reply_text"])
 
-            # The live reply audio starts at ~tts_total (cold prefetch-replay: the
-            # frontend prefetch drains the full synth under a per-text lock that the
-            # play() GET blocks on) unless the frontend streams progressively.
-            tts_term = reply_total if tts_playback == "prefetch-replay" else reply_ttfb
-
-            # LLM contribution to the FIRST audible sound:
-            #  - tool turn: the "please wait" filler. Streaming fires it at
-            #    first-token (first_token_ms); blocking only after the full first
-            #    hop (first_hop_ms). Its TTS is a steady-state cache hit (~0), so
-            #    the tool-turn first-audio TTS term is 0, not the cold filler synth.
-            #  - reply-only turn: no filler — first audio IS the reply, so it pays
-            #    the reply TTS term (same playback model as substantive).
-            if llm["any_non_reply"]:
-                llm_first_audio_ms = (
-                    llm["first_token_ms"] if llm["first_token_ms"] is not None
-                    else llm["first_hop_ms"]
-                )
-                first_audio_tts = 0.0
-            else:
-                llm_first_audio_ms = llm["to_first_reply_ms"]
-                first_audio_tts = tts_term
-
-            # Serial live prefix shared by both clocks. VAD compute is NOT included
+            # Serial live prefix shared by all clocks. VAD compute is NOT included
             # (concurrent with speech, off critical path). stt_queue + rtt are the
             # audit-added live-only terms.
             live_prefix = (
                 vad_hang_ms + args.mic_chunk_ms + rtt_ms
                 + stt_ms + stt_queue_ms + args.handoff_ms
             )
-            ttfa_first = (
-                live_prefix + llm_first_audio_ms + first_audio_tts + args.browser_decode_ms
+            clocks = compute_clocks(
+                llm, live_prefix=live_prefix, tts_client_ms=tts_client_ms,
+                filler_tts_client_ms=filler_tts_client_ms,
             )
-            ttfa_sub = (
-                live_prefix + llm["to_first_reply_ms"] + tts_term + args.browser_decode_ms
-            )
-            # Progressive-play lower bound (what the substantive clock would be if
-            # the frontend streamed the reply clip instead of prefetch-replay).
-            ttfa_sub_progressive = (
-                live_prefix + llm["to_first_reply_ms"] + reply_ttfb + args.browser_decode_ms
-            )
+            ttfa_heard = clocks["ttfa_heard_ms"]          # THE number: first heard audio
+            ttfa_audio = clocks["ttfa_audio_ms"]          # substantive reply (secondary)
+            first_feedback = clocks["first_feedback_ms"]  # visual on-screen bubble
 
             row = {
                 "wav": wav.name,
@@ -556,23 +582,24 @@ async def run_probe(args: argparse.Namespace) -> int:
                 "stt_ms": stt_ms,
                 "llm_first_token_ms": llm["first_token_ms"],  # None unless streaming + tool turn
                 "llm_first_hop_ms": llm["first_hop_ms"],
-                "llm_first_audio_ms": llm_first_audio_ms,     # what feeds TTFA-first-audio
                 "llm_to_reply_ms": llm["to_first_reply_ms"],
                 "llm_total_ms": llm["total_ms"],
                 "hop_count": llm["hop_count"],
                 "any_non_reply": llm["any_non_reply"],
-                "tts_ttfb_ms": reply_ttfb,
-                "tts_total_ms": reply_total,
-                "ttfa_first_audio_ms": ttfa_first,
-                "ttfa_substantive_ms": ttfa_sub,
-                "ttfa_substantive_progressive_ms": ttfa_sub_progressive,
+                "tts_ttfb_ms": reply_ttfb,      # server, informational
+                "tts_total_ms": reply_total,    # server, informational (fragility flag)
+                "tts_client_ms": tts_client_ms,  # reply client first-audio (constant)
+                "filler_tts_client_ms": filler_tts_client_ms,  # spoken-filler first-audio (constant)
+                "ttfa_heard_ms": ttfa_heard,     # THE number: first heard audio
+                "ttfa_audio_ms": ttfa_audio,     # substantive reply (secondary)
+                "first_feedback_ms": first_feedback,  # visual: on-screen bubble
             }
             rows.append(row)
             ft = f"{llm['first_token_ms']:.0f}" if llm["first_token_ms"] is not None else "—"
             print(f"  [ok] {wav.name:<28} STT={stt_ms:6.0f}  "
                   f"LLM(tok/1st/reply)={ft:>6}/{llm['first_hop_ms']:6.0f}/{llm['to_first_reply_ms']:6.0f}  "
-                  f"TTS(ttfb/tot)={reply_ttfb:5.0f}/{reply_total:5.0f}  hops={llm['hop_count']}  ->  "
-                  f"TTFA(first/sub)={ttfa_first:6.0f}/{ttfa_sub:6.0f}ms")
+                  f"TTS(srv ttfb/tot)={reply_ttfb:5.0f}/{reply_total:5.0f}  hops={llm['hop_count']}  ->  "
+                  f"TTFA heard={ttfa_heard:6.0f}  reply@{ttfa_audio:6.0f}  see@{first_feedback:6.0f}ms")
 
     if not rows:
         print("\nNo successful trips (all empty/skipped). Nothing to aggregate.")
@@ -580,11 +607,12 @@ async def run_probe(args: argparse.Namespace) -> int:
 
     cfg = {
         "case_id": args.case_id, "company": company, "stt_model": stt_model,
-        "llm_mode": llm_mode, "tts_playback": tts_playback,
+        "llm_mode": llm_mode,
         "vad_hang_ms": vad_hang_ms, "mic_chunk_ms": args.mic_chunk_ms,
-        "handoff_ms": args.handoff_ms, "browser_decode_ms": args.browser_decode_ms,
+        "handoff_ms": args.handoff_ms,
         "stt_queue_ms": stt_queue_ms, "rtt_ms": rtt_ms,
-        "stt_preroll_ms": args.stt_preroll_ms,
+        "stt_preroll_ms": args.stt_preroll_ms, "tts_client_ms": tts_client_ms,
+        "filler_tts_client_ms": filler_tts_client_ms,
         "filler_ttfb_ms": filler_ttfb, "filler_total_ms": filler_total,
         "runs": args.runs, "empties": empties,
     }
@@ -603,9 +631,9 @@ async def run_probe(args: argparse.Namespace) -> int:
 
 def _summaries(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
     keys = [
-        "vad_compute_ms", "stt_ms", "llm_first_hop_ms", "llm_first_audio_ms",
+        "vad_compute_ms", "stt_ms", "llm_first_hop_ms",
         "llm_to_reply_ms", "llm_total_ms", "tts_ttfb_ms", "tts_total_ms",
-        "ttfa_first_audio_ms", "ttfa_substantive_ms", "ttfa_substantive_progressive_ms",
+        "first_feedback_ms", "ttfa_heard_ms", "ttfa_audio_ms",
     ]
     out = {k: _summary([r[k] for r in rows]) for k in keys}
     # first_token is None on reply-only turns / blocking mode → summarize only
@@ -620,7 +648,7 @@ def _print_report(rows: list[dict[str, Any]], empties: int, cfg: dict[str, Any])
     n = len(rows)
     print("\n" + "=" * 78)
     print(f"TTFA REPORT  (n={n} trips, {empties} empty; case={cfg['case_id']}, "
-          f"STT={cfg['stt_model']}, LLM={cfg['llm_mode']}, tts_playback={cfg['tts_playback']})")
+          f"STT={cfg['stt_model']}, LLM={cfg['llm_mode']})")
     print("=" * 78)
     print(f"{'stage (ms)':<24}{'mean':>8}{'p50':>8}{'p95':>8}{'min':>8}{'max':>8}"
           f"{'est(pre-opt)':>14}")
@@ -637,46 +665,44 @@ def _print_report(rows: list[dict[str, Any]], empties: int, cfg: dict[str, Any])
     if ft_n:
         line(f"LLM first token* ({ft_n})", "llm_first_token_ms", None)
     line("LLM first hop‡", "llm_first_hop_ms", "llm_first_hop")
-    line("LLM first-audio†", "llm_first_audio_ms", None)
     line("LLM to reply‡", "llm_to_reply_ms", "llm_to_reply")
     line("LLM total‡", "llm_total_ms", None)
-    line("TTS first chunk", "tts_ttfb_ms", "tts_ttfb")
-    line("TTS total", "tts_total_ms", None)
     print("-" * 78)
+    print("TTS (server-measured, INFORMATIONAL — heard latency uses tts_client below):")
+    line("  TTS first chunk", "tts_ttfb_ms", "tts_ttfb")
+    line("  TTS total (synth)", "tts_total_ms", None)
     print("off critical path (informational, NOT summed into TTFA):")
     line("  VAD compute", "vad_compute_ms", "vad_compute")
     print("-" * 78)
     print("added constants (live-only, not observable from a WAV): "
           f"vad_hang={cfg['vad_hang_ms']:.0f}  mic_chunk={cfg['mic_chunk_ms']:.0f}")
     print(f"  stt_queue={cfg['stt_queue_ms']:.0f}  rtt={cfg['rtt_ms']:.0f}  "
-          f"handoff={cfg['handoff_ms']:.0f}  browser_decode={cfg['browser_decode_ms']:.0f}  "
-          f"stt_preroll={cfg['stt_preroll_ms']:.0f}")
-    print(f"  filler steady-state = cache hit ~0 (first process turn pays "
-          f"{cfg['filler_total_ms']:.0f}ms once, not per turn)")
+          f"handoff={cfg['handoff_ms']:.0f}  stt_preroll={cfg['stt_preroll_ms']:.0f}")
+    print(f"  tts_client={cfg['tts_client_ms']:.0f} (reply)  "
+          f"filler_tts_client={cfg['filler_tts_client_ms']:.0f} (spoken filler, warm-cache)  "
+          f"<- client first-audio (a.src->'playing'), NOT server synth time")
     print("-" * 78)
-    line("TTFA first-audio", "ttfa_first_audio_ms", "ttfa_first_audio")
-    line("TTFA substantive§", "ttfa_substantive_ms", "ttfa_substantive")
-    line("  └ if progressive‖", "ttfa_substantive_progressive_ms", None)
+    line("TTFA — FIRST heard§", "ttfa_heard_ms", None)
+    line("  reply (substantive)", "ttfa_audio_ms", None)
+    line("  first feedback (visual)†", "first_feedback_ms", None)
     print("=" * 78)
     avg_hops = statistics.fmean([r["hop_count"] for r in rows])
     print(f"avg LLM hops/turn = {avg_hops:.1f}  |  "
-          f"tool turns (filler shown) = {sum(r['any_non_reply'] for r in rows)}/{n}")
+          f"tool turns = {sum(r['any_non_reply'] for r in rows)}/{n}")
+    print("§ TTFA (first heard) = when the caller FIRST hears audio — the real TTFA. On a "
+          "tool turn that's the spoken 'please wait' filler (server relabels the pending")
+    print("  tool_call -> a spoken reply hop; useSession.ts speaks it), at first-token + "
+          "filler_tts_client (a warm cache hit ~0-100ms once the server prewarms it). The")
+    print("  'reply (substantive)' line is when the actual answer is heard (after the filler); "
+          "a LONG reply can spike it toward full synth (prefetch-replay lock).")
+    print("† first feedback (visual) = when a SCREEN user first sees a bubble. No audio term; "
+          "~= the heard clock minus the filler's client first-audio.")
     if ft_n:
-        print(f"* LLM first token = streaming path only: the moment the 'please wait' "
-              f"filler fires ({ft_n}/{n} trips were tool turns).")
-    print("† LLM first-audio = what feeds TTFA-first-audio: first_token on tool turns "
-          "(streaming) or first_hop (blocking), else to-reply on reply-only turns.")
+        print(f"* LLM first token = streaming path only: the 'please wait' filler bubble "
+              f"appears ({ft_n}/{n} trips were tool turns).")
     print("‡ LLM stage is DETERMINISTIC (temp 0, seed 1, one persona, fresh turn-1): "
-          "every WAV decodes the same hops, so its spread reflects STT-transcript")
-    print("  variation only — NOT the live demo's unpinned temp, retries, multi-hop "
-          "closes, or long-history turns. Read as a best-case first turn, not a p95.")
-    print(f"§ TTFA substantive uses tts_playback={cfg['tts_playback']}: "
-          + ("reply audio pays the full COLD synth (tts_total) because the frontend "
-             "prefetch-replays under a per-text lock — this matches the shipped demo."
-             if cfg["tts_playback"] == "prefetch-replay"
-             else "reply audio pays only tts_ttfb (progressive streaming play())."))
-    print("‖ progressive lower bound = substantive if the frontend streamed the reply "
-          "clip (tts_ttfb) instead of prefetch-replay; the gap is the product win.")
+          "spread reflects STT-transcript variation only, not the live demo's")
+    print("  unpinned temp / retries / multi-hop closes. Read as a best-case first turn.")
 
 
 # ---------------------------------------------------------------------------
@@ -748,6 +774,69 @@ def self_test() -> int:
         check("stereo detected", ch2 == 2)
         check("downmix averages channels (2000)", len(mono2) == 200 and mono2[0] == 2000)
 
+    # compute_clocks: exercises the headline formula + its None-safe
+    # first_token -> first_hop -> to_reply branching (never touched before).
+    lp = 1000.0
+    tool_stream = compute_clocks(
+        {"any_non_reply": True, "first_token_ms": 200.0, "first_hop_ms": 500.0,
+         "to_first_reply_ms": 1800.0},
+        live_prefix=lp, tts_client_ms=550.0, filler_tts_client_ms=100.0)
+    check("clocks tool+stream heard = prefix+first_token+filler (1300)",
+          tool_stream["ttfa_heard_ms"] == 1300.0)
+    check("clocks tool+stream substantive = prefix+to_reply+tts_client (3350)",
+          tool_stream["ttfa_audio_ms"] == 3350.0)
+    tool_block = compute_clocks(
+        {"any_non_reply": True, "first_token_ms": None, "first_hop_ms": 500.0,
+         "to_first_reply_ms": 1800.0},
+        live_prefix=lp, tts_client_ms=550.0, filler_tts_client_ms=100.0)
+    check("clocks tool+blocking falls back to first_hop (1600)",
+          tool_block["ttfa_heard_ms"] == 1600.0)
+    reply_only = compute_clocks(
+        {"any_non_reply": False, "first_token_ms": None, "first_hop_ms": 500.0,
+         "to_first_reply_ms": 900.0},
+        live_prefix=lp, tts_client_ms=550.0, filler_tts_client_ms=100.0)
+    check("clocks reply-only heard == substantive, no filler (2450)",
+          reply_only["ttfa_heard_ms"] == 2450.0
+          and reply_only["ttfa_heard_ms"] == reply_only["ttfa_audio_ms"])
+
+    # Synthetic report/summary smoke: run the exact aggregation + report path so a
+    # broken clock key or format string fails here, not silently on the host.
+    import contextlib
+    import io as _io
+
+    synth_rows = []
+    for i, non_reply in enumerate((True, False)):
+        c = compute_clocks(
+            {"any_non_reply": non_reply, "first_token_ms": 200.0 if non_reply else None,
+             "first_hop_ms": 500.0, "to_first_reply_ms": 1800.0},
+            live_prefix=lp, tts_client_ms=550.0, filler_tts_client_ms=100.0)
+        synth_rows.append({
+            "wav": f"synth{i}.wav", "run": 0, "src_rate": 16000, "src_channels": 1,
+            "transcript": "x", "vad_compute_ms": 40.0, "stt_ms": 700.0,
+            "llm_first_token_ms": 200.0 if non_reply else None, "llm_first_hop_ms": 500.0,
+            "llm_to_reply_ms": 1800.0, "llm_total_ms": 1900.0, "hop_count": 2,
+            "any_non_reply": non_reply, "tts_ttfb_ms": 120.0, "tts_total_ms": 1700.0,
+            "tts_client_ms": 550.0, "filler_tts_client_ms": 100.0,
+            "ttfa_heard_ms": c["ttfa_heard_ms"], "ttfa_audio_ms": c["ttfa_audio_ms"],
+            "first_feedback_ms": c["first_feedback_ms"],
+        })
+    check("summaries include ttfa_heard_ms", "ttfa_heard_ms" in _summaries(synth_rows))
+    synth_cfg = {
+        "case_id": "TC-TEST", "company": "TEST", "stt_model": "chirp_3", "llm_mode": "test",
+        "vad_hang_ms": 250.0, "mic_chunk_ms": 50.0, "handoff_ms": 15.0, "stt_queue_ms": 0.0,
+        "rtt_ms": 0.0, "stt_preroll_ms": 100.0, "tts_client_ms": 550.0,
+        "filler_tts_client_ms": 100.0, "filler_ttfb_ms": 0.0, "filler_total_ms": 0.0,
+        "runs": 1, "empties": 0,
+    }
+    try:
+        with contextlib.redirect_stdout(_io.StringIO()):
+            _print_report(synth_rows, 0, synth_cfg)
+        report_ok = True
+    except Exception as e:  # noqa: BLE001
+        report_ok = False
+        print(f"    _print_report raised: {e}")
+    check("_print_report runs on synthetic rows", report_ok)
+
     print("\nself-test:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
@@ -777,8 +866,6 @@ def main() -> int:
     ap.add_argument("--vad-threshold", type=float, default=None, help="override Silero threshold")
     ap.add_argument("--handoff-ms", type=float, default=15.0,
                     help="constant: STT->browser->POST handoff (default 15)")
-    ap.add_argument("--browser-decode-ms", type=float, default=120.0,
-                    help="constant: browser <audio> decode/start (default 120)")
     ap.add_argument("--mic-chunk-ms", type=float, default=50.0,
                     help="constant: mic 100ms-chunk quantization (default 50)")
     ap.add_argument("--stt-queue-ms", type=float, default=300.0,
@@ -791,12 +878,16 @@ def main() -> int:
     ap.add_argument("--stt-preroll-ms", type=float, default=100.0,
                     help="constant: silence padded BEFORE the utterance for STT, matching the live "
                          "gate's ~100ms pre-roll chunk (default 100; trailing pad = vad_hang)")
-    ap.add_argument("--tts-playback", choices=("prefetch-replay", "progressive"),
-                    default="prefetch-replay",
-                    help="how the frontend plays reply audio. prefetch-replay (default, matches the "
-                         "shipped demo): first audio at tts_total (cold full synth under a per-text "
-                         "lock). progressive: first audio at tts_ttfb (only valid if play() streams "
-                         "the clip directly — see README product fix)")
+    ap.add_argument("--tts-client-ms", type=float, default=550.0,
+                    help="constant: the reply's CLIENT first-audio (a.src->'playing') as measured by "
+                         "the in-app control bar — Chirp streaming first chunk + network + browser "
+                         "Opus buffering (default 550; the server-side ttfb/total can't observe the "
+                         "browser leg). This is the TTS term for the SUBSTANTIVE-reply clock")
+    ap.add_argument("--filler-tts-client-ms", type=float, default=100.0,
+                    help="constant: the spoken 'please wait' filler's CLIENT first-audio — the TTS "
+                         "term for the headline FIRST-heard TTFA on tool turns. A warm cache hit once "
+                         "the live server prewarms the fixed filler (default 100; use ~500 to model a "
+                         "COLD filler, i.e. AAX6_TTS_PREWARM_FILLER=0)")
     ap.add_argument("--json", default=None, help="write raw rows + summary JSON to this path")
     ap.add_argument("--self-test", action="store_true",
                     help="run pure-logic checks only (no GPU/GCP/torch)")
