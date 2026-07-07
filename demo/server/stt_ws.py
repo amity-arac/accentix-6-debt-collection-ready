@@ -12,14 +12,19 @@ words *as the caller speaks*, we instead re-run batch `recognize()` on the
 growing buffer every ~`INTERIM_EVERY_MS` and emit those as interim text, with
 the final on end-of-speech. Language-agnostic and actually progressive.
 
-Two worker threads keep things responsive:
+Worker threads keep things responsive:
   - the **VAD gate** thread does endpointing (speech_begin / end-of-speech via
-    SILENCE_HANG_MS) and barge-in, and hands buffer snapshots to the STT thread.
+    SILENCE_HANG_MS) and barge-in, and hands buffer snapshots to the STT threads.
     It is never blocked by a recognize() call, so end-of-speech is detected
     promptly.
-  - the **STT** thread runs recognize() for interim snapshots + the final,
-    coalescing stale interim requests so it never falls behind (but never drops
-    a final).
+  - the **interim STT** thread runs recognize() on the growing buffer for live
+    on-screen words, coalescing stale snapshots so it never falls behind.
+  - the **final STT** thread (DIRECT_FINAL) transcribes the finished utterance on
+    its own thread, so the final never waits behind an in-flight interim. With
+    SPECULATIVE_FINAL it fires EARLY — once trailing silence crosses
+    SPECULATIVE_SILENCE_MS, before the full hang confirms — overlapping the
+    recognize with the remaining hang; the result is emitted only once the hang
+    confirms the endpoint, or discarded if the caller resumes talking.
 
 Unlike the reference (whose LLM + TTS also ride its socket), this socket does
 speech-to-text only; the final transcript feeds the existing /api/session turn
@@ -90,6 +95,20 @@ MAX_UTTERANCE_MS = 30_000
 # revert to the single-worker queue.
 DIRECT_FINAL = os.environ.get("AAX6_STT_DIRECT_FINAL", "1").strip().lower() not in ("0", "false", "")
 
+# Speculative early final: once trailing silence reaches SPECULATIVE_SILENCE_MS
+# (< SILENCE_HANG_MS), fire the final recognize EARLY on the buffer-so-far as a
+# bet that the caller is done — overlapping the recognize with the remaining
+# endpoint hang, saving ~(SILENCE_HANG_MS - SPECULATIVE_SILENCE_MS). The audio
+# added during the hang is silence, so the early transcript matches the confirmed
+# one. If the caller resumes talking before the hang confirms, the speculative
+# result is discarded (one wasted recognize, ~$0.002). The result is emitted as
+# `stt_final` only once the hang CONFIRMS the endpoint (never before — that would
+# start an LLM turn on an unfinished utterance). Needs DIRECT_FINAL (dedicated
+# worker). Set AAX6_STT_SPECULATIVE=0 to disable.
+SPECULATIVE_FINAL = os.environ.get("AAX6_STT_SPECULATIVE", "1").strip().lower() not in ("0", "false", "")
+SPECULATIVE_SILENCE_MS = int(os.environ.get("AAX6_STT_SPECULATIVE_SILENCE_MS", "100"))
+_SPECULATE = DIRECT_FINAL and SPECULATIVE_FINAL and 0 < SPECULATIVE_SILENCE_MS < SILENCE_HANG_MS
+
 # Process-wide STT client (cheap, thread-safe wrapper over an lru_cached gRPC
 # client) + one-time gRPC warmup flag. The VADService is per-connection because
 # it is stateful.
@@ -129,17 +148,55 @@ def _build_engines():
     return stt, vad
 
 
-# Request from the VAD-gate thread to the STT thread: (kind, pcm) where kind is
-# "interim" or "final". `None` is the shutdown sentinel.
-_Req = "tuple[str, bytes] | None"
+# Request from the VAD-gate thread to the interim STT thread: (kind, pcm, gen)
+# where kind is "interim" or "final" (legacy path) and gen is the utterance
+# generation the snapshot was captured in. `None` is the shutdown sentinel.
+_Req = "tuple[str, bytes, int] | None"
+
+
+class _SpecFinal:
+    """A final-recognize job on the dedicated worker (DIRECT_FINAL / speculative).
+
+    The gate creates one when trailing silence first crosses the speculative
+    threshold; the worker transcribes it; it is emitted as `stt_final` ONLY once
+    the endpoint hang commits it (`committed`) — or dropped if the caller resumes
+    talking (`cancelled`). All transitions happen under `lock`, and `_emit_final`
+    is idempotent, so exactly one of {worker, gate} emits, whichever observes the
+    other's flag last. The non-speculative path just creates one already
+    `committed` at the endpoint.
+    """
+
+    __slots__ = ("pcm", "lock", "done", "text", "recognize_ms",
+                 "committed", "cancelled", "emitted")
+
+    def __init__(self, pcm: bytes) -> None:
+        self.pcm = pcm
+        self.lock = threading.Lock()
+        self.done = threading.Event()   # recognize() returned (success or error)
+        self.text: str | None = None
+        self.recognize_ms = 0.0
+        self.committed = False          # endpoint confirmed → should be emitted
+        self.cancelled = False          # caller resumed / errored → discard
+        self.emitted = False            # guard: emit exactly once
+
+
+def _emit_final(spec: "_SpecFinal", send: Callable[[dict], None]) -> None:
+    """Emit stt_final / turn_empty exactly once. Caller MUST hold `spec.lock`."""
+    if spec.emitted or spec.cancelled:
+        return
+    spec.emitted = True
+    if spec.text:
+        send({"type": "stt_final", "text": spec.text, "recognize_ms": spec.recognize_ms})
+    else:
+        send({"type": "turn_empty", "recognize_ms": spec.recognize_ms})
 
 
 def _vad_gate_worker(
     vad,
     pcm_q: "queue.Queue[bytes | None]",
     req_q: "queue.Queue[Any]",
-    final_q: "queue.Queue[bytes | None]",
-    finalizing: threading.Event,
+    spec_q: "queue.Queue[Any]",
+    gen_box: "list[int]",
     stop: threading.Event,
     send: Callable[[dict], None],
 ) -> None:
@@ -157,6 +214,7 @@ def _vad_gate_worker(
     run_ms = 0.0  # sustained-speech accumulator (pre-`speech_begin` gate)
     last_interim_len = 0
     t_last_voice = 0.0  # perf_counter() at the last super-threshold frame → endpoint_ms
+    spec: "_SpecFinal | None" = None  # in-flight speculative final for this utterance
 
     interim_every_bytes = INTERIM_EVERY_MS * _BYTES_PER_MS
     min_interim_bytes = MIN_INTERIM_MS * _BYTES_PER_MS
@@ -164,22 +222,39 @@ def _vad_gate_worker(
     vad.reset()
 
     def finalize() -> None:
-        nonlocal buf, in_speech, silent_ms, run_ms, prev_chunk, last_interim_len, t_last_voice
+        nonlocal buf, in_speech, silent_ms, run_ms, prev_chunk, last_interim_len, t_last_voice, spec
         # Endpoint dead-time: wall-clock from the last voiced frame to this
         # finalize decision (≈ SILENCE_HANG_MS). This is the user-perceived "VAD
         # latency" — the trailing silence the caller waits through after they
         # stop talking, before the turn is finalized and STT can start.
         endpoint_ms = round((time.perf_counter() - t_last_voice) * 1000, 1) if t_last_voice else None
-        # Mark end-of-speech so the interim worker drops any pending/late interim
-        # (it must not land after stt_final). Cleared on the next speech_begin.
-        finalizing.set()
+        # Advance the utterance generation. Any interim from THIS utterance —
+        # queued or already in-flight — is stamped with the old gen, so the interim
+        # worker drops it (it must not land after stt_final, even once the NEXT
+        # utterance begins). A single boolean couldn't tell "N finalizing" from
+        # "N+1 active"; the counter can.
+        gen_box[0] += 1
         send({"type": "speech_end", "endpoint_ms": endpoint_ms})
-        # DIRECT_FINAL: hand the final to its own worker so it never waits behind
-        # an in-flight interim recognize(); else keep the legacy single-queue path.
         if DIRECT_FINAL:
-            final_q.put(bytes(buf))
+            if spec is not None:
+                # A speculative recognize is already running (fired at
+                # SPECULATIVE_SILENCE_MS) → COMMIT it. If it already finished, emit
+                # now; otherwise flag it so the worker emits the moment it returns.
+                with spec.lock:
+                    if spec.done.is_set():
+                        _emit_final(spec, send)
+                    elif not spec.cancelled:
+                        spec.committed = True
+            else:
+                # No speculation (disabled, or the utterance ended before the
+                # speculative threshold) → recognize the full buffer now, on the
+                # dedicated worker, already committed.
+                s = _SpecFinal(bytes(buf))
+                s.committed = True
+                spec_q.put(s)
+            spec = None
         else:
-            req_q.put(("final", bytes(buf)))
+            req_q.put(("final", bytes(buf), gen_box[0]))  # legacy single-queue path
         buf = bytearray()
         in_speech = False
         silent_ms = 0.0
@@ -202,14 +277,16 @@ def _vad_gate_worker(
             continue
 
         finalized = False
+        speech_resumed = False  # a voiced frame arrived while a speculative final was pending
         for prob in probs:
             if prob >= SILERO_THRESHOLD:
                 run_ms += vad.frame_ms
                 silent_ms = 0.0
                 t_last_voice = time.perf_counter()
+                if spec is not None:
+                    speech_resumed = True  # caller talked again after we fired the guess
                 if not in_speech and run_ms >= MIN_SPEECH_MS:
                     in_speech = True
-                    finalizing.clear()  # new utterance → re-enable interim sends
                     send({"type": "speech_begin"})
                     if prev_chunk:
                         buf.extend(prev_chunk)
@@ -228,9 +305,24 @@ def _vad_gate_worker(
             buf.extend(chunk)
         prev_chunk = chunk
 
+        # Speculative-final lifecycle. CANCEL FIRST (even in the chunk that
+        # finalizes) if the caller resumed talking after we fired the guess —
+        # otherwise finalize() could commit a stale pre-resume snapshot and drop
+        # the resumed words. Because ANY voiced frame cancels, a spec that
+        # survives to the endpoint only ever gained pure silence, so its
+        # transcript matches the full-buffer one.
+        if _SPECULATE and spec is not None and speech_resumed:
+            with spec.lock:
+                spec.cancelled = True
+            spec = None
+
         if finalized:
             finalize()
         elif in_speech:
+            # Fire a speculative final once trailing silence crosses the threshold.
+            if _SPECULATE and spec is None and silent_ms >= SPECULATIVE_SILENCE_MS:
+                spec = _SpecFinal(bytes(buf))
+                spec_q.put(spec)
             if len(buf) >= max_bytes:
                 finalize()  # hard cap mid-speech
             elif (
@@ -238,13 +330,13 @@ def _vad_gate_worker(
                 and len(buf) - last_interim_len >= interim_every_bytes
             ):
                 last_interim_len = len(buf)
-                req_q.put(("interim", bytes(buf)))
+                req_q.put(("interim", bytes(buf), gen_box[0]))
 
 
 def _stt_worker(
     stt,
     req_q: "queue.Queue[Any]",
-    finalizing: threading.Event,
+    gen_box: "list[int]",
     stop: threading.Event,
     send: Callable[[dict], None],
 ) -> None:
@@ -253,8 +345,10 @@ def _stt_worker(
 
     Each batch recognize() blocks (~hundreds of ms), so this runs off the gate
     thread. When it falls behind, stale interim requests are coalesced to the
-    newest — but a `final` is never skipped. Once `finalizing` is set (end-of-
-    speech), pending/late interims are dropped so none lands after stt_final.
+    newest — but a `final` is never skipped. Each interim carries the utterance
+    generation it was captured in; once that generation is stale (its utterance
+    finalized — `gen != gen_box[0]`), the interim is dropped so it can't land
+    after stt_final, even after the NEXT utterance has begun.
     """
     last_interim_text: str | None = None
 
@@ -262,7 +356,7 @@ def _stt_worker(
         req = req_q.get()
         if req is None:
             break
-        kind, pcm = req
+        kind, pcm, gen = req
 
         # Coalesce: drop stale interims in favour of the newest snapshot, but
         # stop and switch to a `final` the moment we see one (never skip it).
@@ -275,14 +369,14 @@ def _stt_worker(
                 if nxt is None:
                     req_q.put(None)  # re-arm shutdown for the outer loop
                     break
-                kind, pcm = nxt
+                kind, pcm, gen = nxt
                 if kind == "final":
                     break
 
-        # End-of-speech is being finalized → the dedicated final worker owns the
-        # result; drop this interim so a stale one can't land after stt_final.
-        # (A queued `final` — when AAX6_STT_DIRECT_FINAL is off — must still run.)
-        if kind == "interim" and finalizing.is_set():
+        # The interim's utterance already finalized → its result must not land
+        # after that utterance's stt_final; drop it (and skip the recognize).
+        # (A queued `final` — AAX6_STT_DIRECT_FINAL off — must still run.)
+        if kind == "interim" and gen != gen_box[0]:
             last_interim_text = None
             continue
 
@@ -300,10 +394,10 @@ def _stt_worker(
         recognize_ms = round((time.perf_counter() - t0) * 1000, 1)
 
         if kind == "interim":
-            # Only push changes — avoids spamming identical interim frames, and
-            # never after finalize() started (guards a recognize that was
-            # in-flight when end-of-speech fired).
-            if text and text != last_interim_text and not finalizing.is_set():
+            # Only push changes — avoids spamming identical interim frames — and
+            # never after this utterance finalized (guards a recognize that was
+            # in-flight when the generation advanced).
+            if text and text != last_interim_text and gen == gen_box[0]:
                 last_interim_text = text
                 send({"type": "stt_interim", "text": text})
         else:  # final (legacy single-queue path; DIRECT_FINAL uses _stt_final_worker)
@@ -316,30 +410,45 @@ def _stt_worker(
 
 def _stt_final_worker(
     stt,
-    final_q: "queue.Queue[bytes | None]",
+    spec_q: "queue.Queue[Any]",
     stop: threading.Event,
     send: Callable[[dict], None],
 ) -> None:
-    """Transcribe FINAL utterance snapshots on a dedicated thread (DIRECT_FINAL),
-    so the final recognize() never queues behind an in-flight interim. Runs one
-    recognize() at a time here, concurrently with the interim worker's
-    recognize() on the same thread-safe gRPC client."""
+    """Transcribe final jobs (speculative or committed) on a dedicated thread
+    (DIRECT_FINAL), so the final recognize() never queues behind an in-flight
+    interim. Runs one recognize() at a time here, concurrently with the interim
+    worker's recognize() on the same thread-safe gRPC client.
+
+    Emits stt_final only for a job the gate has COMMITTED (endpoint confirmed). A
+    job that finishes BEFORE commit is HELD (the gate emits it the instant it
+    commits); a cancelled job (caller resumed, or recognize errored) is dropped.
+    All decisions are made under `spec.lock` and `_emit_final` is idempotent, so
+    exactly one side emits."""
     while not stop.is_set():
-        pcm = final_q.get()
-        if pcm is None:
+        spec = spec_q.get()
+        if spec is None:
             break
+        with spec.lock:
+            if spec.cancelled:
+                continue  # cancelled while queued (caller resumed) → skip the recognize
         t0 = time.perf_counter()
         try:
-            text = stt.transcribe_pcm(pcm, sample_rate=STT_SAMPLE_RATE).strip()
+            text = stt.transcribe_pcm(spec.pcm, sample_rate=STT_SAMPLE_RATE).strip()
         except Exception as e:  # noqa: BLE001 — surface, keep listening
             logger.exception("[stt] final recognize failed")
             send({"type": "error", "message": f"STT: {e}"})
+            with spec.lock:
+                spec.cancelled = True  # don't emit a bogus turn for a failed recognize
+                spec.done.set()
             continue
         recognize_ms = round((time.perf_counter() - t0) * 1000, 1)
-        if text:
-            send({"type": "stt_final", "text": text, "recognize_ms": recognize_ms})
-        else:
-            send({"type": "turn_empty", "recognize_ms": recognize_ms})
+        with spec.lock:
+            spec.text = text
+            spec.recognize_ms = recognize_ms
+            spec.done.set()
+            if spec.committed:
+                _emit_final(spec, send)  # endpoint already confirmed → emit now
+            # else: cancelled → drop; not-yet-committed → HELD (gate emits at endpoint)
 
 
 async def run_session(ws: WebSocket) -> None:
@@ -368,8 +477,11 @@ async def run_session(ws: WebSocket) -> None:
 
     pcm_q: "queue.Queue[bytes | None]" = queue.Queue()
     req_q: "queue.Queue[Any]" = queue.Queue()
-    final_q: "queue.Queue[bytes | None]" = queue.Queue()
-    finalizing = threading.Event()
+    spec_q: "queue.Queue[Any]" = queue.Queue()
+    # Utterance generation counter (single writer: the gate, in finalize()). The
+    # interim worker stamps each request with it and drops results whose gen has
+    # gone stale, so a late interim can't land after its utterance's stt_final.
+    gen_box: "list[int]" = [0]
     stop = threading.Event()
 
     def send_threadsafe(obj: dict) -> None:
@@ -378,21 +490,22 @@ async def run_session(ws: WebSocket) -> None:
 
     gate = threading.Thread(
         target=_vad_gate_worker,
-        args=(vad, pcm_q, req_q, final_q, finalizing, stop, send_threadsafe),
+        args=(vad, pcm_q, req_q, spec_q, gen_box, stop, send_threadsafe),
         daemon=True,
     )
     transcriber = threading.Thread(
         target=_stt_worker,
-        args=(stt, req_q, finalizing, stop, send_threadsafe),
+        args=(stt, req_q, gen_box, stop, send_threadsafe),
         daemon=True,
     )
     workers = [gate, transcriber]
     if DIRECT_FINAL:
         # Dedicated final-recognize thread → the final never waits behind an
-        # in-flight interim (see DIRECT_FINAL). Shares the thread-safe stt client.
+        # in-flight interim, and (with SPECULATIVE_FINAL) can start EARLY during
+        # the endpoint hang. Shares the thread-safe stt client.
         workers.append(threading.Thread(
             target=_stt_final_worker,
-            args=(stt, final_q, stop, send_threadsafe),
+            args=(stt, spec_q, stop, send_threadsafe),
             daemon=True,
         ))
     for w in workers:
@@ -423,6 +536,6 @@ async def run_session(ws: WebSocket) -> None:
         stop.set()
         pcm_q.put(None)
         req_q.put(None)
-        final_q.put(None)
+        spec_q.put(None)
         for w in workers:
             await asyncio.to_thread(w.join, 2.0)
