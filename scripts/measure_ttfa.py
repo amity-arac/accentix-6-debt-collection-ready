@@ -109,7 +109,8 @@ STT_SAMPLE_RATE = 16000
 # measured numbers so the table reads estimate -> real. These reflect the OLD
 # config (500ms hang, broken TTS prefetch). The optimized defaults (350ms hang,
 # fixed prefetch cache) should measure lower. STT stays chirp_3 on both sides:
-# th-TH is only supported by chirp_3/chirp_2/chirp in asia-southeast1.
+# th-TH is supported by chirp_3/chirp_2/chirp (the `us`/`eu` multi-regions; Google
+# deprecated chirp_3 + th-TH in asia-southeast1).
 ESTIMATES_MS = {
     "vad_compute": 5.0,
     "stt": 700.0,
@@ -862,7 +863,8 @@ def main() -> int:
                          "'please wait' filler fires at first-token). Default is blocking per-hop timing.")
     ap.add_argument("--stt-model", default=None,
                     help="override AAX6_STT_MODEL; Thai (th-TH) works with chirp_3/chirp_2/chirp only "
-                         "('short'/'long' 400 in asia-southeast1)")
+                         "('short'/'long' 400 on th-TH). Region defaults to us (AAX6_STT_REGION); "
+                         "chirp_3 + th-TH was deprecated in asia-southeast1.")
     ap.add_argument("--vad-threshold", type=float, default=None, help="override Silero threshold")
     ap.add_argument("--handoff-ms", type=float, default=15.0,
                     help="constant: STT->browser->POST handoff (default 15)")

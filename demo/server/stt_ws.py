@@ -145,17 +145,17 @@ def _build_engines():
             from services.speech.config import DEFAULT_REGION
 
             # Env-tunable STT model knob. Default "chirp_3": the low-latency
-            # "short"/"long" conformer models do NOT support th-TH in
-            # asia-southeast1 (Google 400s: language "th-TH" not supported by
-            # model "short" in that location), so they can't be the Thai default.
-            # chirp_2 / chirp are the other Thai-capable candidates worth A/B-ing.
+            # "short"/"long" conformer models don't support th-TH, so they can't
+            # be the Thai default; chirp_2 / chirp are the other Thai-capable
+            # candidates worth A/B-ing.
             model = os.environ.get("AAX6_STT_MODEL", "chirp_3")
-            # Env-tunable STT region. Default asia-southeast1 — the region this
-            # demo has always used and where th-TH transcription is confirmed
-            # working. Chirp 3 is GA in the `us` / `eu` multi-regions; set
-            # AAX6_STT_REGION=us (or eu) to A/B them, but VERIFY th-TH is served
-            # there first (language support is regional — if Thai isn't offered,
-            # recognize() 400s and STT falls back to the browser recognizer).
+            # Env-tunable STT region. Default "us" (see config.DEFAULT_REGION):
+            # Google deprecated chirp_3 + th-TH in asia-southeast1 (403 "no longer
+            # generally available"); Chirp 3 is GA in the `us` / `eu` multi-regions
+            # (both confirmed working for th-TH). Set AAX6_STT_REGION=eu for the
+            # alternate. Note: neither us/eu is close to Asia, so there's a network
+            # RTT cost vs the old region — worth weighing against the batch/stream
+            # latency numbers.
             region = os.environ.get("AAX6_STT_REGION", DEFAULT_REGION).strip() or DEFAULT_REGION
             logger.info("[stt] model=%s region=%s", model, region)
             _stt_singleton = STTService(model=model, region=region)

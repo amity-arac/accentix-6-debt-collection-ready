@@ -8,7 +8,11 @@ from google.api_core.client_options import ClientOptions
 from google.oauth2 import service_account
 
 # ── Defaults ────────────────────────────────────────────────
-DEFAULT_REGION = "asia-southeast1"
+# STT region. Was "asia-southeast1", but Google DEPRECATED chirp_3 + th-TH there
+# ("403 … model chirp_3 locale th-TH … no longer generally available"). Chirp 3
+# is now GA in the `us` / `eu` multi-regions (both confirmed working for th-TH);
+# `us` is the default, `eu` the alternate. Override per-deploy with AAX6_STT_REGION.
+DEFAULT_REGION = "us"
 DEFAULT_LANGUAGE_CODE = "th-TH"
 DEFAULT_STT_MODEL = "chirp_3"
 STT_MODEL_SHORT = "short"  # Traditional model — lower latency (~200-400ms), less accurate
