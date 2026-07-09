@@ -12,9 +12,17 @@ browser's `<audio>` element can't play without a WAV header. We pin
 container the browser decodes progressively as bytes arrive, exactly the
 same way it handled our previous MP3 stream.
 
-Concurrent requests for the same text wait on a per-text asyncio.Lock and
-share one underlying gRPC stream. The concatenated bytes are cached so
-subsequent calls (or `prewarm`-ed cache hits) emit instantly.
+Concurrent requests for the same text FAN OUT off ONE underlying gRPC synth: the
+first caller starts a detached producer task; every caller (including a
+fire-and-forget `prefetch`) subscribes and receives each audio chunk *as it is
+produced*. This matters because `prefetch(text)` and the immediately-following
+`play(text)` request the same text — with a plain per-text lock the second
+request would block until the first finished the WHOLE clip, so the browser's
+`<audio>` heard nothing until full synth (~1-2s) instead of the ~140ms first
+byte. Fan-out lets `play` stream progressively while `prefetch` drains in
+parallel. The producer is detached, so a subscriber disconnecting (barge-in) does
+NOT abort the synth — the concatenated bytes still land in `_CACHE`, making later
+calls (or `prewarm`-ed hits) emit instantly.
 """
 
 from __future__ import annotations
@@ -64,10 +72,60 @@ _CHUNK_MAX: Final[int] = 80
 
 # In-process cache keyed by exact text → concatenated OGG bytes.
 _CACHE: dict[str, bytes] = {}
-_CACHE_LOCKS: dict[str, asyncio.Lock] = {}
 
 # Sentinel signaling "stream finished cleanly" from the worker thread.
 _STREAM_DONE: Final[object] = object()
+
+
+class _Broadcast:
+    """One in-flight synth's fan-out state: chunks produced so far, the live
+    subscriber queues to push new chunks to, and terminal state. A single
+    detached producer task fills this; N `stream_synth` callers read from it."""
+
+    __slots__ = ("chunks", "subscribers", "done", "error", "task")
+
+    def __init__(self) -> None:
+        self.chunks: list[bytes] = []
+        self.subscribers: list["asyncio.Queue"] = []
+        self.done: bool = False
+        self.error: Exception | None = None
+        self.task: "asyncio.Task | None" = None
+
+
+# Text → in-flight broadcast. Present only while a synth is running; removed when
+# the producer finishes (the bytes then live in _CACHE).
+_INFLIGHT: dict[str, _Broadcast] = {}
+
+
+async def _produce(text: str, bc: _Broadcast) -> None:
+    """Detached producer: drive ONE gRPC synth, append each chunk to `bc` and
+    push it to every current subscriber, then cache the concatenation. Runs to
+    completion independent of any subscriber (so barge-in still populates cache)."""
+    loop = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue()
+    threading.Thread(target=_run_grpc_stream, args=(text, loop, q), daemon=True).start()
+    try:
+        while True:
+            item = await q.get()
+            if item is _STREAM_DONE:
+                break
+            if isinstance(item, Exception):
+                bc.error = item
+                break
+            bc.chunks.append(item)  # type: ignore[arg-type]
+            for sub in list(bc.subscribers):
+                sub.put_nowait(item)
+        if bc.error is None:
+            _CACHE[text] = b"".join(bc.chunks)
+    except Exception as e:  # noqa: BLE001 — surface to subscribers, don't crash the loop
+        bc.error = e
+    finally:
+        bc.done = True
+        # Wake every waiting subscriber: the error (→ they re-raise) or a clean end.
+        terminal: object = bc.error if bc.error is not None else _STREAM_DONE
+        for sub in list(bc.subscribers):
+            sub.put_nowait(terminal)
+        _INFLIGHT.pop(text, None)
 
 
 def is_cached(text: str) -> bool:
@@ -150,12 +208,13 @@ def _run_grpc_stream(
 
 
 async def stream_synth(text: str) -> AsyncIterator[bytes]:
-    """Yield audio chunks for `text`.
+    """Yield audio chunks for `text`, SUBSCRIBING to a shared fan-out synth.
 
     Cache HIT → yield cached bytes (one chunk, ~instant).
-    Cache MISS → kick off a gRPC streaming synth on a worker thread, drain
-    chunks via an asyncio queue, yield each to the caller as it arrives,
-    and cache the concatenation on success.
+    Otherwise → start the detached producer if this is the first caller, then
+    subscribe: replay any chunks already produced, then yield each new chunk as
+    the producer emits it. Because prefetch and play share one producer, `play`'s
+    first audio arrives at ~first-byte latency instead of after the full synth.
     """
     text = text.strip()
     if not text:
@@ -166,31 +225,41 @@ async def stream_synth(text: str) -> AsyncIterator[bytes]:
         yield cached
         return
 
-    lock = _CACHE_LOCKS.setdefault(text, asyncio.Lock())
-    async with lock:
-        cached = _CACHE.get(text)
-        if cached is not None:
-            yield cached
+    bc = _INFLIGHT.get(text)
+    if bc is None:
+        bc = _Broadcast()
+        _INFLIGHT[text] = bc
+        bc.task = asyncio.get_running_loop().create_task(_produce(text, bc))
+
+    # Subscribe atomically: snapshot already-produced chunks and register our
+    # queue with NO await between them, so the producer (same event loop) can't
+    # slip a chunk into the gap — every chunk is delivered exactly once.
+    q: asyncio.Queue = asyncio.Queue()
+    already = list(bc.chunks)
+    bc.subscribers.append(q)
+    try:
+        for chunk in already:
+            yield chunk
+        if bc.done:
+            # Producer finished before/at subscription: emit anything appended
+            # after our snapshot, then honor a terminal error.
+            for chunk in bc.chunks[len(already):]:
+                yield chunk
+            if bc.error is not None:
+                raise bc.error
             return
-
-        loop = asyncio.get_running_loop()
-        q: asyncio.Queue = asyncio.Queue()
-        threading.Thread(
-            target=_run_grpc_stream,
-            args=(text, loop, q),
-            daemon=True,
-        ).start()
-
-        collected: list[bytes] = []
         while True:
             item = await q.get()
             if item is _STREAM_DONE:
                 break
             if isinstance(item, Exception):
                 raise item
-            collected.append(item)  # type: ignore[arg-type]
             yield item  # type: ignore[misc]
-        _CACHE[text] = b"".join(collected)
+    finally:
+        try:
+            bc.subscribers.remove(q)
+        except ValueError:
+            pass
 
 
 async def synth(text: str) -> bytes:
