@@ -38,7 +38,8 @@ TTS — the reply's client-perceived first-audio, NOT server synth time:
     per-text lock, tts.py); short debt-collection replies hide this.
 
 WHAT THIS MEASURES vs. what it can't:
-  * Measured live: STT recognize(), LLM hop(s), TTS server ttfb/total (informational).
+  * Measured live: STT (streaming end-of-speech->final by default; batch recognize()
+    with --stt-batch), LLM hop(s), TTS server ttfb/total (informational).
   * Added as labeled constants (a browserless server-side probe can't observe
     them): the VAD silence-hang endpointing wait (AAX6_VAD_SILENCE_HANG_MS), the
     mic-chunk quantization, the STT->browser->POST handoff, the TTS client
@@ -71,9 +72,16 @@ LLM mode (blocking vs streaming) — the LLM stage is effectively n=1:
     live demo's unpinned temp (~1.0), reject/retry loops, multi-hop close-outs, or
     long-history turns. Read LLM numbers as a best-case first turn, not a spread.
 
+STT mode (streaming vs batch):
+    Default is STREAMING — frames are fed to Chirp 3 at real-time cadence so the
+    audio uploads + recognizes WHILE the caller speaks; we time end-of-speech ->
+    final (mirrors the demo's AAX6_STT_STREAMING=1). --stt-batch reverts to the old
+    post-speech recognize() (AAX6_STT_STREAMING=0). Run both for the STT A/B.
+
 USAGE:
     python scripts/measure_ttfa.py --wav-dir path/to/thai_wavs [--json out.json]
-    python scripts/measure_ttfa.py --wav-dir wavs --stream           # real streaming first-audio
+    python scripts/measure_ttfa.py --wav-dir wavs --stt-batch        # old batch STT (A/B baseline)
+    python scripts/measure_ttfa.py --wav-dir wavs --stream           # real streaming LLM first-audio
     python scripts/measure_ttfa.py --wav-dir wavs --case-id TC-AEON-AAX-025 --runs 3
     AAX6_STT_MODEL=chirp_2 python scripts/measure_ttfa.py --wav-dir wavs   # A/B a knob (Thai: chirp_3/chirp_2/chirp only; "short" is not th-TH here)
     python scripts/measure_ttfa.py --self-test    # pure-logic check, no GPU/GCP/torch
@@ -256,11 +264,72 @@ def build_stt(model: str):
 
 
 def measure_stt(stt, speech_pcm: bytes) -> tuple[float, str]:
-    """Time the final batch recognize() and return (stt_ms, transcript)."""
+    """Time the final batch recognize() and return (stt_ms, transcript).
+
+    BATCH path (opt-in via --stt-batch): the whole utterance is uploaded and
+    recognized only AFTER the caller stops — a cold round-trip. This is what the
+    live demo does when AAX6_STT_STREAMING is off."""
     t0 = time.perf_counter()
     transcript = stt.transcribe_pcm(speech_pcm, sample_rate=STT_SAMPLE_RATE).strip()
     stt_ms = (time.perf_counter() - t0) * 1000.0
     return stt_ms, transcript
+
+
+# Frame size the paced streaming feed uses — matches the mic worklet's 100ms
+# chunk cadence (demo/frontend/public/mic-worklet.js), so the upload overlaps
+# "speech" the same way the live gate feeds voiced frames.
+STT_STREAM_FRAME_MS = 100.0
+
+
+def _pcm_frames(pcm: bytes, frame_ms: float, sample_rate: int):
+    """Split raw 16-bit mono PCM into frame_ms slices."""
+    step = max(2, int(sample_rate * 2 * frame_ms / 1000.0) & ~1)  # even byte count
+    for i in range(0, len(pcm), step):
+        yield pcm[i:i + step]
+
+
+def measure_stt_streaming(
+    stt, speech_pcm: bytes, *, sample_rate: int = STT_SAMPLE_RATE,
+    frame_ms: float = STT_STREAM_FRAME_MS,
+) -> tuple[float, str]:
+    """Time Chirp 3 STREAMING (the default) end-of-speech -> final, mirroring the
+    demo's _run_stream_session (recognize_ms = final - sentinel_stamp).
+
+    The frames are fed to `transcribe_streaming_events` at REAL-TIME cadence (one
+    frame_ms slice every frame_ms) so the audio uploads + gets recognized WHILE
+    the caller is still "speaking" — exactly the overlap that makes streaming win.
+    We stamp the moment the last frame is submitted (= end of speech) and return
+    the time from there until the transcript is finalized. A final that lands
+    before end-of-speech clamps to 0 (the streaming ideal: ready the instant you
+    stop). This is what AAX6_STT_STREAMING=1 activates in the live WebSocket path;
+    the batch --stt-batch path can never show this overlap."""
+    end_stamp = [0.0]  # set on the gRPC request-writer thread when last frame is sent
+
+    def paced_chunks():
+        frames = list(_pcm_frames(speech_pcm, frame_ms, sample_rate))
+        dt = frame_ms / 1000.0
+        for idx, frame in enumerate(frames):
+            if idx:  # no pre-delay before the first frame
+                time.sleep(dt)
+            yield frame
+        end_stamp[0] = time.perf_counter()
+
+    finals: list[str] = []
+    last_final = 0.0
+    for event in stt.transcribe_streaming_events(
+        paced_chunks(), raw_pcm=True, sample_rate=sample_rate, interim_results=True,
+    ):
+        if event["type"] == "final":
+            finals.append(event["text"])
+            last_final = time.perf_counter()
+
+    end = end_stamp[0]
+    if end and last_final:
+        stt_ms = max(0.0, (last_final - end) * 1000.0)
+    else:
+        # No final ever arrived (empty) — report the post-speech wait to close.
+        stt_ms = max(0.0, (time.perf_counter() - end) * 1000.0) if end else 0.0
+    return stt_ms, " ".join(t.strip() for t in finals if t.strip()).strip()
 
 
 def load_case(case_id: str) -> dict[str, Any]:
@@ -498,8 +567,9 @@ async def run_probe(args: argparse.Namespace) -> int:
     )
 
     llm_mode = "streaming (early filler)" if args.stream else "blocking"
+    stt_mode = "batch" if args.stt_batch else "streaming (real-time paced)"
     print(f"[setup] {len(wavs)} wav(s) x {args.runs} run(s) | case={args.case_id} "
-          f"company={company} | STT={stt_model} | vad_hang={vad_hang_ms:.0f}ms")
+          f"company={company} | STT={stt_model} ({stt_mode}) | vad_hang={vad_hang_ms:.0f}ms")
     print(f"[setup] vLLM {base_url} | model={vllm_model} | LLM mode={llm_mode} | served={served}")
     print(f"[setup] live constants: stt_queue={stt_queue_ms:.0f}ms rtt={rtt_ms:.0f}ms "
           f"tts_client={tts_client_ms:.0f}ms (reply) "
@@ -545,7 +615,12 @@ async def run_probe(args: argparse.Namespace) -> int:
             # actually sends — NOT a silence-stripped clip.
             vad_compute = await asyncio.to_thread(measure_vad, vad, pcm)
             stt_pcm = pad_for_stt(pcm, args.stt_preroll_ms, vad_hang_ms)
-            stt_ms, transcript = await asyncio.to_thread(measure_stt, stt, stt_pcm)
+            if args.stt_batch:
+                stt_ms, transcript = await asyncio.to_thread(measure_stt, stt, stt_pcm)
+            else:
+                stt_ms, transcript = await asyncio.to_thread(
+                    measure_stt_streaming, stt, stt_pcm, sample_rate=STT_SAMPLE_RATE
+                )
             if not transcript:
                 empties += 1
                 print(f"  [empty] {wav.name}: STT returned no text (silence/noise)")
@@ -608,7 +683,7 @@ async def run_probe(args: argparse.Namespace) -> int:
 
     cfg = {
         "case_id": args.case_id, "company": company, "stt_model": stt_model,
-        "llm_mode": llm_mode,
+        "stt_mode": stt_mode, "llm_mode": llm_mode,
         "vad_hang_ms": vad_hang_ms, "mic_chunk_ms": args.mic_chunk_ms,
         "handoff_ms": args.handoff_ms,
         "stt_queue_ms": stt_queue_ms, "rtt_ms": rtt_ms,
@@ -865,6 +940,11 @@ def main() -> int:
                     help="override AAX6_STT_MODEL; Thai (th-TH) works with chirp_3/chirp_2/chirp only "
                          "('short'/'long' 400 on th-TH). Region defaults to us (AAX6_STT_REGION); "
                          "chirp_3 + th-TH was deprecated in asia-southeast1.")
+    ap.add_argument("--stt-batch", action="store_true",
+                    help="use batch recognize() for STT instead of the DEFAULT real-time-paced "
+                         "streaming path. Streaming feeds audio while the caller 'speaks' and times "
+                         "end-of-speech->final (mirrors the live demo's AAX6_STT_STREAMING=1); batch "
+                         "uploads the whole utterance only after stop (AAX6_STT_STREAMING=0).")
     ap.add_argument("--vad-threshold", type=float, default=None, help="override Silero threshold")
     ap.add_argument("--handoff-ms", type=float, default=15.0,
                     help="constant: STT->browser->POST handoff (default 15)")
