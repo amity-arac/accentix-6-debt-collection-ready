@@ -12,11 +12,10 @@ words *as the caller speaks*, we instead re-run batch `recognize()` on the
 growing buffer every ~`INTERIM_EVERY_MS` and emit those as interim text, with
 the final on end-of-speech. Language-agnostic and actually progressive.
 
-`AAX6_STT_STREAMING=1` swaps the transcription for TRUE Chirp `streaming_recognize`
-(interim results + a final whose upload overlaps speech, so it can land sooner at
-end-of-speech). Silero still owns endpointing + barge-in, and the event schema is
-identical — so toggling the flag is a clean batch-vs-streaming A/B. Default OFF
-(batch, exactly as above).
+TRUE Chirp `streaming_recognize` (interim results + a final whose upload overlaps
+speech, so it lands sooner at end-of-speech) is the DEFAULT. Silero still owns
+endpointing + barge-in, and the event schema is identical — so `AAX6_STT_STREAMING=0`
+falls back to the batch path above for a clean A/B.
 
 Worker threads keep things responsive:
   - the **VAD gate** thread does endpointing (speech_begin / end-of-speech via
@@ -122,8 +121,10 @@ _SPECULATE = DIRECT_FINAL and SPECULATIVE_FINAL and 0 < SPECULATIVE_SILENCE_MS <
 # them (historically sparse for Thai — that's the whole thing being A/B-tested).
 # Silero still owns endpointing + barge-in and the event schema is unchanged, so
 # flipping this is a clean batch-vs-streaming comparison. When on, the batch
-# interim/final workers below are NOT started. Default OFF (batch path untouched).
-STREAMING = os.environ.get("AAX6_STT_STREAMING", "0").strip().lower() not in ("0", "false", "")
+# interim/final workers below are NOT started. Default ON — the probe measured a
+# ~1.3s STT-p50 win (streaming 524ms vs batch 1796ms in `us`); set
+# AAX6_STT_STREAMING=0 to fall back to the batch path.
+STREAMING = os.environ.get("AAX6_STT_STREAMING", "1").strip().lower() not in ("0", "false", "")
 
 # Process-wide STT client (cheap, thread-safe wrapper over an lru_cached gRPC
 # client) + one-time gRPC warmup flag. The VADService is per-connection because
