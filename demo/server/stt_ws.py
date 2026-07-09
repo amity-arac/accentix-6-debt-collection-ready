@@ -142,6 +142,7 @@ def _build_engines():
     with _engine_lock:
         if _stt_singleton is None:
             from services.speech.stt import STTService
+            from services.speech.config import DEFAULT_REGION
 
             # Env-tunable STT model knob. Default "chirp_3": the low-latency
             # "short"/"long" conformer models do NOT support th-TH in
@@ -149,7 +150,15 @@ def _build_engines():
             # model "short" in that location), so they can't be the Thai default.
             # chirp_2 / chirp are the other Thai-capable candidates worth A/B-ing.
             model = os.environ.get("AAX6_STT_MODEL", "chirp_3")
-            _stt_singleton = STTService(model=model)
+            # Env-tunable STT region. Default asia-southeast1 — the region this
+            # demo has always used and where th-TH transcription is confirmed
+            # working. Chirp 3 is GA in the `us` / `eu` multi-regions; set
+            # AAX6_STT_REGION=us (or eu) to A/B them, but VERIFY th-TH is served
+            # there first (language support is regional — if Thai isn't offered,
+            # recognize() 400s and STT falls back to the browser recognizer).
+            region = os.environ.get("AAX6_STT_REGION", DEFAULT_REGION).strip() or DEFAULT_REGION
+            logger.info("[stt] model=%s region=%s", model, region)
+            _stt_singleton = STTService(model=model, region=region)
         stt = _stt_singleton
         if not _stt_warmed:
             logger.info("[stt] warming up Chirp gRPC channel...")

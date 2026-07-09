@@ -161,6 +161,7 @@ if quality suffers. All are optional.
 | Variable | Default | Effect |
 |---|---|---|
 | `AAX6_STT_MODEL` | `chirp_3` | STT model. **Thai (`th-TH`) is only served by `chirp_3` / `chirp_2` / `chirp` in `asia-southeast1`** — the low-latency `short` / `long` conformer models return a 400 (`language "th-TH" not supported by model "short"`), so they can't be the Thai default. Try `chirp_2` / `chirp` and measure with the probe if you want lower latency. |
+| `AAX6_STT_REGION` | `asia-southeast1` | GCP region for STT (endpoint + recognizer path). This is the region the demo has always used and where `th-TH` transcription is confirmed working. Chirp 3 is GA in the `us` / `eu` multi-regions — set `AAX6_STT_REGION=us` (or `eu`) to A/B them. ⚠️ **Verify `th-TH` is served in the target region first** (language support is regional): if Thai isn't offered there, `recognize()` 400s and STT silently falls back to the browser recognizer. Needs a backend restart (the STT client is built once). |
 | `AAX6_VAD_SILENCE_HANG_MS` | `250` | Trailing silence (ms) before an utterance is finalized — the leading term of TTFA on *every* turn. Lower = snappier; too low cuts callers off mid-thought / lets TTS echo trip a false barge-in (validate live). Was `500 → 350`. |
 | `AAX6_VAD_THRESHOLD` | `0.4` | Silero speech-probability gate (0–1). Higher = stricter (fewer false triggers, may clip soft speech). |
 | `AAX6_VAD_MIN_SPEECH_MS` | `100` | Sustained speech required before `speech_begin` fires (barge-in debounce). |
