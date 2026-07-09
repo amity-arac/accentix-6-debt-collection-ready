@@ -12,6 +12,12 @@ words *as the caller speaks*, we instead re-run batch `recognize()` on the
 growing buffer every ~`INTERIM_EVERY_MS` and emit those as interim text, with
 the final on end-of-speech. Language-agnostic and actually progressive.
 
+`AAX6_STT_STREAMING=1` swaps the transcription for TRUE Chirp `streaming_recognize`
+(interim results + a final whose upload overlaps speech, so it can land sooner at
+end-of-speech). Silero still owns endpointing + barge-in, and the event schema is
+identical — so toggling the flag is a clean batch-vs-streaming A/B. Default OFF
+(batch, exactly as above).
+
 Worker threads keep things responsive:
   - the **VAD gate** thread does endpointing (speech_begin / end-of-speech via
     SILENCE_HANG_MS) and barge-in, and hands buffer snapshots to the STT threads.
@@ -109,6 +115,16 @@ SPECULATIVE_FINAL = os.environ.get("AAX6_STT_SPECULATIVE", "1").strip().lower() 
 SPECULATIVE_SILENCE_MS = int(os.environ.get("AAX6_STT_SPECULATIVE_SILENCE_MS", "100"))
 _SPECULATE = DIRECT_FINAL and SPECULATIVE_FINAL and 0 < SPECULATIVE_SILENCE_MS < SILENCE_HANG_MS
 
+# True Chirp 3 STREAMING for the STT final (AAX6_STT_STREAMING=1) instead of the
+# default post-speech batch recognize(). Each utterance's PCM is fed to Chirp's
+# streaming_recognize LIVE as the caller speaks (upload overlaps speech), so the
+# FINAL can land sooner at end-of-speech; interim partials render if Chirp emits
+# them (historically sparse for Thai — that's the whole thing being A/B-tested).
+# Silero still owns endpointing + barge-in and the event schema is unchanged, so
+# flipping this is a clean batch-vs-streaming comparison. When on, the batch
+# interim/final workers below are NOT started. Default OFF (batch path untouched).
+STREAMING = os.environ.get("AAX6_STT_STREAMING", "0").strip().lower() not in ("0", "false", "")
+
 # Process-wide STT client (cheap, thread-safe wrapper over an lru_cached gRPC
 # client) + one-time gRPC warmup flag. The VADService is per-connection because
 # it is stateful.
@@ -191,11 +207,106 @@ def _emit_final(spec: "_SpecFinal", send: Callable[[dict], None]) -> None:
         send({"type": "turn_empty", "recognize_ms": spec.recognize_ms})
 
 
+class _StreamSession:
+    """One utterance's live streaming-STT connection (AAX6_STT_STREAMING).
+
+    The gate creates one at `speech_begin`, feeds PCM frames into `chunk_q` as
+    they arrive, and drops a `None` sentinel at end-of-speech (stamping
+    `sentinel_stamp` first). The streaming worker drains the queue into Chirp's
+    `streaming_recognize` and emits `stt_interim` / `stt_final`. `recognize_ms`
+    is measured end-of-audio → final, so it stays comparable to the batch path's
+    recognize wall-time (and to the client's `stt_final − speech_end`).
+    """
+
+    __slots__ = ("chunk_q", "sentinel_stamp")
+
+    def __init__(self) -> None:
+        self.chunk_q: "queue.Queue[bytes | None]" = queue.Queue()
+        self.sentinel_stamp = 0.0
+
+
+def _run_stream_session(
+    stt,
+    session: "_StreamSession",
+    stop: threading.Event,
+    send: Callable[[dict], None],
+) -> None:
+    """Drive ONE utterance through Chirp `streaming_recognize` and emit its
+    events. Reuses `STTService.transcribe_streaming_events` unchanged (raw PCM,
+    interim_results). The chunk generator blocks on `session.chunk_q` and returns
+    at the `None` end-of-speech sentinel, which half-closes the gRPC stream so
+    Chirp finalizes; the final is emitted once the response iterator drains."""
+
+    def chunks():
+        while True:
+            c = session.chunk_q.get()
+            if c is None:  # end-of-speech (or shutdown) sentinel
+                return
+            yield c
+
+    finals: list[str] = []
+    last_interim: str | None = None
+    try:
+        for evt in stt.transcribe_streaming_events(
+            chunks(),
+            raw_pcm=True,
+            sample_rate=STT_SAMPLE_RATE,
+            interim_results=True,
+        ):
+            if stop.is_set():
+                return
+            etype = evt.get("type")
+            if etype == "partial":
+                text = (evt.get("text") or "").strip()
+                if text and text != last_interim:
+                    last_interim = text
+                    send({"type": "stt_interim", "text": text})
+            elif etype == "final":
+                text = (evt.get("text") or "").strip()
+                if text:
+                    finals.append(text)
+    except Exception as e:  # noqa: BLE001 — surface, keep listening
+        logger.exception("[stt] streaming recognize failed")
+        send({"type": "error", "message": f"STT: {e}"})
+        return
+
+    # End-of-audio → final latency (comparable to the batch recognize_ms).
+    recognize_ms = (
+        round((time.perf_counter() - session.sentinel_stamp) * 1000, 1)
+        if session.sentinel_stamp
+        else 0.0
+    )
+    text = " ".join(finals).strip()
+    if text:
+        send({"type": "stt_final", "text": text, "recognize_ms": recognize_ms})
+    else:
+        send({"type": "turn_empty", "recognize_ms": recognize_ms})
+
+
+def _stt_streaming_worker(
+    stt,
+    stream_q: "queue.Queue[Any]",
+    stop: threading.Event,
+    send: Callable[[dict], None],
+) -> None:
+    """AAX6_STT_STREAMING dispatcher: transcribe each utterance via Chirp
+    `streaming_recognize` instead of post-speech batch. Processes sessions
+    serially — each utterance's stream is fully drained (interims + final
+    emitted) before the next begins, which conversational turn-taking
+    guarantees, so transcript ordering needs no generation guard."""
+    while not stop.is_set():
+        session = stream_q.get()
+        if session is None:
+            break
+        _run_stream_session(stt, session, stop, send)
+
+
 def _vad_gate_worker(
     vad,
     pcm_q: "queue.Queue[bytes | None]",
     req_q: "queue.Queue[Any]",
     spec_q: "queue.Queue[Any]",
+    stream_q: "queue.Queue[Any]",
     gen_box: "list[int]",
     stop: threading.Event,
     send: Callable[[dict], None],
@@ -215,6 +326,7 @@ def _vad_gate_worker(
     last_interim_len = 0
     t_last_voice = 0.0  # perf_counter() at the last super-threshold frame → endpoint_ms
     spec: "_SpecFinal | None" = None  # in-flight speculative final for this utterance
+    stream: "_StreamSession | None" = None  # in-flight streaming session (AAX6_STT_STREAMING)
 
     interim_every_bytes = INTERIM_EVERY_MS * _BYTES_PER_MS
     min_interim_bytes = MIN_INTERIM_MS * _BYTES_PER_MS
@@ -222,7 +334,7 @@ def _vad_gate_worker(
     vad.reset()
 
     def finalize() -> None:
-        nonlocal buf, in_speech, silent_ms, run_ms, prev_chunk, last_interim_len, t_last_voice, spec
+        nonlocal buf, in_speech, silent_ms, run_ms, prev_chunk, last_interim_len, t_last_voice, spec, stream
         # Endpoint dead-time: wall-clock from the last voiced frame to this
         # finalize decision (≈ SILENCE_HANG_MS). This is the user-perceived "VAD
         # latency" — the trailing silence the caller waits through after they
@@ -235,7 +347,15 @@ def _vad_gate_worker(
         # "N+1 active"; the counter can.
         gen_box[0] += 1
         send({"type": "speech_end", "endpoint_ms": endpoint_ms})
-        if DIRECT_FINAL:
+        if STREAMING:
+            # End-of-speech → close the live stream so Chirp finalizes. The
+            # streaming worker measures recognize_ms from this stamp and emits
+            # stt_final once the response iterator drains.
+            if stream is not None:
+                stream.sentinel_stamp = time.perf_counter()
+                stream.chunk_q.put(None)
+            stream = None
+        elif DIRECT_FINAL:
             if spec is not None:
                 # A speculative recognize is already running (fired at
                 # SPECULATIVE_SILENCE_MS) → COMMIT it. If it already finished, emit
@@ -267,6 +387,11 @@ def _vad_gate_worker(
     while not stop.is_set():
         chunk = pcm_q.get()
         if chunk is None:
+            if STREAMING and stream is not None:
+                # Shutdown mid-utterance → unblock the streaming worker's
+                # chunk_q.get() so it finalizes/drains and exits cleanly.
+                stream.chunk_q.put(None)
+                stream = None
             break
 
         try:
@@ -288,6 +413,13 @@ def _vad_gate_worker(
                 if not in_speech and run_ms >= MIN_SPEECH_MS:
                     in_speech = True
                     send({"type": "speech_begin"})
+                    if STREAMING:
+                        # Open the live stream only when speech starts (don't
+                        # stream silence). Feed the ~100ms pre-roll first.
+                        stream = _StreamSession()
+                        stream_q.put(stream)
+                        if prev_chunk:
+                            stream.chunk_q.put(prev_chunk)
                     if prev_chunk:
                         buf.extend(prev_chunk)
             else:
@@ -303,6 +435,8 @@ def _vad_gate_worker(
 
         if in_speech:
             buf.extend(chunk)
+            if STREAMING and stream is not None:
+                stream.chunk_q.put(chunk)
         prev_chunk = chunk
 
         # Speculative-final lifecycle. CANCEL FIRST (even in the chunk that
@@ -320,13 +454,15 @@ def _vad_gate_worker(
             finalize()
         elif in_speech:
             # Fire a speculative final once trailing silence crosses the threshold.
-            if _SPECULATE and spec is None and silent_ms >= SPECULATIVE_SILENCE_MS:
+            # (Batch path only — streaming's final overlaps speech already.)
+            if _SPECULATE and not STREAMING and spec is None and silent_ms >= SPECULATIVE_SILENCE_MS:
                 spec = _SpecFinal(bytes(buf))
                 spec_q.put(spec)
             if len(buf) >= max_bytes:
                 finalize()  # hard cap mid-speech
             elif (
-                len(buf) >= min_interim_bytes
+                not STREAMING
+                and len(buf) >= min_interim_bytes
                 and len(buf) - last_interim_len >= interim_every_bytes
             ):
                 last_interim_len = len(buf)
@@ -478,6 +614,7 @@ async def run_session(ws: WebSocket) -> None:
     pcm_q: "queue.Queue[bytes | None]" = queue.Queue()
     req_q: "queue.Queue[Any]" = queue.Queue()
     spec_q: "queue.Queue[Any]" = queue.Queue()
+    stream_q: "queue.Queue[Any]" = queue.Queue()
     # Utterance generation counter (single writer: the gate, in finalize()). The
     # interim worker stamps each request with it and drops results whose gen has
     # gone stale, so a late interim can't land after its utterance's stt_final.
@@ -490,24 +627,34 @@ async def run_session(ws: WebSocket) -> None:
 
     gate = threading.Thread(
         target=_vad_gate_worker,
-        args=(vad, pcm_q, req_q, spec_q, gen_box, stop, send_threadsafe),
+        args=(vad, pcm_q, req_q, spec_q, stream_q, gen_box, stop, send_threadsafe),
         daemon=True,
     )
-    transcriber = threading.Thread(
-        target=_stt_worker,
-        args=(stt, req_q, gen_box, stop, send_threadsafe),
-        daemon=True,
-    )
-    workers = [gate, transcriber]
-    if DIRECT_FINAL:
-        # Dedicated final-recognize thread → the final never waits behind an
-        # in-flight interim, and (with SPECULATIVE_FINAL) can start EARLY during
-        # the endpoint hang. Shares the thread-safe stt client.
-        workers.append(threading.Thread(
-            target=_stt_final_worker,
-            args=(stt, spec_q, stop, send_threadsafe),
+    if STREAMING:
+        # Streaming mode: a single dispatcher runs each utterance through Chirp's
+        # streaming_recognize. The batch interim/final workers are NOT started —
+        # only streaming runs, for a clean batch-vs-streaming A/B.
+        workers = [gate, threading.Thread(
+            target=_stt_streaming_worker,
+            args=(stt, stream_q, stop, send_threadsafe),
             daemon=True,
-        ))
+        )]
+    else:
+        transcriber = threading.Thread(
+            target=_stt_worker,
+            args=(stt, req_q, gen_box, stop, send_threadsafe),
+            daemon=True,
+        )
+        workers = [gate, transcriber]
+        if DIRECT_FINAL:
+            # Dedicated final-recognize thread → the final never waits behind an
+            # in-flight interim, and (with SPECULATIVE_FINAL) can start EARLY
+            # during the endpoint hang. Shares the thread-safe stt client.
+            workers.append(threading.Thread(
+                target=_stt_final_worker,
+                args=(stt, spec_q, stop, send_threadsafe),
+                daemon=True,
+            ))
     for w in workers:
         w.start()
 
@@ -537,5 +684,6 @@ async def run_session(ws: WebSocket) -> None:
         pcm_q.put(None)
         req_q.put(None)
         spec_q.put(None)
+        stream_q.put(None)
         for w in workers:
             await asyncio.to_thread(w.join, 2.0)
