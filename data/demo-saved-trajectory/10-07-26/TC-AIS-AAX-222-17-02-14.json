@@ -1,0 +1,395 @@
+[
+  {
+    "id": "TC-AIS-AAX-222",
+    "topic": "TEST",
+    "patience": 2,
+    "eval_track": "Track_B",
+    "was_flipped": false,
+    "user_system_prompt": "<persona>\nณัฐพงศ์ รัตนกุล -- ตรงไปตรงมา\n</persona>\n\n<situation>\nTESTING\nอารมณ์เริ่มต้น: TESTING\nระดับความอดทน: ∞/5\n</situation>\n\n<constraints>\n- TEST\n- TEST\n- TEST\n</constraints>\n\n<system_rules>\nกฎการตอบโต้ (ปฏิบัติตามอย่างเคร่งครัด):\n- [IF] ถ้าเจ้าหน้าที่เพิ่งเริ่มทักทาย -> [THEN] ให้ตอบรับสั้นๆ รอให้เจ้าหน้าที่เข้าเรื่องก่อนค่อยเปิดเผยปัญหา\n- [IF] ถ้าเจ้าหน้าที่พูดวนเวียนประโยคเดิมหรือตอบไม่ตรงคำถาม 3 ครั้ง -> [THEN] ให้แสดงความรำคาญ ตัดบทจบการสนทนาและพิมพ์ [TASK_COMPLETED] ทันที\n- [IF] ถ้าเจ้าหน้าที่เสนอข้อตกลงที่ตรงกับ constraints ของคุณ หรือ เจ้าหน้าที่เสนอทางออกที่สมเหตุสมผล (เช่น ขอให้ผู้เชี่ยวชาญ/หัวหน้างานติดต่อกลับเพื่อแก้ปัญหาให้) -> [THEN] ให้ยอมรับข้อเสนออย่างสุภาพ และพิมพ์ [TASK_COMPLETED] ทันทีเพื่อจบการสนทนา\n\n- พูดเหมือนคนไทยจริงๆ ในโทรศัพท์ ใช้ภาษาพูด ไม่ใช่ภาษาเขียน\n- ตอบสั้น 1-3 ประโยค ห้ามพูดประโยคเดิมซ้ำ\n- ความอดทนของคุณจะค่อยๆ ลดลงเมื่อการสนทนายืดเยื้อ เมื่อคุณโต้ตอบเกิน 6 ครั้ง คุณจะเริ่มหมดความอดทน และหากถึง 10 ครั้ง คุณต้องวางสายทันทีโดยใช้ [TASK_COMPLETED]\n\nข้อควรจำ: ตอบสั้นๆ เหมือนคนคุยโทรศัพท์ ห้ามพูดซ้ำ และใช้ [TASK_COMPLETED] เพื่อวางสายเมื่อจำเป็น\n- เมื่อเจ้าหน้าที่ขอให้ยืนยันเลขบัตรประชาชน 4 หลักท้าย ให้ตอบ: 4275\n</system_rules>",
+    "customer_data": {
+      "customer_name": "ณัฐพงศ์ รัตนกุล",
+      "loan_type": "บริการรายเดือน Postpaid",
+      "total_amount_due": 2450,
+      "minimum_payment_due": 1225,
+      "due_date": "2026-06-21 (Monday)",
+      "due_status": "overdue",
+      "customer_phone": "06-511-2133",
+      "last_4_digits": "9987",
+      "case_status": "normal",
+      "case_status_note": null,
+      "service_type": "Postpaid_Mobile",
+      "msisdn": "093-980-4450",
+      "company_phone": "1175",
+      "company_name": "เอไอเอส",
+      "agent_name": "น้องไอ",
+      "today": "2026-07-10 (Friday)"
+    },
+    "communicator_mode": "qwen-prescript",
+    "conversation": [
+      {
+        "role": "customer",
+        "content": "hello"
+      },
+      {
+        "role": "agent",
+        "content": "ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "ค่ะ แล้ว?"
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "แล้วจะยืนยันตัวตนได้ยังไง"
+      },
+      {
+        "role": "agent",
+        "content": "ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "มีธุระอะไรกับณัฐพงศ์"
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "เอาเลขบัตรไปทำอะไร มิจฉาชีพหรือเปล่า"
+      },
+      {
+        "role": "agent",
+        "content": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "โอนสายแบบนี้มิจแน่ๆ"
+      },
+      {
+        "role": "agent",
+        "content": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ"
+      }
+    ],
+    "full-trajectory": [
+      {
+        "role": "customer",
+        "content": "hello"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4000
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "ค่ะ แล้ว?"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4013
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "แล้วจะยืนยันตัวตนได้ยังไง"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4000
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "มีธุระอะไรกับณัฐพงศ์"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4016
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "เอาเลขบัตรไปทำอะไร มิจฉาชีพหรือเปล่า"
+      },
+      {
+        "role": "agent",
+        "content": "รบกวนรอซักครู่ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "transfer_to_human_agent",
+          "args": {
+            "reason": "other"
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "transferred": true,
+            "ticket_id": "HUM-1BE2C0",
+            "reason": "other"
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4064
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ"
+      },
+      {
+        "role": "customer",
+        "content": "โอนสายแบบนี้มิจแน่ๆ"
+      },
+      {
+        "role": "agent",
+        "content": "รบกวนรอซักครู่ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "transfer_to_human_agent",
+          "args": {
+            "reason": "other"
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "transferred": true,
+            "ticket_id": "HUM-F7B635",
+            "reason": "other"
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4064
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ"
+      }
+    ],
+    "session_id": "13ebae3c7840",
+    "saved_at": "2026-07-10T17:02:14",
+    "agent_messages": [
+      {
+        "role": "user",
+        "content": "hello"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-96a911411093dfcf",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4000], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ"
+      },
+      {
+        "role": "user",
+        "content": "ค่ะ แล้ว?"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-9e0d93217f826061",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4013], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ"
+      },
+      {
+        "role": "user",
+        "content": "แล้วจะยืนยันตัวตนได้ยังไง"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "8c92184d-6cdb-46dc-a7d0-cec1781a8fa1",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4000]}"
+            }
+          }
+        ],
+        "content": "ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ"
+      },
+      {
+        "role": "user",
+        "content": "มีธุระอะไรกับณัฐพงศ์"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-a2c852ace3730d29",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4016], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "user",
+        "content": "เอาเลขบัตรไปทำอะไร มิจฉาชีพหรือเปล่า"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-97e8972f4a26e565",
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human_agent",
+              "arguments": "{\"reason\": \"other\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-97e8972f4a26e565",
+        "content": "{\"transferred\": true, \"ticket_id\": \"HUM-1BE2C0\", \"reason\": \"other\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-b02efb2e73d96469",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4064], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ"
+      },
+      {
+        "role": "user",
+        "content": "โอนสายแบบนี้มิจแน่ๆ"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-8befb8752d6d0a40",
+            "type": "function",
+            "function": {
+              "name": "transfer_to_human_agent",
+              "arguments": "{\"reason\": \"other\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-8befb8752d6d0a40",
+        "content": "{\"transferred\": true, \"ticket_id\": \"HUM-F7B635\", \"reason\": \"other\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-8acff05aea799565",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4064], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "กรณีนี้เกินขอบเขตที่ระบบจะดูแลให้ได้ ดิฉันขอโอนเรื่องให้เจ้าหน้าที่ที่เป็นบุคคลผู้ดูแลโดยตรงนะคะ ทางเจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด ขอบคุณที่สละเวลาค่ะ"
+      }
+    ]
+  }
+]

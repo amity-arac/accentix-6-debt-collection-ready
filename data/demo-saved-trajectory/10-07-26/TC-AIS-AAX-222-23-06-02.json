@@ -1,0 +1,875 @@
+[
+  {
+    "id": "TC-AIS-AAX-222",
+    "topic": "TEST",
+    "patience": 2,
+    "eval_track": "Track_B",
+    "was_flipped": false,
+    "user_system_prompt": "<persona>\nณัฐพงศ์ รัตนกุล -- ตรงไปตรงมา\n</persona>\n\n<situation>\nTESTING\nอารมณ์เริ่มต้น: TESTING\nระดับความอดทน: ∞/5\n</situation>\n\n<constraints>\n- TEST\n- TEST\n- TEST\n</constraints>\n\n<system_rules>\nกฎการตอบโต้ (ปฏิบัติตามอย่างเคร่งครัด):\n- [IF] ถ้าเจ้าหน้าที่เพิ่งเริ่มทักทาย -> [THEN] ให้ตอบรับสั้นๆ รอให้เจ้าหน้าที่เข้าเรื่องก่อนค่อยเปิดเผยปัญหา\n- [IF] ถ้าเจ้าหน้าที่พูดวนเวียนประโยคเดิมหรือตอบไม่ตรงคำถาม 3 ครั้ง -> [THEN] ให้แสดงความรำคาญ ตัดบทจบการสนทนาและพิมพ์ [TASK_COMPLETED] ทันที\n- [IF] ถ้าเจ้าหน้าที่เสนอข้อตกลงที่ตรงกับ constraints ของคุณ หรือ เจ้าหน้าที่เสนอทางออกที่สมเหตุสมผล (เช่น ขอให้ผู้เชี่ยวชาญ/หัวหน้างานติดต่อกลับเพื่อแก้ปัญหาให้) -> [THEN] ให้ยอมรับข้อเสนออย่างสุภาพ และพิมพ์ [TASK_COMPLETED] ทันทีเพื่อจบการสนทนา\n\n- พูดเหมือนคนไทยจริงๆ ในโทรศัพท์ ใช้ภาษาพูด ไม่ใช่ภาษาเขียน\n- ตอบสั้น 1-3 ประโยค ห้ามพูดประโยคเดิมซ้ำ\n- ความอดทนของคุณจะค่อยๆ ลดลงเมื่อการสนทนายืดเยื้อ เมื่อคุณโต้ตอบเกิน 6 ครั้ง คุณจะเริ่มหมดความอดทน และหากถึง 10 ครั้ง คุณต้องวางสายทันทีโดยใช้ [TASK_COMPLETED]\n\nข้อควรจำ: ตอบสั้นๆ เหมือนคนคุยโทรศัพท์ ห้ามพูดซ้ำ และใช้ [TASK_COMPLETED] เพื่อวางสายเมื่อจำเป็น\n- เมื่อเจ้าหน้าที่ขอให้ยืนยันเลขบัตรประชาชน 4 หลักท้าย ให้ตอบ: 4275\n</system_rules>",
+    "customer_data": {
+      "customer_name": "ณัฐพงศ์ รัตนกุล",
+      "loan_type": "บริการรายเดือน Postpaid",
+      "total_amount_due": 2450,
+      "minimum_payment_due": 1225,
+      "due_date": "2026-06-21 (Monday)",
+      "due_status": "overdue",
+      "customer_phone": "06-511-2133",
+      "last_4_digits": "9987",
+      "case_status": "normal",
+      "case_status_note": null,
+      "service_type": "Postpaid_Mobile",
+      "msisdn": "093-980-4450",
+      "company_phone": "1175",
+      "company_name": "เอไอเอส",
+      "agent_name": "น้องไอ",
+      "today": "2026-07-10 (Friday)"
+    },
+    "communicator_mode": "qwen-prescript",
+    "conversation": [
+      {
+        "role": "customer",
+        "content": "hello"
+      },
+      {
+        "role": "agent",
+        "content": "สวัสดีค่ะ น้องไอ ติดต่อจากบริษัทเอไอเอสนะคะ ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ ไม่ทราบว่ากำลังเรียนสาย ณัฐพงศ์ รัตนกุล อยู่หรือเปล่าคะ"
+      },
+      {
+        "role": "customer",
+        "content": "กำลังพูดอยู่"
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "ได้"
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "99 ค่ะ 87 ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": "ขออภัยค่ะ เลข 4 ตัวท้ายที่แจ้งมายังไม่ตรงกับข้อมูลในระบบ รบกวนคุณณัฐพงศ์ รัตนกุลตรวจสอบและแจ้งใหม่อีกครั้งนะคะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "9 9 8 7"
+      },
+      {
+        "role": "agent",
+        "content": "ขอบคุณที่ยืนยันข้อมูลถูกต้องค่ะคุณ ณัฐพงศ์ รัตนกุล ดิฉันขอแจ้งรายละเอียดสำหรับ บริการรายเดือน Postpaid ของเอไอเอสนะคะ ดิฉันขอแจ้งรายละเอียดบัญชีบริการรายเดือน Postpaid หมายเลข 093-980-4450 ของคุณณัฐพงศ์ รัตนกุลนะคะ ปัจจุบันของเอไอเอสมียอดค้างชำระรวม 2450 บาท ยอดชำระขั้นต่ำ 1225 บาท ซึ่งจะครบกำหนดชำระวันที่ 2026-06-21 (Monday) ค่ะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "เต็มคือเท่าไหร่"
+      },
+      {
+        "role": "agent",
+        "content": "สำหรับยอดของหมายเลข 093-980-4450 คุณณัฐพงศ์ รัตนกุลสามารถชำระเข้ามาที่เอไอเอสผ่านช่องทางช่องทางที่ลูกค้าสะดวกได้เลยนะคะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "ก็นั่นแหละ ยอดเต็มมันเท่าไหร่ พันสองหรอ"
+      },
+      {
+        "role": "agent",
+        "content": "ระหว่างนี้ทางเอไอเอสขอแนะนำให้คุณ ณัฐพงศ์ รัตนกุล ชำระยอดขั้นต่ำ 1225 ของหมายเลข 093-980-4450 เข้ามาก่อน เพื่อเป็นการรักษาประวัติเครดิตไว้นะคะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "อยากรู้ยอดเต็มมันเท่าไหร่"
+      },
+      {
+        "role": "agent",
+        "content": "ดิฉันขอแจ้งรายละเอียดบัญชีบริการรายเดือน Postpaid หมายเลข 093-980-4450 ของคุณณัฐพงศ์ รัตนกุลนะคะ ปัจจุบันของเอไอเอสมียอดค้างชำระรวม 2450 บาท ยอดชำระขั้นต่ำ 1225 บาท ซึ่งจะครบกำหนดชำระวันที่ 2026-06-21 (Monday) ค่ะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "อ่า ถ้าไม่เกิน3000 จ่ายหมดได้เลย"
+      },
+      {
+        "role": "agent",
+        "content": "สำหรับยอดของหมายเลข 093-980-4450 ไม่ทราบว่าคุณ ณัฐพงศ์ รัตนกุล สะดวกชำระผ่าน แอปพลิเคชันมือถือ หรือช่องทางใดดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "สแกนจ่าย"
+      },
+      {
+        "role": "agent",
+        "content": "ทางเอไอเอสขออนุญาตสรุปข้อมูลนะคะ คุณณัฐพงศ์ รัตนกุล จะชำระยอด 2450 บาท สำหรับหมายเลข 093-980-4450 ภายในวันศุกร์ที่ 10 กรกฎาคม 2026 ผ่านช่องทาง แอปพลิเคชันมือถือ ค่ะ ขอบพระคุณคุณ ณัฐพงศ์ รัตนกุล ที่ให้ความร่วมมือกับทาง เอไอเอส ในวันนี้นะคะ สวัสดีค่ะ"
+      }
+    ],
+    "full-trajectory": [
+      {
+        "role": "customer",
+        "content": "hello"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4006,
+              4000,
+              4007
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "สวัสดีค่ะ น้องไอ ติดต่อจากบริษัทเอไอเอสนะคะ ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ ไม่ทราบว่ากำลังเรียนสาย ณัฐพงศ์ รัตนกุล อยู่หรือเปล่าคะ"
+      },
+      {
+        "role": "customer",
+        "content": "กำลังพูดอยู่"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4013,
+              4016
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "ได้"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4013,
+              4016
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "99 ค่ะ 87 ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": "รบกวนรอซักครู่ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "verify_identity",
+          "args": {
+            "last_4_digits": "99"
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "verified": false
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4062,
+              4016
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "ขออภัยค่ะ เลข 4 ตัวท้ายที่แจ้งมายังไม่ตรงกับข้อมูลในระบบ รบกวนคุณณัฐพงศ์ รัตนกุลตรวจสอบและแจ้งใหม่อีกครั้งนะคะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "customer",
+        "content": "9 9 8 7"
+      },
+      {
+        "role": "agent",
+        "content": "รบกวนรอซักครู่ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "verify_identity",
+          "args": {
+            "last_4_digits": "9987"
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "verified": true
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "answer",
+          "args": {
+            "text": "คิวดู"
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "error": "unknown_tool",
+            "name": "answer"
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "check_account_status",
+          "args": {}
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "customer_name": "ณัฐพงศ์ รัตนกุล",
+            "loan_type": "บริการรายเดือน Postpaid",
+            "total_amount_due": 2450,
+            "minimum_payment_due": 1225,
+            "due_date": "2026-06-21 (Monday)",
+            "due_status": "overdue",
+            "customer_phone": "06-511-2133",
+            "case_status": "normal",
+            "case_status_note": null,
+            "service_type": "Postpaid_Mobile",
+            "msisdn": "093-980-4450",
+            "company_phone": "1175",
+            "company_name": "เอไอเอส",
+            "agent_name": "น้องไอ",
+            "today": "2026-07-10 (Friday)"
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4011,
+              4022,
+              4040
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "ขอบคุณที่ยืนยันข้อมูลถูกต้องค่ะคุณ ณัฐพงศ์ รัตนกุล ดิฉันขอแจ้งรายละเอียดสำหรับ บริการรายเดือน Postpaid ของเอไอเอสนะคะ ดิฉันขอแจ้งรายละเอียดบัญชีบริการรายเดือน Postpaid หมายเลข 093-980-4450 ของคุณณัฐพงศ์ รัตนกุลนะคะ ปัจจุบันของเอไอเอสมียอดค้างชำระรวม 2450 บาท ยอดชำระขั้นต่ำ 1225 บาท ซึ่งจะครบกำหนดชำระวันที่ 2026-06-21 (Monday) ค่ะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "เต็มคือเท่าไหร่"
+      },
+      {
+        "role": "agent",
+        "content": "รบกวนรอซักครู่ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "get_current_datetime",
+          "args": {}
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "today": "2026-07-10 (Friday)",
+            "tomorrow": "2026-07-11 (Saturday)",
+            "day_after_tomorrow": "2026-07-12 (Sunday)",
+            "in_one_week": "2026-07-17 (Friday)",
+            "current_time": "22:02"
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4031,
+              4040
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "สำหรับยอดของหมายเลข 093-980-4450 คุณณัฐพงศ์ รัตนกุลสามารถชำระเข้ามาที่เอไอเอสผ่านช่องทางช่องทางที่ลูกค้าสะดวกได้เลยนะคะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "ก็นั่นแหละ ยอดเต็มมันเท่าไหร่ พันสองหรอ"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4026,
+              4040
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "ระหว่างนี้ทางเอไอเอสขอแนะนำให้คุณ ณัฐพงศ์ รัตนกุล ชำระยอดขั้นต่ำ 1225 ของหมายเลข 093-980-4450 เข้ามาก่อน เพื่อเป็นการรักษาประวัติเครดิตไว้นะคะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "อยากรู้ยอดเต็มมันเท่าไหร่"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4022,
+              4040
+            ],
+            "dynamic_vars": {}
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "ดิฉันขอแจ้งรายละเอียดบัญชีบริการรายเดือน Postpaid หมายเลข 093-980-4450 ของคุณณัฐพงศ์ รัตนกุลนะคะ ปัจจุบันของเอไอเอสมียอดค้างชำระรวม 2450 บาท ยอดชำระขั้นต่ำ 1225 บาท ซึ่งจะครบกำหนดชำระวันที่ 2026-06-21 (Monday) ค่ะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "อ่า ถ้าไม่เกิน3000 จ่ายหมดได้เลย"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4042,
+              4041
+            ]
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "sent": false,
+            "reason": "category_lock: 4042 and 4041 are both Category B (probe). A chain needs one Category A (acknowledge/inform) + one Category B."
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4041,
+              4042
+            ]
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "sent": false,
+            "reason": "category_lock: 4041 and 4042 are both Category B (probe). A chain needs one Category A (acknowledge/inform) + one Category B."
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4041
+            ],
+            "dynamic_vars": {
+              "payment_channel": "mobile_app"
+            }
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "สำหรับยอดของหมายเลข 093-980-4450 ไม่ทราบว่าคุณ ณัฐพงศ์ รัตนกุล สะดวกชำระผ่าน แอปพลิเคชันมือถือ หรือช่องทางใดดีคะ"
+      },
+      {
+        "role": "customer",
+        "content": "สแกนจ่าย"
+      },
+      {
+        "role": "agent",
+        "content": "รบกวนรอซักครู่ค่ะ"
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "record_verbal_commitment",
+          "args": {
+            "amount": "2450",
+            "date": "2026-07-10 (Friday)",
+            "channel": "mobile_app"
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "recorded": true,
+            "next_action": "Verbal commitment captured. CRM write still pending. Now call payment_date(last_4_digits, amount=2450, date='2026-07-10 (Friday)', channel='mobile_app') with the same values, THEN send the closing reply ([A_Negotiation_InformPromiseSummary, B_Closing_CloseCallSuccess])."
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "payment_date",
+          "args": {
+            "last_4_digits": "9987",
+            "amount": 2450,
+            "date": "2026-07-10 (Friday)",
+            "channel": "mobile_app"
+          }
+        }
+      },
+      {
+        "role": "system",
+        "content": {
+          "result": {
+            "recorded": true,
+            "id": "PP-C43B90"
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": {
+          "tool_call": "reply",
+          "args": {
+            "text_ids": [
+              4033,
+              4056
+            ],
+            "dynamic_vars": {
+              "promised_amount": "2450",
+              "promised_date": "2026-07-10 (Friday)",
+              "payment_channel": "mobile_app"
+            }
+          }
+        }
+      },
+      {
+        "role": "agent",
+        "content": "ทางเอไอเอสขออนุญาตสรุปข้อมูลนะคะ คุณณัฐพงศ์ รัตนกุล จะชำระยอด 2450 บาท สำหรับหมายเลข 093-980-4450 ภายในวันศุกร์ที่ 10 กรกฎาคม 2026 ผ่านช่องทาง แอปพลิเคชันมือถือ ค่ะ ขอบพระคุณคุณ ณัฐพงศ์ รัตนกุล ที่ให้ความร่วมมือกับทาง เอไอเอส ในวันนี้นะคะ สวัสดีค่ะ"
+      }
+    ],
+    "session_id": "a7e2ef9dfa8f",
+    "saved_at": "2026-07-10T23:06:02",
+    "agent_messages": [
+      {
+        "role": "user",
+        "content": "hello"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-8ca3ff6d74fad785",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4006, 4000, 4007], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "สวัสดีค่ะ น้องไอ ติดต่อจากบริษัทเอไอเอสนะคะ ติดต่อมาเพื่อสอบถามข้อมูลเกี่ยวกับบัญชีของคุณ ณัฐพงศ์ รัตนกุล กับทางเอไอเอสค่ะ ไม่ทราบว่ากำลังเรียนสาย ณัฐพงศ์ รัตนกุล อยู่หรือเปล่าคะ"
+      },
+      {
+        "role": "user",
+        "content": "กำลังพูดอยู่"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-9be1c95f5d5fb0d9",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4013, 4016], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "user",
+        "content": "ได้"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-9cec8a020bda54b0",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4013, 4016], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "เพื่อความปลอดภัยตามนโยบายคุ้มครองข้อมูลส่วนบุคคล ทางเอไอเอสจึงไม่สามารถแจ้งรายละเอียดบัญชีของคุณณัฐพงศ์ รัตนกุลได้ หากยังไม่ได้รับการยืนยันตัวตนค่ะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "user",
+        "content": "99 ค่ะ 87 ค่ะ"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-a596b338047d5624",
+            "type": "function",
+            "function": {
+              "name": "verify_identity",
+              "arguments": "{\"last_4_digits\": \"99\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-a596b338047d5624",
+        "content": "{\"verified\": false}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-b43a723b7caa88a8",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4062, 4016], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "ขออภัยค่ะ เลข 4 ตัวท้ายที่แจ้งมายังไม่ตรงกับข้อมูลในระบบ รบกวนคุณณัฐพงศ์ รัตนกุลตรวจสอบและแจ้งใหม่อีกครั้งนะคะ เพื่อความปลอดภัย รบกวนคุณ ณัฐพงศ์ รัตนกุล ยืนยันเลขบัตรประชาชน 4 ตัวท้าย เพื่อยืนยันตัวตนก่อนแจ้งรายละเอียดบัญชีบริการได้ไหมคะ"
+      },
+      {
+        "role": "user",
+        "content": "9 9 8 7"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-824291b3f82ddbac",
+            "type": "function",
+            "function": {
+              "name": "verify_identity",
+              "arguments": "{\"last_4_digits\": \"9987\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-824291b3f82ddbac",
+        "content": "{\"verified\": true}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-b1a4d70397800367",
+            "type": "function",
+            "function": {
+              "name": "answer",
+              "arguments": "{\"text\": \"คิวดู\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-b1a4d70397800367",
+        "content": "{\"error\": \"unknown_tool\", \"name\": \"answer\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-8ae40a94e87b657d",
+            "type": "function",
+            "function": {
+              "name": "check_account_status",
+              "arguments": "{}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-8ae40a94e87b657d",
+        "content": "{\"customer_name\": \"ณัฐพงศ์ รัตนกุล\", \"loan_type\": \"บริการรายเดือน Postpaid\", \"total_amount_due\": 2450, \"minimum_payment_due\": 1225, \"due_date\": \"2026-06-21 (Monday)\", \"due_status\": \"overdue\", \"customer_phone\": \"06-511-2133\", \"case_status\": \"normal\", \"case_status_note\": null, \"service_type\": \"Postpaid_Mobile\", \"msisdn\": \"093-980-4450\", \"company_phone\": \"1175\", \"company_name\": \"เอไอเอส\", \"agent_name\": \"น้องไอ\", \"today\": \"2026-07-10 (Friday)\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-b5ed12e2f7163a46",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4011, 4022, 4040], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "ขอบคุณที่ยืนยันข้อมูลถูกต้องค่ะคุณ ณัฐพงศ์ รัตนกุล ดิฉันขอแจ้งรายละเอียดสำหรับ บริการรายเดือน Postpaid ของเอไอเอสนะคะ ดิฉันขอแจ้งรายละเอียดบัญชีบริการรายเดือน Postpaid หมายเลข 093-980-4450 ของคุณณัฐพงศ์ รัตนกุลนะคะ ปัจจุบันของเอไอเอสมียอดค้างชำระรวม 2450 บาท ยอดชำระขั้นต่ำ 1225 บาท ซึ่งจะครบกำหนดชำระวันที่ 2026-06-21 (Monday) ค่ะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "user",
+        "content": "เต็มคือเท่าไหร่"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-988da5eee1fa2e7e",
+            "type": "function",
+            "function": {
+              "name": "get_current_datetime",
+              "arguments": "{}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-988da5eee1fa2e7e",
+        "content": "{\"today\": \"2026-07-10 (Friday)\", \"tomorrow\": \"2026-07-11 (Saturday)\", \"day_after_tomorrow\": \"2026-07-12 (Sunday)\", \"in_one_week\": \"2026-07-17 (Friday)\", \"current_time\": \"22:02\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-8078d328c93e81b6",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4031, 4040], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "สำหรับยอดของหมายเลข 093-980-4450 คุณณัฐพงศ์ รัตนกุลสามารถชำระเข้ามาที่เอไอเอสผ่านช่องทางช่องทางที่ลูกค้าสะดวกได้เลยนะคะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "user",
+        "content": "ก็นั่นแหละ ยอดเต็มมันเท่าไหร่ พันสองหรอ"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-a292cc453c531a5e",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4026, 4040], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "ระหว่างนี้ทางเอไอเอสขอแนะนำให้คุณ ณัฐพงศ์ รัตนกุล ชำระยอดขั้นต่ำ 1225 ของหมายเลข 093-980-4450 เข้ามาก่อน เพื่อเป็นการรักษาประวัติเครดิตไว้นะคะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "user",
+        "content": "อยากรู้ยอดเต็มมันเท่าไหร่"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-b96ff9be16451151",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4022, 4040], \"dynamic_vars\": []}"
+            }
+          }
+        ],
+        "content": "ดิฉันขอแจ้งรายละเอียดบัญชีบริการรายเดือน Postpaid หมายเลข 093-980-4450 ของคุณณัฐพงศ์ รัตนกุลนะคะ ปัจจุบันของเอไอเอสมียอดค้างชำระรวม 2450 บาท ยอดชำระขั้นต่ำ 1225 บาท ซึ่งจะครบกำหนดชำระวันที่ 2026-06-21 (Monday) ค่ะ สำหรับยอดค้างชำระหมายเลข 093-980-4450 ไม่ทราบว่า ณัฐพงศ์ รัตนกุล สะดวกชำระยอดขั้นต่ำ 1225 บาท หรือชำระยอดเต็ม ให้เอไอเอสดีคะ"
+      },
+      {
+        "role": "user",
+        "content": "อ่า ถ้าไม่เกิน3000 จ่ายหมดได้เลย"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-a0b936c728088f63",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4042, 4041], \"dynamic_vars\": [{\"name\": \"payment_channel\", \"value\": \"mobile_app\"}]}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-a0b936c728088f63",
+        "content": "{\"sent\": false, \"reason\": \"category_lock: 4042 and 4041 are both Category B (probe). A chain needs one Category A (acknowledge/inform) + one Category B.\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-b274fafbf8714b98",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4041, 4042], \"dynamic_vars\": [{\"name\": \"payment_channel\", \"value\": \"mobile_app\"}]}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-b274fafbf8714b98",
+        "content": "{\"sent\": false, \"reason\": \"category_lock: 4041 and 4042 are both Category B (probe). A chain needs one Category A (acknowledge/inform) + one Category B.\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-bacc30a9e6322b24",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4041], \"dynamic_vars\": [{\"name\": \"payment_channel\", \"value\": \"mobile_app\"}]}"
+            }
+          }
+        ],
+        "content": "สำหรับยอดของหมายเลข 093-980-4450 ไม่ทราบว่าคุณ ณัฐพงศ์ รัตนกุล สะดวกชำระผ่าน แอปพลิเคชันมือถือ หรือช่องทางใดดีคะ"
+      },
+      {
+        "role": "user",
+        "content": "สแกนจ่าย"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-9d12f3d139220e6c",
+            "type": "function",
+            "function": {
+              "name": "record_verbal_commitment",
+              "arguments": "{\"amount\": \"2450\", \"date\": \"2026-07-10 (Friday)\", \"channel\": \"mobile_app\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-9d12f3d139220e6c",
+        "content": "{\"recorded\": true, \"next_action\": \"Verbal commitment captured. CRM write still pending. Now call payment_date(last_4_digits, amount=2450, date='2026-07-10 (Friday)', channel='mobile_app') with the same values, THEN send the closing reply ([A_Negotiation_InformPromiseSummary, B_Closing_CloseCallSuccess]).\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-a946ac467316055b",
+            "type": "function",
+            "function": {
+              "name": "payment_date",
+              "arguments": "{\"last_4_digits\": \"9987\", \"amount\": 2450, \"date\": \"2026-07-10 (Friday)\", \"channel\": \"mobile_app\"}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "chatcmpl-tool-a946ac467316055b",
+        "content": "{\"recorded\": true, \"id\": \"PP-C43B90\"}"
+      },
+      {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "chatcmpl-tool-b0f0278dd5b98b75",
+            "type": "function",
+            "function": {
+              "name": "reply",
+              "arguments": "{\"text_ids\": [4033, 4056], \"dynamic_vars\": [{\"name\": \"promised_amount\", \"value\": \"2450\"}, {\"name\": \"promised_date\", \"value\": \"2026-07-10 (Friday)\"}, {\"name\": \"payment_channel\", \"value\": \"mobile_app\"}]}"
+            }
+          }
+        ],
+        "content": "ทางเอไอเอสขออนุญาตสรุปข้อมูลนะคะ คุณณัฐพงศ์ รัตนกุล จะชำระยอด 2450 บาท สำหรับหมายเลข 093-980-4450 ภายในวันศุกร์ที่ 10 กรกฎาคม 2026 ผ่านช่องทาง แอปพลิเคชันมือถือ ค่ะ ขอบพระคุณคุณ ณัฐพงศ์ รัตนกุล ที่ให้ความร่วมมือกับทาง เอไอเอส ในวันนี้นะคะ สวัสดีค่ะ"
+      }
+    ]
+  }
+]
