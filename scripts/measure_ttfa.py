@@ -490,6 +490,48 @@ async def measure_tts(text: str) -> tuple[float, float]:
     return (ttfb if ttfb is not None else total_ms), total_ms
 
 
+async def measure_tts_perceived(text: str, play_delay_ms: float = 30.0) -> float:
+    """Reproduce the demo's prefetch+play race and time PLAY's first audio.
+
+    This is the number that actually reaches the caller on a reply turn, and the
+    one the TTS fan-out cache fixes. useSession.ts fires prefetch(text) the moment
+    the reply hop arrives, then play(text) a beat later — both request the SAME
+    text. We mirror that: a background 'prefetch' fully drains stream_synth (like
+    the client's drain-to-cache), and `play_delay_ms` later a 'play' consumer times
+    its FIRST chunk. Under the OLD per-text lock, play blocked on prefetch's lock
+    until the WHOLE clip synthesized (~full synth, ~1-2s); with fan-out it streams
+    at ~first-byte. Cache + any in-flight state is cleared first so it's a real
+    contended synth, not a hit."""
+    import asyncio
+
+    from demo.server import tts
+
+    if not text:
+        return 0.0
+    tts._CACHE.pop(text, None)
+    inflight = getattr(tts, "_INFLIGHT", None)
+    if inflight is not None:
+        inflight.pop(text, None)
+
+    async def _prefetch() -> None:
+        # Drain to completion, exactly like audio.ts prefetch() (populates cache).
+        async for _ in tts.stream_synth(text):
+            pass
+
+    pf = asyncio.create_task(_prefetch())
+    await asyncio.sleep(max(0.0, play_delay_ms) / 1000.0)  # play fires shortly after
+    t0 = time.perf_counter()
+    first: float | None = None
+    async for _chunk in tts.stream_synth(text):
+        first = (time.perf_counter() - t0) * 1000.0
+        break  # only the first audible chunk matters (the browser starts playing)
+    try:
+        await pf  # let the producer finish so cache/inflight is clean for next row
+    except Exception:  # noqa: BLE001
+        pass
+    return first if first is not None else 0.0
+
+
 def compute_clocks(
     llm: dict[str, Any],
     *,
@@ -632,6 +674,9 @@ async def run_probe(args: argparse.Namespace) -> int:
             # server-side probe can't observe; we still record ttfb/total to show
             # the relationship and to flag long replies (fragility, see docstring).
             reply_ttfb, reply_total = await measure_tts(llm["reply_text"])
+            # Demo-faithful: PLAY's first audio under the prefetch+play race — the
+            # number the fan-out cache fixes (old lock made this ~= full synth).
+            reply_perceived = await measure_tts_perceived(llm["reply_text"])
 
             # Serial live prefix shared by all clocks. VAD compute is NOT included
             # (concurrent with speech, off critical path). stt_queue + rtt are the
@@ -663,6 +708,7 @@ async def run_probe(args: argparse.Namespace) -> int:
                 "hop_count": llm["hop_count"],
                 "any_non_reply": llm["any_non_reply"],
                 "tts_ttfb_ms": reply_ttfb,      # server, informational
+                "tts_perceived_ms": reply_perceived,  # PLAY first-audio under prefetch race (fan-out fix)
                 "tts_total_ms": reply_total,    # server, informational (fragility flag)
                 "tts_client_ms": tts_client_ms,  # reply client first-audio (constant)
                 "filler_tts_client_ms": filler_tts_client_ms,  # spoken-filler first-audio (constant)
@@ -708,8 +754,8 @@ async def run_probe(args: argparse.Namespace) -> int:
 def _summaries(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
     keys = [
         "vad_compute_ms", "stt_ms", "llm_first_hop_ms",
-        "llm_to_reply_ms", "llm_total_ms", "tts_ttfb_ms", "tts_total_ms",
-        "first_feedback_ms", "ttfa_heard_ms", "ttfa_audio_ms",
+        "llm_to_reply_ms", "llm_total_ms", "tts_ttfb_ms", "tts_perceived_ms",
+        "tts_total_ms", "first_feedback_ms", "ttfa_heard_ms", "ttfa_audio_ms",
     ]
     out = {k: _summary([r[k] for r in rows]) for k in keys}
     # first_token is None on reply-only turns / blocking mode → summarize only
@@ -747,6 +793,8 @@ def _print_report(rows: list[dict[str, Any]], empties: int, cfg: dict[str, Any])
     print("TTS (server-measured, INFORMATIONAL — heard latency uses tts_client below):")
     line("  TTS first chunk", "tts_ttfb_ms", "tts_ttfb")
     line("  TTS total (synth)", "tts_total_ms", None)
+    print("TTS PLAY first-audio under prefetch race (fan-out fix; old lock ~= full synth):")
+    line("  TTS perceived", "tts_perceived_ms", None)
     print("off critical path (informational, NOT summed into TTFA):")
     line("  VAD compute", "vad_compute_ms", "vad_compute")
     print("-" * 78)
@@ -891,7 +939,8 @@ def self_test() -> int:
             "transcript": "x", "vad_compute_ms": 40.0, "stt_ms": 700.0,
             "llm_first_token_ms": 200.0 if non_reply else None, "llm_first_hop_ms": 500.0,
             "llm_to_reply_ms": 1800.0, "llm_total_ms": 1900.0, "hop_count": 2,
-            "any_non_reply": non_reply, "tts_ttfb_ms": 120.0, "tts_total_ms": 1700.0,
+            "any_non_reply": non_reply, "tts_ttfb_ms": 120.0, "tts_perceived_ms": 150.0,
+            "tts_total_ms": 1700.0,
             "tts_client_ms": 550.0, "filler_tts_client_ms": 100.0,
             "ttfa_heard_ms": c["ttfa_heard_ms"], "ttfa_audio_ms": c["ttfa_audio_ms"],
             "first_feedback_ms": c["first_feedback_ms"],
