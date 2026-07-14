@@ -4,7 +4,7 @@ Endpoints:
     GET    /api/session            -- create session, stream session info + opening hops (NDJSON)
     POST   /api/session/{id}/turn  -- stream agent hops for one user message (NDJSON)
     POST   /api/session/{id}/reset -- reset session, stream new session info + opening hops (NDJSON)
-    GET    /api/tts                -- Google Chirp 3 HD TTS (audio/ogg, OGG_OPUS)
+    GET    /api/tts                -- Google Chirp 3 HD TTS (raw PCM int16@24k -> Web Audio)
     WS     /api/stt                -- Chirp 3 STT: browser PCM16@16k in, transcript events out
     GET    /api/health             -- liveness
 
@@ -269,10 +269,12 @@ async def save_trajectory(session_id: str, body: SaveBody = SaveBody()) -> JSONR
 
 @app.get("/api/tts")
 async def tts_stream(text: str = Query(..., min_length=1, max_length=4096)) -> StreamingResponse:
-    """Stream Chirp 3 HD OGG_OPUS bytes as they arrive from the gRPC
-    streaming synth. The browser's `<audio src="/api/tts?text=...">` decodes
-    progressively; first audio reaches the user a few hundred ms after the
-    request instead of waiting for the full clip."""
+    """Stream raw PCM bytes (headerless int16 LE @ 24 kHz) as they arrive from
+    the Chirp 3 HD gRPC streaming synth. The client reads this body with
+    `fetch` and schedules each chunk on a Web Audio `AudioContext` (see
+    `demo/frontend/src/audio.ts`) — no container demux, no codec decode, so the
+    first samples are audible on arrival instead of paying the native `<audio>`
+    element's decode-startup floor."""
 
     async def _gen() -> AsyncIterator[bytes]:
         try:

@@ -6,19 +6,22 @@ into a few short chunks and yielded one at a time inside a
 model has them. First audio reaches the browser within a few hundred ms,
 much earlier than waiting for the full clip to synthesize.
 
-The streaming endpoint defaults to raw PCM (LINEAR16 @ 24 kHz), which the
-browser's `<audio>` element can't play without a WAV header. We pin
-`audio_encoding=OGG_OPUS` via `streaming_audio_config` — a self-describing
-container the browser decodes progressively as bytes arrive, exactly the
-same way it handled our previous MP3 stream.
+We stream **raw PCM** (`audio_encoding=PCM`, headerless little-endian signed
+16-bit @ 24 kHz) — NOT a container. The browser's `<audio>` element can't play
+headerless PCM, so the client does not use `<audio>` at all: it reads the byte
+stream with `fetch` + `AudioContext` and schedules each chunk on the Web Audio
+graph (see `demo/frontend/src/audio.ts`). PCM has no container to demux and no
+codec to decode, so the first samples are audible on arrival — this removes the
+native-`<audio>` OGG/Opus decode-startup + readiness-watermark floor that made
+first-audio land ~1.4s after the request even though bytes arrived in ~5ms.
 
 Concurrent requests for the same text FAN OUT off ONE underlying gRPC synth: the
 first caller starts a detached producer task; every caller (including a
 fire-and-forget `prefetch`) subscribes and receives each audio chunk *as it is
 produced*. This matters because `prefetch(text)` and the immediately-following
 `play(text)` request the same text — with a plain per-text lock the second
-request would block until the first finished the WHOLE clip, so the browser's
-`<audio>` heard nothing until full synth (~1-2s) instead of the ~140ms first
+request would block until the first finished the WHOLE clip, so the client
+heard nothing until full synth (~1-2s) instead of the ~140ms first
 byte. Fan-out lets `play` stream progressively while `prefetch` drains in
 parallel. The producer is detached, so a subscriber disconnecting (barge-in) does
 NOT abort the synth — the concatenated bytes still land in `_CACHE`, making later
@@ -36,6 +39,7 @@ from google.cloud import texttospeech
 
 from services.speech.config import (
     DEFAULT_LANGUAGE_CODE,
+    DEFAULT_SAMPLE_RATE,
     DEFAULT_TTS_VOICE,
     get_tts_client,
 )
@@ -49,12 +53,20 @@ _STREAMING_CONFIG = texttospeech.StreamingSynthesizeConfig(
         language_code=DEFAULT_LANGUAGE_CODE,
     ),
     streaming_audio_config=texttospeech.StreamingAudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.OGG_OPUS,
-        speaking_rate=1.2
+        # PCM = headerless little-endian signed 16-bit (raw LINEAR16, NO WAV
+        # header). Streaming supports only PCM/ALAW/MULAW/OGG_OPUS; LINEAR16
+        # errors in streaming mode. The client plays these bytes directly via
+        # Web Audio (no container demux, no codec decode) for first-audio on
+        # arrival — see the module docstring.
+        audio_encoding=texttospeech.AudioEncoding.PCM,
+        sample_rate_hertz=DEFAULT_SAMPLE_RATE,
+        speaking_rate=1.2,
     ),
 )
 
-AUDIO_MEDIA_TYPE: Final[str] = "audio/ogg"
+# Raw PCM is not a self-describing media type; the client reads the body as
+# binary and feeds it to an AudioContext, so the MIME is cosmetic.
+AUDIO_MEDIA_TYPE: Final[str] = "application/octet-stream"
 
 # Thai sentence-ending particles + western punctuation. We break the text
 # into chunks at these boundaries (with a length floor) so the request
