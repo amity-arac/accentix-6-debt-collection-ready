@@ -197,10 +197,15 @@ export function useSession() {
       // First hop of a turn → record time-to-first-activity (no-op outside a
       // turn, e.g. session-open/reset streams).
       latency.markFirstHop();
-      // Warm the TTS cache the moment a reply hop arrives so the Chirp 3 HD
-      // round-trip overlaps with rendering and any earlier clip still playing
-      // on the audio queue.
-      if (hop.kind === "reply") audio.prefetch(hop.text);
+      // Client-side TTS prefetch is DISABLED by default: the server already warms
+      // the synth when the reply is produced (AAX6_TTS_PREWARM_REPLY), so this GET
+      // is redundant for cache-warming — and it fires a SECOND parallel download of
+      // the same full clip at the same instant as play(), which on a constrained /
+      // high-latency link steals bandwidth from play() every turn (measured: reply
+      // first-audio ~1.4s). Re-enable to A/B by setting localStorage.ttsClientPrefetch="1".
+      const clientPrefetch =
+        typeof localStorage !== "undefined" && localStorage.getItem("ttsClientPrefetch") === "1";
+      if (hop.kind === "reply" && clientPrefetch) audio.prefetch(hop.text);
       queueRef.current.push(hop);
       void drain();
     },
