@@ -289,7 +289,13 @@ async function main(): Promise<void> {
         "--use-fake-ui-for-media-stream",
       ],
     });
-    const context = await browser.newContext({ permissions: ["microphone"] });
+    const context = await browser.newContext({
+      permissions: ["microphone"],
+      // The demo's vite dev server uses a self-signed cert (HTTPS is needed for
+      // the mic's secure context on non-localhost origins). Accept it so an
+      // https:// --url doesn't fail with ERR_CERT_AUTHORITY_INVALID.
+      ignoreHTTPSErrors: true,
+    });
     const page = await context.newPage();
     await page.addInitScript(INIT_SCRIPT);
 
