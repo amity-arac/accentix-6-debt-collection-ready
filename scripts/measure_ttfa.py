@@ -20,14 +20,18 @@ the mean (and percentiles). Clocks reported:
     informational; ~= the heard clock minus the filler's client first-audio.
 
 TTS — the reply's client-perceived first-audio, NOT server synth time:
-    The live control bar measures TTS as the reply clip's a.src->'playing' time in
-    the browser (client first-audio), and it lands ~500-600 ms — the Chirp
-    streaming first chunk + network + the browser's Opus buffer-to-playback. This
-    is neither the server's tts_ttfb (~120 ms, too low: excludes browser buffering)
-    nor tts_total (whole-clip synth, too high). A server-side probe CANNOT observe
-    the browser leg, so TTS is modeled as a calibrated constant --tts-client-ms
-    (default 550, taken from the in-app control bar). The server tts_ttfb / tts_total
-    are still measured and reported, but only informationally.
+    The live control bar measures TTS as request->first-audible time in the browser.
+    Since R1 the client streams RAW PCM and schedules it on a Web Audio AudioContext
+    (no <audio>, no container demux, no codec decode), so first-audio = server
+    first-chunk + downlink network + a small Web Audio scheduling lead (audio.ts
+    LEAD ~80ms) — it lands ~300 ms, NOT the ~1.4s the old OGG/<audio> decode-startup
+    cost. A server-side probe can't drive a browser AudioContext, but it CAN measure
+    the server first-chunk (tts_perceived), so by default we DERIVE the reply client
+    first-audio per turn as tts_perceived + WEB_AUDIO_LEAD_MS (the browser<->server
+    network is modeled once via --rtt-ms in live_prefix; on localhost rtt~=0 so this
+    ~= the in-app control-bar TTS). Pass --tts-client-ms to pin a fixed value instead
+    (e.g. 300, the R1-verified in-app number) for an A/B. The server tts_ttfb /
+    tts_total are still measured and reported, but only informationally.
     NOTE (the filler IS spoken): the "please wait" filler is emitted as a spoken
     `reply` hop (demo/server/sessions.py relabels the streaming tool_call_pending
     -> {"kind":"reply","text":FILLER_TEXT}; useSession.ts speaks every reply hop).
@@ -42,11 +46,12 @@ WHAT THIS MEASURES vs. what it can't:
     with --stt-batch), LLM hop(s), TTS server ttfb/total (informational).
   * Added as labeled constants (a browserless server-side probe can't observe
     them): the VAD silence-hang endpointing wait (AAX6_VAD_SILENCE_HANG_MS), the
-    mic-chunk quantization, the STT->browser->POST handoff, the TTS client
-    first-audio (--tts-client-ms), and TWO live-only terms — the STT queue-wait
-    (--stt-queue-ms: the final recognize() queues behind the in-flight
-    700ms-cadence interim on the single STT worker) and the browser<->server RTT
-    (--rtt-ms: ~0 on localhost, seconds on a RunPod proxy).
+    mic-chunk quantization, the STT->browser->POST handoff, and TWO live-only terms
+    — the STT queue-wait (--stt-queue-ms: the final recognize() queues behind the
+    in-flight 700ms-cadence interim on the single STT worker) and the browser<->server
+    RTT (--rtt-ms: ~0 on localhost, seconds on a RunPod proxy).
+  * DERIVED (not a blind constant): the reply's TTS client first-audio = measured
+    server first-chunk (tts_perceived) + Web Audio lead (~80ms); pin via --tts-client-ms.
   * NOT on the critical path (informational only): VAD Silero compute. Live Silero
     runs per-chunk in the gate thread, concurrently with the caller still speaking
     (stt_ws.py); only ~1-2 ms of final-chunk inference is actually serial, so the
@@ -112,6 +117,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 STT_SAMPLE_RATE = 16000
+
+# Web Audio scheduling lead the client adds before the first PCM buffer sounds
+# (audio.ts LEAD = 0.08s). Since R1 the client schedules raw PCM on an AudioContext
+# with NO container demux / codec decode, so the reply's client first-audio is
+# well-modeled as the measured server first-chunk (tts_perceived) + this lead.
+WEB_AUDIO_LEAD_MS = 80.0
 
 # Pre-optimization estimates (from the latency analysis) shown alongside the
 # measured numbers so the table reads estimate -> real. These reflect the OLD
@@ -598,7 +609,7 @@ async def run_probe(args: argparse.Namespace) -> int:
     # them from a pre-segmented WAV). All override-able via flags.
     stt_queue_ms = args.stt_queue_ms   # final recognize() queues behind interims
     rtt_ms = args.rtt_ms               # browser<->server round-trips (0 local)
-    tts_client_ms = args.tts_client_ms  # reply client first-audio (a.src->playing)
+    tts_client_ms = args.tts_client_ms  # None => derive per-turn from tts_perceived; else pin
     filler_tts_client_ms = args.filler_tts_client_ms  # spoken filler first-audio (warm cache)
 
     # Resolve the vLLM model against the running server BEFORE building anything,
@@ -613,8 +624,12 @@ async def run_probe(args: argparse.Namespace) -> int:
     print(f"[setup] {len(wavs)} wav(s) x {args.runs} run(s) | case={args.case_id} "
           f"company={company} | STT={stt_model} ({stt_mode}) | vad_hang={vad_hang_ms:.0f}ms")
     print(f"[setup] vLLM {base_url} | model={vllm_model} | LLM mode={llm_mode} | served={served}")
+    tts_client_desc = (
+        f"{tts_client_ms:.0f}ms (reply, pinned)" if tts_client_ms is not None
+        else f"derived (tts_perceived+{WEB_AUDIO_LEAD_MS:.0f}ms lead)"
+    )
     print(f"[setup] live constants: stt_queue={stt_queue_ms:.0f}ms rtt={rtt_ms:.0f}ms "
-          f"tts_client={tts_client_ms:.0f}ms (reply) "
+          f"tts_client={tts_client_desc} "
           f"filler_tts_client={filler_tts_client_ms:.0f}ms (spoken filler, warm-cache)")
     print("[setup] building engines (Silero VAD, Chirp STT, Qwen agent)...")
 
@@ -685,8 +700,18 @@ async def run_probe(args: argparse.Namespace) -> int:
                 vad_hang_ms + args.mic_chunk_ms + rtt_ms
                 + stt_ms + stt_queue_ms + args.handoff_ms
             )
+            # Reply client first-audio. Default: DERIVE from the measured server
+            # first-chunk (tts_perceived) + the Web Audio scheduling lead — R1 removed
+            # the browser decode step, so that sum is the faithful client first-audio.
+            # (The browser<->server network is modeled once via --rtt-ms in
+            # live_prefix; on localhost rtt~=0 so this ~= the in-app control-bar TTS.)
+            # --tts-client-ms pins a fixed constant instead (e.g. 300) for an A/B.
+            eff_tts_client_ms = (
+                tts_client_ms if tts_client_ms is not None
+                else reply_perceived + WEB_AUDIO_LEAD_MS
+            )
             clocks = compute_clocks(
-                llm, live_prefix=live_prefix, tts_client_ms=tts_client_ms,
+                llm, live_prefix=live_prefix, tts_client_ms=eff_tts_client_ms,
                 filler_tts_client_ms=filler_tts_client_ms,
             )
             ttfa_heard = clocks["ttfa_heard_ms"]          # THE number: first heard audio
@@ -710,7 +735,7 @@ async def run_probe(args: argparse.Namespace) -> int:
                 "tts_ttfb_ms": reply_ttfb,      # server, informational
                 "tts_perceived_ms": reply_perceived,  # PLAY first-audio under prefetch race (fan-out fix)
                 "tts_total_ms": reply_total,    # server, informational (fragility flag)
-                "tts_client_ms": tts_client_ms,  # reply client first-audio (constant)
+                "tts_client_ms": eff_tts_client_ms,  # reply client first-audio (derived tts_perceived+lead, or pinned)
                 "filler_tts_client_ms": filler_tts_client_ms,  # spoken-filler first-audio (constant)
                 "ttfa_heard_ms": ttfa_heard,     # THE number: first heard audio
                 "ttfa_audio_ms": ttfa_audio,     # substantive reply (secondary)
@@ -802,9 +827,14 @@ def _print_report(rows: list[dict[str, Any]], empties: int, cfg: dict[str, Any])
           f"vad_hang={cfg['vad_hang_ms']:.0f}  mic_chunk={cfg['mic_chunk_ms']:.0f}")
     print(f"  stt_queue={cfg['stt_queue_ms']:.0f}  rtt={cfg['rtt_ms']:.0f}  "
           f"handoff={cfg['handoff_ms']:.0f}  stt_preroll={cfg['stt_preroll_ms']:.0f}")
-    print(f"  tts_client={cfg['tts_client_ms']:.0f} (reply)  "
+    if cfg['tts_client_ms'] is not None:
+        tts_client_rep = f"{cfg['tts_client_ms']:.0f} (reply, pinned)"
+    else:
+        _mean_tc = statistics.fmean([r["tts_client_ms"] for r in rows])
+        tts_client_rep = f"{_mean_tc:.0f} (reply, DERIVED = tts_perceived+{WEB_AUDIO_LEAD_MS:.0f} lead)"
+    print(f"  tts_client={tts_client_rep}  "
           f"filler_tts_client={cfg['filler_tts_client_ms']:.0f} (spoken filler, warm-cache)  "
-          f"<- client first-audio (a.src->'playing'), NOT server synth time")
+          f"<- client first-audio (Web Audio PCM schedule), NOT server synth time")
     print("-" * 78)
     line("TTFA — FIRST heard§", "ttfa_heard_ms", None)
     line("  reply (substantive)", "ttfa_audio_ms", None)
@@ -1009,11 +1039,13 @@ def main() -> int:
     ap.add_argument("--stt-preroll-ms", type=float, default=100.0,
                     help="constant: silence padded BEFORE the utterance for STT, matching the live "
                          "gate's ~100ms pre-roll chunk (default 100; trailing pad = vad_hang)")
-    ap.add_argument("--tts-client-ms", type=float, default=550.0,
-                    help="constant: the reply's CLIENT first-audio (a.src->'playing') as measured by "
-                         "the in-app control bar — Chirp streaming first chunk + network + browser "
-                         "Opus buffering (default 550; the server-side ttfb/total can't observe the "
-                         "browser leg). This is the TTS term for the SUBSTANTIVE-reply clock")
+    ap.add_argument("--tts-client-ms", type=float, default=None,
+                    help="OVERRIDE the reply's CLIENT first-audio (ms). Default: DERIVE per-turn from "
+                         "the measured server first-chunk (tts_perceived) + the Web Audio scheduling "
+                         "lead (~80ms). Since R1 the client schedules raw PCM on a Web Audio "
+                         "AudioContext (no <audio>, no decode), so that sum is faithful. Pass a number "
+                         "to pin a constant (e.g. 300, the R1-verified in-app value) for an A/B. TTS "
+                         "term for the SUBSTANTIVE-reply clock")
     ap.add_argument("--filler-tts-client-ms", type=float, default=100.0,
                     help="constant: the spoken 'please wait' filler's CLIENT first-audio — the TTS "
                          "term for the headline FIRST-heard TTFA on tool turns. A warm cache hit once "
