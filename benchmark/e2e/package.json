@@ -1,0 +1,17 @@
+{
+  "name": "aax6-e2e-latency-bench",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end voice latency benchmark: drives the REAL demo in a headless browser and harvests the demo's own per-turn latency numbers (VAD/STT/LLM/TTS/end-to-end). No models, no constants.",
+  "scripts": {
+    "bench": "tsx harness.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "playwright": "^1.49.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

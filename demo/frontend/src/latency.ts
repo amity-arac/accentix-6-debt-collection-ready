@@ -46,6 +46,12 @@ export type LatencySnapshot = {
 
 const HISTORY_CAP = 20;
 
+// Benchmark telemetry: when the page is loaded with ?bench=1, emit each turn's
+// latency record to the console as a structured line the E2E harness
+// (benchmark/e2e) captures. A harmless no-op in normal use. See benchmark/e2e.
+const BENCH =
+  typeof location !== "undefined" && /[?&]bench=1(?:&|$)/.test(location.search);
+
 let seqCounter = 0;
 let current: TurnLatency | null = null;
 let history: TurnLatency[] = [];
@@ -99,6 +105,15 @@ function publish(): void {
   });
 }
 
+// Emit a turn record for the benchmark harness (?bench=1 only). `complete` flags
+// whether the turn's terminal metric (end-to-end / first audio) is known yet, so
+// the harness can wait for the final emission per turn and de-dupe by `seq`.
+function emitBench(t: TurnLatency | null): void {
+  if (!BENCH || !t) return;
+  // eslint-disable-next-line no-console
+  console.info("[aax6-latency]", JSON.stringify({ ...t, complete: t.endToEndMs != null }));
+}
+
 export function subscribe(cb: () => void): () => void {
   subscribers.add(cb);
   return () => {
@@ -135,7 +150,10 @@ export function markSttFinal(recognizeMs: number | null): void {
 
 export function markTurnPost(viaMic: boolean): void {
   // Roll the previous turn into history before starting a new one.
-  if (current) history = [...history, current].slice(-HISTORY_CAP);
+  if (current) {
+    emitBench(current); // flush the just-finished turn to the benchmark harness
+    history = [...history, current].slice(-HISTORY_CAP);
+  }
 
   seqCounter += 1;
   current = {
@@ -170,6 +188,7 @@ export function markDone(llmMs: number | null, llmHops: number | null): void {
   if (llmMs != null) current.llmMs = llmMs;
   if (llmHops != null) current.llmHops = llmHops;
   publish();
+  emitBench(current);
 }
 
 // ---- TTS (audio) events ----
@@ -190,6 +209,7 @@ export function markTtsPlaying(): void {
   if (marks.tTtsReq != null) current.ttsMs = round(t - marks.tTtsReq);
   if (marks.tAnchor != null) current.endToEndMs = round(t - marks.tAnchor);
   publish();
+  emitBench(current); // terminal metric (first audio) now known → the complete record
 }
 
 /** Clear all timing — called on session reset/start so the readout starts fresh. */
@@ -199,4 +219,14 @@ export function reset(): void {
   pendingMic = null;
   marks = blankMarks();
   publish();
+}
+
+// Pull-based fallback for the benchmark harness (?bench=1): expose the live
+// snapshot on window so a driver can read it directly if a console line is missed.
+if (BENCH && typeof window !== "undefined") {
+  (window as unknown as { __aax6Latency?: unknown }).__aax6Latency = {
+    getSnapshot,
+    subscribe,
+  };
+  (window as unknown as { __aax6Bench?: boolean }).__aax6Bench = true;
 }
