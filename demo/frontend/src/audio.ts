@@ -60,12 +60,53 @@ export function prefetch(text: string): void {
     .catch(() => {});
 }
 
+// TEMPORARY DIAGNOSTIC — logs when the browser fires each media-readiness event
+// vs. when the audio request started, so we can see whether <audio> starts
+// playing on the first chunk or waits for (most of) the clip to download.
+// Toggle off by setting localStorage.ttsDebug = "0". Remove once diagnosed.
+const TTS_DEBUG =
+  typeof localStorage === "undefined" || localStorage.getItem("ttsDebug") !== "0";
+
+// Cleanup for the previous turn's diagnostic listeners — invoked before attaching
+// new ones so the singleton <audio> never accumulates duplicate loggers.
+let diagDetach: (() => void) | null = null;
+
+function attachTimingDiag(a: HTMLAudioElement, t0: number): () => void {
+  diagDetach?.();
+  diagDetach = null;
+  if (!TTS_DEBUG) return () => {};
+  const bufEnd = () => {
+    try {
+      return a.buffered.length ? a.buffered.end(a.buffered.length - 1).toFixed(2) : "-";
+    } catch {
+      return "-";
+    }
+  };
+  const names = [
+    "loadstart", "loadedmetadata", "loadeddata", "progress", "canplay",
+    "canplaythrough", "playing", "waiting", "stalled", "suspend", "ended", "error",
+  ];
+  const log = (e: Event) => {
+    const dt = (performance.now() - t0).toFixed(0);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[tts-timing] +${dt}ms  ${e.type.padEnd(15)} readyState=${a.readyState} bufferedEnd=${bufEnd()}s`,
+    );
+  };
+  names.forEach((n) => a.addEventListener(n, log));
+  const detach = () => names.forEach((n) => a.removeEventListener(n, log));
+  diagDetach = detach;
+  return detach;
+}
+
 export function play(text: string): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed) return Promise.resolve();
   stop();
 
   const a = ensureAudio();
+  const t0 = performance.now();
+  const detachDiag = attachTimingDiag(a, t0);
   a.src = `/api/tts?text=${encodeURIComponent(trimmed)}`;
   // TTS request fired — the start of the time-to-first-audio measurement (only
   // the first clip of a turn counts; the store guards subsequent calls).
@@ -82,12 +123,14 @@ export function play(text: string): Promise<void> {
       a.removeEventListener("playing", onPlaying);
       a.removeEventListener("ended", onEnded);
       a.removeEventListener("error", onError);
+      detachDiag();
       settle();
     };
     const onError = () => {
       a.removeEventListener("playing", onPlaying);
       a.removeEventListener("ended", onEnded);
       a.removeEventListener("error", onError);
+      detachDiag();
       settle();
     };
 
