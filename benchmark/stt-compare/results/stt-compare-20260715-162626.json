@@ -1,0 +1,194 @@
+{
+  "config": {
+    "server": "ws://34.87.38.92:2997",
+    "clips": "/workspace/accentix-6-debt-collection-ready/scripts/thai-wav-dataset",
+    "limit": 20,
+    "chunk_ms": 320,
+    "hotwords": "",
+    "boost": "",
+    "gain": 0.0,
+    "no_chirp": false,
+    "out": "/workspace/accentix-6-debt-collection-ready/benchmark/stt-compare/results"
+  },
+  "zipformer": {
+    "rows": [
+      {
+        "first_partial_ms": 2254.5450829784386,
+        "eos_to_final_ms": 129.35993704013526,
+        "rtf": 0.206,
+        "text": "สวัสดี ครับ",
+        "clip": "common_voice_th_23655103.wav"
+      },
+      {
+        "first_partial_ms": 2252.7841409901157,
+        "eos_to_final_ms": 134.25095798447728,
+        "rtf": 0.209,
+        "text": "สวัสดี ตอน เช้า สบายดี ไหม",
+        "clip": "common_voice_th_23657217.wav"
+      },
+      {
+        "first_partial_ms": 2255.4972890065983,
+        "eos_to_final_ms": 134.07677301438525,
+        "rtf": 0.209,
+        "text": "สวัสดี ฉัน นัด ไว้ เวลา บ่าย สี่ โมง ตอน นี้ ฉัน อยู่ ที่ นี่ แล้ว ค่ะ",
+        "clip": "common_voice_th_23667290.wav"
+      },
+      {
+        "first_partial_ms": 1609.4576169853099,
+        "eos_to_final_ms": 133.7983880075626,
+        "rtf": 0.195,
+        "text": "สวัสดี ปี ใหม่ กับ คุณ",
+        "clip": "common_voice_th_23818067.wav"
+      },
+      {
+        "first_partial_ms": 2253.36142902961,
+        "eos_to_final_ms": 134.70711902482435,
+        "rtf": 0.211,
+        "text": "สวัสดี ผู้ อ่าน ทุก ทุก ท่าน ครับ",
+        "clip": "common_voice_th_23889846.wav"
+      },
+      {
+        "first_partial_ms": 2254.334587021731,
+        "eos_to_final_ms": 132.35760404495522,
+        "rtf": 0.197,
+        "text": "สวัสดี เบนจามิน",
+        "clip": "common_voice_th_24684961.wav"
+      },
+      {
+        "first_partial_ms": 2253.9345839759335,
+        "eos_to_final_ms": 132.92758399620652,
+        "rtf": 0.196,
+        "text": "สวัสดี สวัสดี  สิ่ง นี้ ไม่ ทํา งาน ใน ตอน นี้",
+        "clip": "common_voice_th_24736570.wav"
+      },
+      {
+        "first_partial_ms": 1609.8508299910463,
+        "eos_to_final_ms": 132.6165489736013,
+        "rtf": 0.203,
+        "text": "สวัสดี ฉัน นัด ไว้ ตอน สี่ โมง",
+        "clip": "common_voice_th_24983185.wav"
+      },
+      {
+        "first_partial_ms": 2253.9923599688336,
+        "eos_to_final_ms": 134.25718597136438,
+        "rtf": 0.212,
+        "text": "สวัสดี ชาว บ้าน ทุก ท่าน",
+        "clip": "common_voice_th_24997322.wav"
+      },
+      {
+        "first_partial_ms": 2252.243672031909,
+        "eos_to_final_ms": 131.45186402834952,
+        "rtf": 0.197,
+        "text": "สวัสดี ปี ใหม่ กับ คุณ",
+        "clip": "common_voice_th_25631287.wav"
+      },
+      {
+        "first_partial_ms": 2254.2178090079688,
+        "eos_to_final_ms": 134.9505900288932,
+        "rtf": 0.2,
+        "text": "สวัสดี ผู้ รี วิว ประโยค ทุก ท่าน",
+        "clip": "common_voice_th_25631998.wav"
+      },
+      {
+        "first_partial_ms": 1609.6722100046463,
+        "eos_to_final_ms": 134.46785503765568,
+        "rtf": 0.202,
+        "text": "สวัสดี สวัสดี ทําไม สิ่ง นี้ ไม่ ทํา งาน ใน ตอน นี้",
+        "clip": "common_voice_th_25633316.wav"
+      },
+      {
+        "first_partial_ms": 1610.019863001071,
+        "eos_to_final_ms": 132.2211769875139,
+        "rtf": 0.214,
+        "text": "สวัสดี ครับ",
+        "clip": "common_voice_th_25636345.wav"
+      },
+      {
+        "first_partial_ms": 2254.239472968038,
+        "eos_to_final_ms": 133.5493639926426,
+        "rtf": 0.205,
+        "text": "สวัสดี อนาคต จาก อดีต",
+        "clip": "common_voice_th_25636775.wav"
+      },
+      {
+        "first_partial_ms": 1610.105826985091,
+        "eos_to_final_ms": 133.25613498454913,
+        "rtf": 0.198,
+        "text": "สวัสดี ผู้ อ่าน ทุก ทุก ท่าน ครับ",
+        "clip": "common_voice_th_25639894.wav"
+      },
+      {
+        "first_partial_ms": 2253.6523260059766,
+        "eos_to_final_ms": 133.3061020122841,
+        "rtf": 0.194,
+        "text": "สวัสดี ตอน เย็น",
+        "clip": "common_voice_th_25655288.wav"
+      },
+      {
+        "first_partial_ms": 1610.5617649736814,
+        "eos_to_final_ms": 136.62863901117817,
+        "rtf": 0.218,
+        "text": "สวัสดี ตอน เย็น",
+        "clip": "common_voice_th_25655343.wav"
+      },
+      {
+        "first_partial_ms": 2253.8407809915952,
+        "eos_to_final_ms": 132.68645701464266,
+        "rtf": 0.198,
+        "text": "สวัสดี ฉัน นัด ไว้ เวลา บ่าย สี่ โมง ตอน นี้ ฉัน อยู่ ที่ นี่ แล้ว ค่ะ",
+        "clip": "common_voice_th_25655460.wav"
+      },
+      {
+        "first_partial_ms": 2254.2886010487564,
+        "eos_to_final_ms": 133.94425000296906,
+        "rtf": 0.198,
+        "text": "สวัสดี ตอน เย็น",
+        "clip": "common_voice_th_25655838.wav"
+      },
+      {
+        "first_partial_ms": 2898.1502310489304,
+        "eos_to_final_ms": 135.0021389662288,
+        "rtf": 0.211,
+        "text": "สวัสดี ฉัน นัด ไว้ ตอน สี่ โมง",
+        "clip": "common_voice_th_25656496.wav"
+      }
+    ],
+    "summary": {
+      "eos_to_final_ms": {
+        "n": 20,
+        "p50": 133.6738760001026,
+        "p95": 135.08346396847628,
+        "mean": 133.49083350622095,
+        "min": 129.35993704013526,
+        "max": 136.62863901117817
+      },
+      "first_partial_ms": {
+        "n": 20,
+        "p50": 2253.746553498786,
+        "p95": 2287.6299361087154,
+        "mean": 2092.937523900764,
+        "min": 1609.4576169853099,
+        "max": 2898.1502310489304
+      },
+      "rtf": {
+        "n": 20,
+        "p50": 0.2025,
+        "p95": 0.2142,
+        "mean": 0.20365000000000003,
+        "min": 0.194,
+        "max": 0.218
+      }
+    }
+  },
+  "chirp": {
+    "rows": [],
+    "summary": {
+      "eos_to_final_ms": {
+        "n": 0
+      },
+      "first_partial_ms": {
+        "n": 0
+      }
+    }
+  }
+}
