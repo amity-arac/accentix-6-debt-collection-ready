@@ -55,6 +55,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+# Load the repo-root .env exactly like the demo backend (demo/server/app.py:35) so
+# the Chirp side sees the same GOOGLE_CREDENTIALS_JSON. Without this, Chirp run in
+# this standalone process falls back to ADC and fails with DefaultCredentialsError,
+# even though the demo (which loads .env) works. We only invoke the standard loader.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(REPO_ROOT / ".env")
+except Exception:
+    pass  # python-dotenv absent → rely on already-exported env (or use --no-chirp)
+
 ZIPFORMER_RATE = 8000   # customer server streams raw PCM @ 8kHz
 CHIRP_RATE = 16000      # Chirp path (matches the demo)
 OPEN_TIMEOUT = 10
