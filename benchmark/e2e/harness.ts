@@ -62,6 +62,7 @@ type Args = {
   clipsDir: string;
   turns: number;
   warmup: number;
+  resetEvery: number;
   gapMs: number;
   turnTimeoutMs: number;
   agent: string | null;
@@ -95,6 +96,12 @@ function parseArgs(argv: string[]): Args {
     clipsDir: resolve(HERE, get("--clips") ?? "../../scripts/thai-wav-dataset"),
     turns: Number(get("--turns") ?? 20),
     warmup: Number(get("--warmup") ?? 1),
+    // Start a fresh conversation every N measured turns. A debt-collection call
+    // is only a handful of coherent turns, so one long session drifts
+    // out-of-distribution and inflates LLM latency (the agent rambles to its
+    // token cap). 0 = never reset (one continuous session). Needs the demo's
+    // ?bench=1 __aax6Reset hook in the deployed build.
+    resetEvery: Number(get("--reset-every") ?? 8),
     gapMs: Number(get("--gap-ms") ?? 4000),
     turnTimeoutMs: Number(get("--turn-timeout-ms") ?? 45000),
     agent: get("--agent") ?? null, // e.g. "qwen" | "gemini"; null = leave as-is
@@ -273,6 +280,9 @@ async function main(): Promise<void> {
   console.log(`  url        : ${args.url}`);
   console.log(`  clips      : ${clips.length} in ${args.clipsDir}`);
   console.log(`  turns      : ${args.turns} (+${args.warmup} warmup, discarded)`);
+  console.log(
+    `  reset-every: ${args.resetEvery > 0 ? `${args.resetEvery} turns (fresh call)` : "off (one continuous session)"}`,
+  );
   console.log(`  inter-turn : ${args.gapMs}ms idle gap`);
   console.log(`  agent      : ${args.agent ?? "(demo default)"}`);
   console.log("");
@@ -346,6 +356,20 @@ async function main(): Promise<void> {
     // Give the mic socket a moment to open + go live.
     await sleep(2000);
 
+    // If resetting is on, confirm the reset hook exists in this build.
+    if (args.resetEvery > 0) {
+      const hasReset = await page.evaluate(
+        () => typeof (window as unknown as { __aax6Reset?: unknown }).__aax6Reset === "function",
+      );
+      if (!hasReset) {
+        console.warn(
+          `  WARNING: --reset-every ${args.resetEvery} is set but window.__aax6Reset is missing in\n` +
+            "  this build. Sessions will NOT reset (rebuild/redeploy the frontend, or pass\n" +
+            "  --reset-every 0). LLM latency may drift up over a long session.",
+        );
+      }
+    }
+
     const collected: TurnRecord[] = [];
     let lastSeq = 0;
     const total = args.warmup + args.turns;
@@ -385,7 +409,29 @@ async function main(): Promise<void> {
         if (!warm) collected.push(rec);
       }
 
-      if (i < total - 1) await sleep(args.gapMs); // realistic inter-turn idle
+      // Between turns: start a fresh conversation every N measured turns (keeps
+      // each turn at a realistic call depth), otherwise idle the inter-turn gap.
+      if (i < total - 1) {
+        const resetNow =
+          args.resetEvery > 0 &&
+          rec != null &&
+          i >= args.warmup &&
+          collected.length > 0 &&
+          collected.length % args.resetEvery === 0;
+        if (resetNow) {
+          console.log(`  — new call (reset every ${args.resetEvery} turns) —`);
+          try {
+            await page.evaluate(() =>
+              (window as unknown as { __aax6Reset?: () => Promise<void> }).__aax6Reset?.(),
+            );
+          } catch (e) {
+            console.warn(`  reset failed: ${(e as Error).message}`);
+          }
+          await sleep(2500); // let the fresh session + mic settle before the next clip
+        } else {
+          await sleep(args.gapMs);
+        }
+      }
     }
 
     if (collected.length === 0) {

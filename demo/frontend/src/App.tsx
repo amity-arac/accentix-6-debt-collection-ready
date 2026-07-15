@@ -66,6 +66,16 @@ export default function App() {
     void initSession();
   }, [initSession]);
 
+  // Benchmark hook (?bench=1 only): expose the session reset so the E2E harness
+  // (benchmark/e2e) can start a fresh conversation every N turns without the
+  // confirm modal. Resetting keeps each measured turn at a realistic call depth
+  // (a long single session drifts out-of-distribution). No-op in normal use.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!/[?&]bench=1(?:&|$)/.test(window.location.search)) return;
+    (window as unknown as { __aax6Reset?: () => Promise<void> }).__aax6Reset = reset;
+  }, [reset]);
+
   // Load the persona catalog once for the picker. Non-fatal: if it fails the
   // picker just shows an empty state and the default session still works.
   useEffect(() => {

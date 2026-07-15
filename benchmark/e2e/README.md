@@ -60,6 +60,7 @@ npm run bench -- --url https://<demo> --turns 20 --headed --agent qwen --gap-ms 
 | `--url` | *(required)* | Demo URL to drive (must be LIVE mode + instrumented bundle). |
 | `--turns` | `20` | Measured turns. Use ≥20 for stable p95. |
 | `--warmup` | `1` | Leading turns discarded (first turn is often cold). |
+| `--reset-every` | `8` | Start a **fresh conversation** every N measured turns. A real debt-collection call is only a handful of coherent turns; one long session with unrelated clips drifts out-of-distribution and inflates LLM latency (the agent rambles to its 1024-token cap). `0` = one continuous session. Requires the `?bench=1` reset hook in the deployed build. |
 | `--clips` | `../../scripts/thai-wav-dataset` | Directory of Thai `.wav` clips (16-bit PCM). Cycled if fewer than `--turns`. |
 | `--gap-ms` | `4000` | Idle gap between turns. Realistic call pacing; also exercises idle-reconnect. |
 | `--agent` | *(demo default = qwen)* | `qwen` or `gemini` — clicked pre-start, best-effort. |
