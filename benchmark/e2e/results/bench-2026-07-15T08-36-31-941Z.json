@@ -1,0 +1,164 @@
+{
+  "config": {
+    "url": "https://localhost:5173/",
+    "clipsDir": "/workspace/accentix-6-debt-collection-ready/scripts/thai-wav-dataset",
+    "turns": 1,
+    "warmup": 1,
+    "resetEvery": 8,
+    "gapMs": 4000,
+    "turnTimeoutMs": 45000,
+    "agent": null,
+    "headed": false,
+    "outDir": "/workspace/accentix-6-debt-collection-ready/benchmark/e2e/results"
+  },
+  "capturedAt": "2026-07-15T08-36-31-941Z",
+  "turns": [
+    {
+      "seq": 2,
+      "viaMic": true,
+      "vadMs": 212.2,
+      "sttMs": 959.2,
+      "sttPerceivedMs": 959,
+      "llmMs": 519,
+      "ttsMs": 9,
+      "llmHops": 1,
+      "llmTtftMs": 527,
+      "endToEndMs": 1495,
+      "complete": true
+    }
+  ],
+  "summary": {
+    "vadMs": {
+      "n": 1,
+      "p50": 212.2,
+      "p95": 212.2,
+      "mean": 212.2
+    },
+    "sttMs": {
+      "n": 1,
+      "p50": 959.2,
+      "p95": 959.2,
+      "mean": 959.2
+    },
+    "llmMs": {
+      "n": 1,
+      "p50": 519,
+      "p95": 519,
+      "mean": 519
+    },
+    "ttsMs": {
+      "n": 1,
+      "p50": 9,
+      "p95": 9,
+      "mean": 9
+    },
+    "endToEndMs": {
+      "n": 1,
+      "p50": 1495,
+      "p95": 1495,
+      "mean": 1495
+    },
+    "sttPerceivedMs": {
+      "n": 1,
+      "p50": 959,
+      "p95": 959,
+      "mean": 959
+    },
+    "llmTtftMs": {
+      "n": 1,
+      "p50": 527,
+      "p95": 527,
+      "mean": 527
+    }
+  },
+  "split": {
+    "tool": {
+      "vadMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "sttMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "llmMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "ttsMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "endToEndMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "sttPerceivedMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "llmTtftMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      }
+    },
+    "reply": {
+      "vadMs": {
+        "n": 1,
+        "p50": 212.2,
+        "p95": 212.2,
+        "mean": 212.2
+      },
+      "sttMs": {
+        "n": 1,
+        "p50": 959.2,
+        "p95": 959.2,
+        "mean": 959.2
+      },
+      "llmMs": {
+        "n": 1,
+        "p50": 519,
+        "p95": 519,
+        "mean": 519
+      },
+      "ttsMs": {
+        "n": 1,
+        "p50": 9,
+        "p95": 9,
+        "mean": 9
+      },
+      "endToEndMs": {
+        "n": 1,
+        "p50": 1495,
+        "p95": 1495,
+        "mean": 1495
+      },
+      "sttPerceivedMs": {
+        "n": 1,
+        "p50": 959,
+        "p95": 959,
+        "mean": 959
+      },
+      "llmTtftMs": {
+        "n": 1,
+        "p50": 527,
+        "p95": 527,
+        "mean": 527
+      }
+    }
+  }
+}

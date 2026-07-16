@@ -1,0 +1,448 @@
+{
+  "config": {
+    "url": "https://localhost:5173/",
+    "clipsDir": "/workspace/accentix-6-debt-collection-ready/scripts/thai-wav-dataset",
+    "turns": 20,
+    "warmup": 1,
+    "resetEvery": 1,
+    "gapMs": 4000,
+    "turnTimeoutMs": 45000,
+    "agent": null,
+    "headed": false,
+    "outDir": "/workspace/accentix-6-debt-collection-ready/benchmark/e2e/results"
+  },
+  "capturedAt": "2026-07-16T10-15-42-464Z",
+  "turns": [
+    {
+      "seq": 2,
+      "viaMic": true,
+      "vadMs": 297.3,
+      "sttMs": 141.2,
+      "sttPerceivedMs": 141,
+      "llmMs": 564.7,
+      "ttsMs": 164,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 571,
+      "endToEndMs": 876,
+      "complete": true
+    },
+    {
+      "seq": 3,
+      "viaMic": true,
+      "vadMs": 299.5,
+      "sttMs": 137.6,
+      "sttPerceivedMs": 138,
+      "llmMs": 288.7,
+      "ttsMs": 121,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 295,
+      "endToEndMs": 554,
+      "complete": true
+    },
+    {
+      "seq": 4,
+      "viaMic": true,
+      "vadMs": 213.1,
+      "sttMs": 140.4,
+      "sttPerceivedMs": 140,
+      "llmMs": 379.8,
+      "ttsMs": 123,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 387,
+      "endToEndMs": 650,
+      "complete": true
+    },
+    {
+      "seq": 6,
+      "viaMic": true,
+      "vadMs": 298.4,
+      "sttMs": 190.3,
+      "sttPerceivedMs": 190,
+      "llmMs": 604.3,
+      "ttsMs": 157,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 611,
+      "endToEndMs": 958,
+      "complete": true
+    },
+    {
+      "seq": 8,
+      "viaMic": true,
+      "vadMs": 299.7,
+      "sttMs": 143,
+      "sttPerceivedMs": 143,
+      "llmMs": null,
+      "ttsMs": 110,
+      "cache": "miss",
+      "llmHops": null,
+      "llmTtftMs": 183,
+      "endToEndMs": 436,
+      "complete": true
+    },
+    {
+      "seq": 9,
+      "viaMic": true,
+      "vadMs": 343.7,
+      "sttMs": 139.6,
+      "sttPerceivedMs": 139,
+      "llmMs": 492.4,
+      "ttsMs": 135,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 499,
+      "endToEndMs": 774,
+      "complete": true
+    },
+    {
+      "seq": 10,
+      "viaMic": true,
+      "vadMs": 300.1,
+      "sttMs": 143.1,
+      "sttPerceivedMs": 143,
+      "llmMs": 605.1,
+      "ttsMs": 158,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 611,
+      "endToEndMs": 912,
+      "complete": true
+    },
+    {
+      "seq": 11,
+      "viaMic": true,
+      "vadMs": 212.9,
+      "sttMs": 138.2,
+      "sttPerceivedMs": 138,
+      "llmMs": 603.3,
+      "ttsMs": 130,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 610,
+      "endToEndMs": 878,
+      "complete": true
+    },
+    {
+      "seq": 12,
+      "viaMic": true,
+      "vadMs": 299.2,
+      "sttMs": 189.3,
+      "sttPerceivedMs": 189,
+      "llmMs": 214.5,
+      "ttsMs": 118,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 221,
+      "endToEndMs": 528,
+      "complete": true
+    },
+    {
+      "seq": 13,
+      "viaMic": true,
+      "vadMs": 341.1,
+      "sttMs": 138.9,
+      "sttPerceivedMs": 139,
+      "llmMs": 492.6,
+      "ttsMs": 104,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 499,
+      "endToEndMs": 742,
+      "complete": true
+    },
+    {
+      "seq": 14,
+      "viaMic": true,
+      "vadMs": 299.8,
+      "sttMs": 141.1,
+      "sttPerceivedMs": 141,
+      "llmMs": null,
+      "ttsMs": 114,
+      "cache": "miss",
+      "llmHops": null,
+      "llmTtftMs": 183,
+      "endToEndMs": 438,
+      "complete": true
+    },
+    {
+      "seq": 15,
+      "viaMic": true,
+      "vadMs": 211.1,
+      "sttMs": 138.9,
+      "sttPerceivedMs": 139,
+      "llmMs": 603.6,
+      "ttsMs": 113,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 609,
+      "endToEndMs": 861,
+      "complete": true
+    },
+    {
+      "seq": 16,
+      "viaMic": true,
+      "vadMs": 215.1,
+      "sttMs": 137.9,
+      "sttPerceivedMs": 138,
+      "llmMs": 622,
+      "ttsMs": 113,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 629,
+      "endToEndMs": 881,
+      "complete": true
+    },
+    {
+      "seq": 17,
+      "viaMic": true,
+      "vadMs": 215.9,
+      "sttMs": 141,
+      "sttPerceivedMs": 141,
+      "llmMs": 604.1,
+      "ttsMs": 128,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 610,
+      "endToEndMs": 879,
+      "complete": true
+    },
+    {
+      "seq": 18,
+      "viaMic": true,
+      "vadMs": 172.4,
+      "sttMs": 137.4,
+      "sttPerceivedMs": 137,
+      "llmMs": 112.5,
+      "ttsMs": 106,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 120,
+      "endToEndMs": 363,
+      "complete": true
+    },
+    {
+      "seq": 19,
+      "viaMic": true,
+      "vadMs": 168.6,
+      "sttMs": 140.1,
+      "sttPerceivedMs": 140,
+      "llmMs": 603.2,
+      "ttsMs": 122,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 609,
+      "endToEndMs": 870,
+      "complete": true
+    },
+    {
+      "seq": 20,
+      "viaMic": true,
+      "vadMs": 215.5,
+      "sttMs": 142.8,
+      "sttPerceivedMs": 143,
+      "llmMs": 603.6,
+      "ttsMs": 120,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 615,
+      "endToEndMs": 878,
+      "complete": true
+    },
+    {
+      "seq": 21,
+      "viaMic": true,
+      "vadMs": 297.2,
+      "sttMs": 144.5,
+      "sttPerceivedMs": 144,
+      "llmMs": 603.3,
+      "ttsMs": 100,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 609,
+      "endToEndMs": 854,
+      "complete": true
+    },
+    {
+      "seq": 22,
+      "viaMic": true,
+      "vadMs": 298.7,
+      "sttMs": 142.6,
+      "sttPerceivedMs": 143,
+      "llmMs": 603.8,
+      "ttsMs": 103,
+      "cache": "miss",
+      "llmHops": 1,
+      "llmTtftMs": 612,
+      "endToEndMs": 858,
+      "complete": true
+    },
+    {
+      "seq": 23,
+      "viaMic": true,
+      "vadMs": 296.8,
+      "sttMs": 141.4,
+      "sttPerceivedMs": 141,
+      "llmMs": null,
+      "ttsMs": 106,
+      "cache": "miss",
+      "llmHops": null,
+      "llmTtftMs": 181,
+      "endToEndMs": 428,
+      "complete": true
+    }
+  ],
+  "summary": {
+    "vadMs": {
+      "n": 20,
+      "p50": 297.25,
+      "p95": 341.23,
+      "mean": 264.805
+    },
+    "sttMs": {
+      "n": 20,
+      "p50": 141.05,
+      "p95": 189.35000000000002,
+      "mean": 145.465
+    },
+    "llmMs": {
+      "n": 17,
+      "p50": 603.3,
+      "p95": 608.48,
+      "mean": 505.9705882352942
+    },
+    "ttsMs": {
+      "n": 20,
+      "p50": 119,
+      "p95": 158.3,
+      "mean": 122.25
+    },
+    "endToEndMs": {
+      "n": 20,
+      "p50": 856,
+      "p95": 914.3000000000001,
+      "mean": 730.9
+    },
+    "sttPerceivedMs": {
+      "n": 20,
+      "p50": 141,
+      "p95": 189.05,
+      "mean": 145.35
+    },
+    "llmTtftMs": {
+      "n": 20,
+      "p50": 590,
+      "p95": 615.7,
+      "mean": 463.2
+    }
+  },
+  "cache": {
+    "all": {
+      "hits": 0,
+      "measured": 20,
+      "pct": 0
+    },
+    "tool": {
+      "hits": 0,
+      "measured": 0,
+      "pct": null
+    },
+    "reply": {
+      "hits": 0,
+      "measured": 20,
+      "pct": 0
+    }
+  },
+  "split": {
+    "tool": {
+      "vadMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "sttMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "llmMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "ttsMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "endToEndMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "sttPerceivedMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      },
+      "llmTtftMs": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "mean": null
+      }
+    },
+    "reply": {
+      "vadMs": {
+        "n": 20,
+        "p50": 297.25,
+        "p95": 341.23,
+        "mean": 264.805
+      },
+      "sttMs": {
+        "n": 20,
+        "p50": 141.05,
+        "p95": 189.35000000000002,
+        "mean": 145.465
+      },
+      "llmMs": {
+        "n": 17,
+        "p50": 603.3,
+        "p95": 608.48,
+        "mean": 505.9705882352942
+      },
+      "ttsMs": {
+        "n": 20,
+        "p50": 119,
+        "p95": 158.3,
+        "mean": 122.25
+      },
+      "endToEndMs": {
+        "n": 20,
+        "p50": 856,
+        "p95": 914.3000000000001,
+        "mean": 730.9
+      },
+      "sttPerceivedMs": {
+        "n": 20,
+        "p50": 141,
+        "p95": 189.05,
+        "mean": 145.35
+      },
+      "llmTtftMs": {
+        "n": 20,
+        "p50": 590,
+        "p95": 615.7,
+        "mean": 463.2
+      }
+    }
+  }
+}
