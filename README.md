@@ -154,21 +154,20 @@ If these are unset, audio requests fail silently and the chat continues normally
 
 When the voice path is on, time-to-first-audio (TTFA) is the serial chain
 **VAD endpointing → STT → LLM → TTS** (VAD *compute* overlaps speech and is off
-the critical path; the endpointing *hang* is what you feel). These env knobs trade
-latency for robustness/accuracy. Defaults are already tuned for speed; raise them
-if quality suffers. All are optional.
+the critical path; the endpointing *hang* is what you feel). STT is the customer's
+self-hosted **streaming Zipformer** server (Silero VAD still owns endpointing +
+barge-in server-side; the 16 kHz mic stream is resampled to 8 kHz for it). These env
+knobs trade latency for robustness/accuracy. Defaults are already tuned for speed;
+raise them if quality suffers. All are optional.
 
 | Variable | Default | Effect |
 |---|---|---|
-| `AAX6_STT_MODEL` | `chirp_3` | STT model. Thai (`th-TH`) is served by `chirp_3` / `chirp_2` / `chirp`; the low-latency `short` / `long` conformer models don't support `th-TH`, so they can't be the Thai default. Try `chirp_2` / `chirp` and measure with the probe if you want lower latency. |
-| `AAX6_STT_REGION` | `us` | GCP region for STT (endpoint + recognizer path). **Google deprecated `chirp_3` + `th-TH` in `asia-southeast1`** (`403 … no longer generally available`), so the default moved to the `us` multi-region where Chirp 3 is GA; set `AAX6_STT_REGION=eu` for the EU multi-region (also confirmed working for Thai). Note both us/eu are far from Asia — expect higher network RTT than the old region. Needs a backend restart (the STT client is built once). |
+| `AAX6_ZIPFORMER_URL` | `ws://34.87.38.92:2997` | Customer's streaming **Zipformer** STT server (the code appends `/ws/stream`). Point this at your STT host. The demo's STT is this server end-to-end — Phase-1 measured **~134 ms end-of-audio→final** (flat) vs the old Chirp path's ~744 ms p50. If it's unreachable, turns surface an STT error (and on a fatal/closed socket the frontend falls back to the browser Web Speech API). Needs a backend restart (the engine is built once). |
+| `AAX6_ZIPFORMER_HOTWORDS` | *(empty)* | Optional comma-separated biasing terms for domain vocab, e.g. `AEON,KMOBILE,ค่ะ,ครับ`. Sent as a connect query param; also drives an English-hotword transcript fixup on the final. |
+| `AAX6_ZIPFORMER_BOOST` | *(empty)* | Optional hotword boost score (a number sent on connect; only applied when `AAX6_ZIPFORMER_HOTWORDS` is also set). |
 | `AAX6_VAD_SILENCE_HANG_MS` | `250` | Trailing silence (ms) before an utterance is finalized — the leading term of TTFA on *every* turn. Lower = snappier; too low cuts callers off mid-thought / lets TTS echo trip a false barge-in (validate live). Was `500 → 350`. |
 | `AAX6_VAD_THRESHOLD` | `0.4` | Silero speech-probability gate (0–1). Higher = stricter (fewer false triggers, may clip soft speech). |
 | `AAX6_VAD_MIN_SPEECH_MS` | `100` | Sustained speech required before `speech_begin` fires (barge-in debounce). |
-| `AAX6_STT_DIRECT_FINAL` | `1` | Run the final `recognize()` on its own thread so it never queues behind an in-flight interim (~150–500 ms off STT). `0` reverts to the single-worker queue. |
-| `AAX6_STT_SPECULATIVE` | `1` | Fire the final `recognize()` **early** — once trailing silence hits `AAX6_STT_SPECULATIVE_SILENCE_MS`, before the full hang confirms — overlapping it with the remaining hang (saves ~hang−speculative ≈ 150 ms). The extra audio is silence, so the transcript is unchanged; if the caller resumes talking it's discarded (one wasted recognize). Emitted only once the hang confirms. Needs `AAX6_STT_DIRECT_FINAL=1`. `0` disables. |
-| `AAX6_STT_SPECULATIVE_SILENCE_MS` | `100` | Trailing-silence point at which the speculative recognize fires. Must be `< AAX6_VAD_SILENCE_HANG_MS`; the gap between them is the latency saved. Lower = fires sooner (bigger save) but more likely to be a mid-sentence pause → more wasted recognizes. |
-| `AAX6_STT_STREAMING` | `1` | **ON by default.** Uses **true Chirp `streaming_recognize`** for the STT final instead of post-speech batch — audio uploads *during* speech, so the final lands sooner at end-of-speech. The TTFA probe measured a **~1.3s STT-p50 win** (streaming 524ms vs batch 1796ms, same `us` region), which also erased the region-move regression. Set `AAX6_STT_STREAMING=0` to fall back to batch (the A/B baseline): watch the control-bar **STT (perceived)** over ~10 mic turns each. Thai interim partials are historically sparse (they render if Chirp emits them), but the streaming *final* is the win. Silero still owns endpointing + barge-in; when on, the batch interim/final workers don't run. |
 | `AAX6_TTS_PREWARM_FILLER` | `1` | Pre-synthesize the spoken "please wait" filler at startup so its first play (the **first audio** on a tool turn) is a cache hit (~50–100 ms) instead of a cold ~500 ms synth. `0` disables. |
 | `AAX6_TTS_PREWARM_REPLY` | `1` | Kick the reply's Chirp synth server-side the moment the reply is emitted, so it overlaps hop delivery + the client prefetch (~50–150 ms, more over WAN). `0` disables. |
 | `AAX6_TTS_CHUNK_TARGET` | `30` | First audio-chunk flush target (chars). Lower = earlier reply first-audio on long clauses, but risks Thai prosody artifacts; short replies with an early particle (ค่ะ/ครับ) are unaffected. |
@@ -177,6 +176,13 @@ if quality suffers. All are optional.
 > vLLM prefix caching is enabled explicitly in `scripts/serve_qwen.sh` (`--enable-prefix-caching`). Qwen3.5 is a hybrid (gated-deltanet) model, so confirm it's actually taking on the host — scrape `/metrics` for `vllm:prefix_cache_hits_total` vs queries on the first hop; it may need a hybrid-cache alignment flag and may not cache short prefixes. If startup aborts complaining caching is unsupported, remove the flag.
 
 ### Measure it
+
+> **Note — the probe's STT stage is the legacy Chirp path.** `measure_ttfa.py`
+> still calls the Chirp `STTService` (kept only for this probe); it does **not**
+> reflect the demo's Zipformer STT. For demo-faithful STT latency use
+> `benchmark/stt-compare/compare_stt.py` (engine head-to-head, end-of-audio→final)
+> or `benchmark/e2e` (the real deployed demo). The LLM / TTS / VAD stages below
+> still match the demo.
 
 `scripts/measure_ttfa.py` drives real WAV files through the whole pipeline
 (VAD → STT → LLM → TTS) and prints the measured per-stage + end-to-end TTFA

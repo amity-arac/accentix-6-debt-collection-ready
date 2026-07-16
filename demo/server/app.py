@@ -5,7 +5,7 @@ Endpoints:
     POST   /api/session/{id}/turn  -- stream agent hops for one user message (NDJSON)
     POST   /api/session/{id}/reset -- reset session, stream new session info + opening hops (NDJSON)
     GET    /api/tts                -- Google Chirp 3 HD TTS (raw PCM int16@24k -> Web Audio)
-    WS     /api/stt                -- Chirp 3 STT: browser PCM16@16k in, transcript events out
+    WS     /api/stt                -- streaming Zipformer STT: browser PCM16@16k in, transcript events out
     GET    /api/health             -- liveness
 
 NDJSON message types:
@@ -34,7 +34,7 @@ from pydantic import BaseModel
 # Load .env from the repo root before any module reads env vars.
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-# `stt_ws` keeps torch / google-cloud-speech imports lazy (inside the handler),
+# `stt_ws` keeps torch / numpy / websockets imports lazy (inside the handler),
 # so importing it here does NOT pull those heavy deps at startup.
 from demo.server import replay, sessions, stt_ws, tts  # noqa: E402
 
@@ -307,12 +307,12 @@ async def tts_stream(text: str = Query(..., min_length=1, max_length=4096)) -> S
 
 @app.websocket("/api/stt")
 async def stt_ws_endpoint(ws: WebSocket) -> None:
-    """Chirp 3 speech-to-text. The browser streams PCM16 @ 16 kHz mono frames;
-    server-side Silero VAD gates utterances and batch Chirp recognize()
-    transcribes each. Emits speech_begin / speech_end / stt_final events (see
-    demo/server/stt_ws.py). Engines (torch + Chirp) load lazily on first
-    connect; if they can't be built we send a fatal error and the frontend
-    falls back to the browser Web Speech API."""
+    """Streaming Zipformer speech-to-text. The browser streams PCM16 @ 16 kHz mono
+    frames; server-side Silero VAD gates utterances and the customer's streaming
+    Zipformer WS server transcribes each. Emits speech_begin / speech_end /
+    stt_final events (see demo/server/stt_ws.py). Engines (torch VAD + the
+    Zipformer client) load lazily on first connect; if they can't be built we send
+    a fatal error and the frontend falls back to the browser Web Speech API."""
     await ws.accept()
     await stt_ws.run_session(ws)
 
