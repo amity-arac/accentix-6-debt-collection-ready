@@ -32,6 +32,7 @@ export type TurnLatency = {
   sttMs: number | null; // server recognize_ms (batch gRPC)
   llmMs: number | null; // server total_ms (sum of per-hop model calls)
   ttsMs: number | null; // client first-audio (request → playing)
+  cache: Cache | null; // TTS cache state for this turn's first clip (Server-Timing header)
   // Detail (expandable panel).
   llmHops: number | null; // number of LLM round-trips this turn
   sttPerceivedMs: number | null; // client: stt_final − speech_end (incl. WS leg)
@@ -164,6 +165,7 @@ export function markTurnPost(viaMic: boolean): void {
     sttPerceivedMs: viaMic ? pendingMic?.sttPerceivedMs ?? null : null,
     llmMs: null,
     ttsMs: null,
+    cache: null,
     llmHops: null,
     llmTtftMs: null,
     endToEndMs: null,
@@ -200,6 +202,15 @@ export function markDone(llmMs: number | null, llmHops: number | null): void {
 export function markTtsRequest(): void {
   if (!current || marks.tTtsReq != null) return;
   marks.tTtsReq = now();
+}
+
+/** TTS cache state for this turn, read by the client from the /api/tts response's
+ *  `Server-Timing: cache;desc="hit|miss"` header. Lets the benchmark verify a
+ *  cold run (AAX6_TTS_CACHE=0 ⇒ all "miss") and report hit-rate. First clip only. */
+export function markTtsCache(state: Cache): void {
+  if (!current || current.cache != null) return;
+  current.cache = state;
+  publish();
 }
 
 export function markTtsPlaying(): void {

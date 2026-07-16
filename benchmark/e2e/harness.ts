@@ -54,6 +54,7 @@ type TurnRecord = {
   sttPerceivedMs: number | null;
   llmTtftMs: number | null;
   endToEndMs: number | null;
+  cache: "hit" | "miss" | null; // TTS cache state (Server-Timing) — verify cold runs
   complete: boolean;
 };
 
@@ -247,6 +248,19 @@ function fmt(n: number): string {
   return Number.isNaN(n) ? "   —" : Math.round(n).toString();
 }
 
+// TTS cache hit-rate over the rows whose cache state is known. A cold benchmark
+// run (AAX6_TTS_CACHE=0) should read 0% — proof the TTS numbers are true synth,
+// not cross-turn cache hits from a repetitive clip set.
+function cacheStats(rows: TurnRecord[]): { hits: number; measured: number; pct: number } {
+  const measured = rows.filter((r) => r.cache === "hit" || r.cache === "miss");
+  const hits = measured.filter((r) => r.cache === "hit").length;
+  return {
+    hits,
+    measured: measured.length,
+    pct: measured.length ? (100 * hits) / measured.length : NaN,
+  };
+}
+
 function printTable(title: string, rows: TurnRecord[]): void {
   console.log(`\n${title}  (n=${rows.length} turns)`);
   console.log("-".repeat(72));
@@ -259,6 +273,12 @@ function printTable(title: string, rows: TurnRecord[]): void {
     );
   }
   console.log("-".repeat(72));
+  const c = cacheStats(rows);
+  const rate = Number.isNaN(c.pct)
+    ? "unknown (no Server-Timing header — rebuild the frontend)"
+    : `${Math.round(c.pct)}% hit (${c.hits}/${c.measured})` +
+      (c.pct === 0 ? "  ✓ cold run — TTS is true synth" : "");
+  console.log(`TTS cache: ${rate}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -404,7 +424,8 @@ async function main(): Promise<void> {
           `  turn ${String(i + 1).padStart(2)}${warm ? " (warmup)" : "        "}  ` +
             `VAD=${fmt(rec.vadMs ?? NaN).padStart(4)} STT=${fmt(rec.sttMs ?? NaN).padStart(5)} ` +
             `LLM=${fmt(rec.llmMs ?? NaN).padStart(5)} TTS=${fmt(rec.ttsMs ?? NaN).padStart(4)} ` +
-            `E2E=${fmt(rec.endToEndMs ?? NaN).padStart(5)} hops=${rec.llmHops ?? "?"}`,
+            `E2E=${fmt(rec.endToEndMs ?? NaN).padStart(5)} hops=${rec.llmHops ?? "?"} ` +
+            `cache=${rec.cache ?? "?"}`,
         );
         if (!warm) collected.push(rec);
       }
@@ -460,6 +481,11 @@ async function main(): Promise<void> {
           capturedAt: stamp,
           turns: collected,
           summary,
+          cache: {
+            all: cacheStats(collected),
+            tool: cacheStats(toolTurns),
+            reply: cacheStats(replyTurns),
+          },
           split: {
             tool: Object.fromEntries(STAGES.map((s) => [s.key, summarize(toolTurns, s.key)])),
             reply: Object.fromEntries(STAGES.map((s) => [s.key, summarize(replyTurns, s.key)])),

@@ -53,6 +53,14 @@ npm run bench -- --url https://<your-deployed-demo> --turns 20
 npm run bench -- --url https://<demo> --turns 20 --headed --agent qwen --gap-ms 6000
 ```
 
+> **Measure TTS cold — disable the cache.** The Thai clip set is repetitive, so the
+> agent emits near-identical replies; with the TTS cache on, turns 2..N are instant
+> cache hits and the TTS/TTFA numbers are the best case, not the real one. Start the
+> **backend** with `AAX6_TTS_CACHE=0` so every turn does a true cold synth, then read
+> the **Reply-only** table (the Tool table's first audio is the "please wait" filler,
+> which is legitimately a cache hit in production, so it reads pessimistic when cold).
+> Each table prints a **`TTS cache:` hit-rate** line — a cold run should show `0% hit`.
+
 ### Flags
 
 | Flag | Default | Meaning |

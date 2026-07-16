@@ -54,6 +54,10 @@ app.add_middleware(
     ],
     allow_methods=["*"],
     allow_headers=["*"],
+    # Server-Timing isn't a CORS-safelisted response header, so cross-origin JS
+    # can't read it unless it's exposed. The client reads `Server-Timing: cache`
+    # off /api/tts to attribute TTS latency (hit vs cold) — see audio.ts.
+    expose_headers=["Server-Timing"],
 )
 
 # In-memory session store. One process, one demo — no persistence needed.

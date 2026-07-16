@@ -82,8 +82,18 @@ _BREAK_MARKERS: Final[tuple[str, ...]] = (
 _CHUNK_TARGET: Final[int] = int(os.environ.get("AAX6_TTS_CHUNK_TARGET", "30"))
 _CHUNK_MAX: Final[int] = 80
 
-# In-process cache keyed by exact text → concatenated OGG bytes.
+# In-process cache keyed by exact text → concatenated PCM bytes.
 _CACHE: dict[str, bytes] = {}
+
+# Cache toggle (default ON). Set AAX6_TTS_CACHE=0 to disable the cross-turn text
+# cache AND prewarm, so every /api/tts request does a REAL cold synth. This is for
+# latency benchmarking: a repetitive clip set makes the LLM emit near-identical
+# replies whose cached audio (an instant one-blob hit) would understate true
+# TTS/TTFA. The in-turn fan-out (`_INFLIGHT`: prefetch + play sharing one
+# producer) is unaffected — only cross-turn reuse is suppressed.
+_CACHE_ENABLED: Final[bool] = (
+    os.environ.get("AAX6_TTS_CACHE", "1").strip().lower() not in ("0", "false", "")
+)
 
 # Sentinel signaling "stream finished cleanly" from the worker thread.
 _STREAM_DONE: Final[object] = object()
@@ -127,7 +137,7 @@ async def _produce(text: str, bc: _Broadcast) -> None:
             bc.chunks.append(item)  # type: ignore[arg-type]
             for sub in list(bc.subscribers):
                 sub.put_nowait(item)
-        if bc.error is None:
+        if bc.error is None and _CACHE_ENABLED:
             _CACHE[text] = b"".join(bc.chunks)
     except Exception as e:  # noqa: BLE001 — surface to subscribers, don't crash the loop
         bc.error = e
@@ -143,8 +153,9 @@ async def _produce(text: str, bc: _Broadcast) -> None:
 def is_cached(text: str) -> bool:
     """True if `text` is already synthesized in the in-process cache (→ a
     /api/tts request emits instantly). The route uses this to tag the response's
-    cache state so the client can attribute TTS latency (hit ≈ 0 vs cold synth)."""
-    return text.strip() in _CACHE
+    cache state so the client can attribute TTS latency (hit ≈ 0 vs cold synth).
+    Always False when the cache is disabled (AAX6_TTS_CACHE=0)."""
+    return _CACHE_ENABLED and text.strip() in _CACHE
 
 
 def _chunk_text(text: str) -> Iterator[str]:
@@ -232,7 +243,7 @@ async def stream_synth(text: str) -> AsyncIterator[bytes]:
     if not text:
         return
 
-    cached = _CACHE.get(text)
+    cached = _CACHE.get(text) if _CACHE_ENABLED else None
     if cached is not None:
         yield cached
         return
@@ -279,7 +290,7 @@ async def synth(text: str) -> bytes:
     text = text.strip()
     if not text:
         return b""
-    cached = _CACHE.get(text)
+    cached = _CACHE.get(text) if _CACHE_ENABLED else None
     if cached is not None:
         return cached
     parts: list[bytes] = []
@@ -289,7 +300,10 @@ async def synth(text: str) -> bytes:
 
 
 async def prewarm(texts: list[str]) -> None:
-    """Fire-and-forget pre-cache for a list of texts."""
+    """Fire-and-forget pre-cache for a list of texts. No-op when the cache is
+    disabled (AAX6_TTS_CACHE=0) — nothing would be stored, so don't burn a synth."""
+    if not _CACHE_ENABLED:
+        return
     for t in texts:
         try:
             await synth(t)

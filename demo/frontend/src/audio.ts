@@ -177,6 +177,14 @@ export function play(text: string): Promise<void> {
         const res = await fetch(`/api/tts?text=${encodeURIComponent(trimmed)}`, {
           signal: abort.signal,
         });
+        // Attribute TTS latency to a warm-cache hit vs a cold synth. The server
+        // tags the response `Server-Timing: cache;desc="hit|miss"` (app.py); the
+        // benchmark reads this to verify a cold run and report hit-rate.
+        const st = res.headers.get("Server-Timing");
+        if (st) {
+          const m = /cache;desc="?(hit|miss)"?/.exec(st);
+          if (m) latency.markTtsCache(m[1] as "hit" | "miss");
+        }
         const body = res.body;
         if (!res.ok || !body) {
           streamEnded = true;
