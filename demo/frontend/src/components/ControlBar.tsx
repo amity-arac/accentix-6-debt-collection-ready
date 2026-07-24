@@ -106,7 +106,7 @@ export function ControlBar({
             onClick={() => onAgentChange("flow")}
             disabled={starting}
             aria-pressed={agent === "flow"}
-            title="Flow-interpreter (sft_flow_v1 reads a FlowSpec) — AEON/JAI/KS outbound-remind. Experimental."
+            title="Flow-interpreter (sft_flow_v1 reads a FlowSpec) — outbound-remind, all companies. Experimental."
           >
             Flow
           </button>

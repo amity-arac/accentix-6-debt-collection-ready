@@ -502,12 +502,12 @@ class LiveSession:
 # sft_flow_v1 is company-agnostic (it follows whatever FlowSpec it's given), so
 # flow mode supports every company that has a (spec, catalog) pair. Each spec
 # shares the debt-collection "outbound-remind" structure; the catalog carries
-# the company's own templates (name, particles). AIS is intentionally absent —
-# its catalog doesn't yet cover the flow's FAQ/convince beats.
+# the company's own templates (name, particles).
 FLOW_REGISTRY: dict[str, tuple[str, str]] = {
     "AEON": ("AEON-outbound-remind.json", "v10_pre_script_database_parameterized.json"),
     "JAI": ("JAI-outbound-remind.json", "v11_jai_probe_catalog.json"),
     "KS": ("KS-outbound-remind.json", "v11_ks_probe_catalog.json"),
+    "AIS": ("AIS-outbound-remind.json", "v11_ais_probe_catalog.json"),
 }
 FLOW_COMPANIES = tuple(FLOW_REGISTRY)
 FLOW_FALLBACK_COMPANY = "AEON"

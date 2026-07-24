@@ -20,7 +20,7 @@ import * as audio from "./audio";
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string };
 
 // Companies with a shipped FlowSpec (must match FLOW_REGISTRY in sessions.py).
-const FLOW_COMPANIES = ["AEON", "JAI", "KS"];
+const FLOW_COMPANIES = ["AEON", "JAI", "KS", "AIS"];
 
 export default function App() {
   const {
@@ -358,7 +358,7 @@ export default function App() {
         open={personaModalOpen}
         cases={pickerCases}
         currentCaseId={state.caseId}
-        note={state.agent === "flow" ? "Flow mode runs the outbound-remind flow — AEON, JAI, KS personas (experimental)." : undefined}
+        note={state.agent === "flow" ? "Flow mode runs the outbound-remind flow — all companies (experimental)." : undefined}
         onClose={() => setPersonaModalOpen(false)}
         onSelect={(id) => void handleSelectPersona(id)}
       />
