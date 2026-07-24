@@ -569,6 +569,43 @@ def get_flow_spec(company: str) -> dict[str, Any]:
     return {"company": company, "spec": spec, "fine_states": fine_states, "tools": tools}
 
 
+def _sanitize_spec(spec: dict) -> None:
+    """Drop references left dangling by editor edits so validation doesn't fail on
+    parts the editor can't manage (tools/constraints). Removes transitions/
+    constraints/gating that point at a state or tool that no longer exists."""
+    states = {s.get("id") for s in spec.get("states", [])}
+    tools = {d.get("name") for d in spec.get("tools", {}).get("declarations", [])}
+    # transitions → existing states only
+    for st in spec.get("states", []):
+        st["on"] = [t for t in st.get("on", []) if t.get("to") in states]
+        # entry_tools / transition tools → declared tools only
+        if "entry_tools" in st:
+            st["entry_tools"] = [t for t in st["entry_tools"] if t in tools]
+        for t in st["on"]:
+            if "tools" in t:
+                t["tools"] = [x for x in t["tools"] if x in tools]
+    # gating that points at a missing state/tool → strip that key
+    for d in spec.get("tools", {}).get("declarations", []):
+        g = d.get("gating", {})
+        if g.get("required_before_state") and g["required_before_state"] not in states:
+            g.pop("required_before_state", None)
+        for k in ("must_precede", "requires_prior"):
+            if g.get(k) and g[k] not in tools:
+                g.pop(k, None)
+    # constraints referencing a missing state/tool → drop the constraint
+    kept = []
+    for c in spec.get("constraints", []):
+        refs_state = [c.get("to"), (c.get("on_exceed") or {}).get("to")]
+        refs_tool = [c.get("tool"), c.get("first"), c.get("second")]
+        if any(s and s not in states for s in refs_state):
+            continue
+        if any(t and t not in tools for t in refs_tool):
+            continue
+        kept.append(c)
+    spec["constraints"] = kept
+    # faq routes: keep (templates bind to catalog, checked separately)
+
+
 def save_flow_spec(
     company: str, spec: dict, new_templates: list[dict] | None = None
 ) -> dict[str, Any]:
@@ -607,6 +644,7 @@ def save_flow_spec(
     spec["company"] = company
     spec.setdefault("flow_id", f"{company}-outbound-remind")
     spec.setdefault("spec_version", 2)
+    _sanitize_spec(spec)  # drop dangling tool/state refs from editor edits
     errs, _ = validate_flow_spec(spec, catalog)
     if errs:
         return {"ok": False, "errors": errs[:10]}
