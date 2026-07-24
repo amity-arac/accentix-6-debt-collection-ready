@@ -1590,6 +1590,170 @@ button.bubble.tool-result {
   font-size: var(--fs-body, 14px);
   line-height: 1.4;
 }
+
+/* --- Flow Editor (structure) --- */
+.persona-modal.flow-editor {
+  max-width: 860px;
+  width: 94vw;
+}
+.flow-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  overflow-y: auto;
+}
+.flow-diagram {
+  display: flex;
+  gap: var(--space-3, 12px);
+  overflow-x: auto;
+  padding: var(--space-2, 8px);
+  background: var(--surface-sunken, rgba(127, 127, 127, 0.06));
+  border-radius: 8px;
+}
+.flow-diagram-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+}
+.flow-diagram-phase {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-micro);
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.flow-diagram-node {
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--surface, transparent);
+}
+.flow-node-id {
+  font-weight: 600;
+  font-size: var(--fs-micro);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.flow-badge {
+  font-size: 10px;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+.flow-node-edge {
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+.flow-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.flow-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: var(--fs-body, 14px);
+}
+.flow-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.flow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-sunken, rgba(127, 127, 127, 0.1));
+  font-size: var(--fs-micro);
+}
+.flow-chip button {
+  display: inline-flex;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.flow-state-card {
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.flow-state-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--fs-micro);
+}
+.flow-state-top code {
+  font-weight: 600;
+}
+.flow-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.flow-row-label {
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
+  min-width: 34px;
+  padding-top: 4px;
+}
+.flow-transitions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.flow-transition {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-micro);
+}
+.flow-editor select,
+.flow-transition select {
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+  background: var(--surface, transparent);
+  color: inherit;
+  font-size: var(--fs-micro);
+}
+.btn-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+  background: var(--surface, transparent);
+  color: inherit;
+  cursor: pointer;
+  font-size: var(--fs-micro);
+}
+.btn-mini.danger {
+  color: #c0392b;
+  border-color: rgba(192, 57, 43, 0.4);
+}
+.flow-transition button {
+  display: inline-flex;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
 .persona-modal-close {
   margin-left: auto;
   display: inline-flex;

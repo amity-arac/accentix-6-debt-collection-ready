@@ -124,6 +124,11 @@ class FlowCompanyBody(BaseModel):
     templates: dict[str, str] = {}
 
 
+class FlowSpecBody(BaseModel):
+    company: str = ""
+    spec: dict = {}
+
+
 # ---------------------------------------------------------------------------
 # NDJSON helpers
 # ---------------------------------------------------------------------------
@@ -190,6 +195,26 @@ async def flow_companies() -> JSONResponse:
 async def flow_beats() -> JSONResponse:
     """Base-flow beats for the Flow Builder form: [{fine_state, hint, example}]."""
     return JSONResponse(sessions.flow_beats())
+
+
+@app.get("/api/flow/spec")
+async def get_flow_spec(company: str = Query(...)) -> JSONResponse:
+    """A company's FlowSpec + editor vocab (catalog fine_states, tool names)."""
+    result = sessions.get_flow_spec(company)
+    if not result:
+        raise HTTPException(404, detail=f"no FlowSpec for company {company!r}")
+    return JSONResponse(result)
+
+
+@app.post("/api/flow/spec")
+async def save_flow_spec(body: FlowSpecBody) -> JSONResponse:
+    """Validate + write an edited FlowSpec (structure editor). No restart needed."""
+    try:
+        result = sessions.save_flow_spec(body.company, body.spec)
+    except Exception as e:
+        logger.exception("flow spec save failed")
+        raise HTTPException(500, detail=f"save failed: {e}")
+    return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
 @app.post("/api/flow/company")

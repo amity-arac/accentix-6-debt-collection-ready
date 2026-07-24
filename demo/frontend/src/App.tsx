@@ -6,6 +6,7 @@ import { ControlBar } from "./components/ControlBar";
 import { ResetConfirmModal } from "./components/ResetConfirmModal";
 import { PersonaPickerModal } from "./components/PersonaPickerModal";
 import { FlowBuilderModal } from "./components/FlowBuilderModal";
+import { FlowEditorModal } from "./components/FlowEditorModal";
 import { SaveDialog } from "./components/SaveDialog";
 import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
@@ -53,6 +54,7 @@ export default function App() {
   const [cases, setCases] = useState<PersonaCase[]>([]);
   const [flowCompanies, setFlowCompanies] = useState<string[]>(FLOW_COMPANIES_DEFAULT);
   const [builderOpen, setBuilderOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
   const initRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,6 +185,17 @@ export default function App() {
     },
     [setAgent, handleSelectPersona],
   );
+
+  // The flow company currently in context (drives the "Edit flow" target).
+  const currentFlowCompany =
+    state.agent === "flow" && state.caseId ? state.caseId.split("-")[1] : null;
+
+  // After the structure editor saves: rebuild the session so the new spec loads
+  // (FlowLiveSession reads the spec fresh on init).
+  const handleFlowSaved = useCallback(async () => {
+    setEditorOpen(false);
+    if (state.caseId) await handleSelectPersona(state.caseId);
+  }, [state.caseId, handleSelectPersona]);
 
   const canSave = started && state.bubbles.length > 0 && !state.busy;
 
@@ -364,6 +377,7 @@ export default function App() {
         agent={state.agent}
         onAgentChange={handleEngineChange}
         onBuildFlow={() => setBuilderOpen(true)}
+        onEditFlow={currentFlowCompany ? () => setEditorOpen(true) : undefined}
         voiceGender={state.voiceGender}
         onVoiceGenderChange={setVoiceGender}
         micState={micState}
@@ -402,6 +416,12 @@ export default function App() {
         open={builderOpen}
         onClose={() => setBuilderOpen(false)}
         onCreated={(caseId, company) => void handleFlowCreated(caseId, company)}
+      />
+      <FlowEditorModal
+        open={editorOpen}
+        company={currentFlowCompany}
+        onClose={() => setEditorOpen(false)}
+        onSaved={() => void handleFlowSaved()}
       />
       {state.streamError && (
         <div className="stream-error-banner" role="alert">

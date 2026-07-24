@@ -23,6 +23,7 @@ type Props = {
   agent: Engine;
   onAgentChange: (a: Engine) => void;
   onBuildFlow: () => void;
+  onEditFlow?: () => void;
   voiceGender: VoiceGender;
   onVoiceGenderChange: (g: VoiceGender) => void;
   micState: MicState;
@@ -51,6 +52,7 @@ export function ControlBar({
   agent,
   onAgentChange,
   onBuildFlow,
+  onEditFlow,
   voiceGender,
   onVoiceGenderChange,
   micState,
@@ -151,6 +153,17 @@ export function ControlBar({
             title="สร้างบริษัทใหม่สำหรับ flow mode"
           >
             ＋ New company
+          </button>
+        )}
+        {agent === "flow" && onEditFlow && (
+          <button
+            type="button"
+            className="btn"
+            onClick={onEditFlow}
+            disabled={starting}
+            title="แก้โครง flow (states/transitions) ของบริษัทที่เลือก"
+          >
+            Edit flow
           </button>
         )}
         <button

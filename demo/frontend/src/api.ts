@@ -171,6 +171,53 @@ export type CreateFlowResult = {
   errors?: string[];
 };
 
+// A FlowSpec is a state machine; these are the shapes the editor touches.
+export type FlowTemplateRef = { fine_state: string; when_event?: string; optional?: boolean };
+export type FlowTransition = { event: string; to: string; tools?: string[]; note?: string };
+export type FlowState = {
+  id: string;
+  phase?: string;
+  initial?: boolean;
+  terminal?: boolean;
+  templates?: FlowTemplateRef[];
+  entry_tools?: string[];
+  on?: FlowTransition[];
+  outcome?: { result: string; reasons?: string[] };
+  note?: string;
+  [k: string]: unknown;
+};
+export type FlowSpec = {
+  flow_id?: string;
+  company?: string;
+  events?: Record<string, { desc?: string; cues?: string[] }>;
+  states: FlowState[];
+  [k: string]: unknown;
+};
+export type FlowSpecData = {
+  company: string;
+  spec: FlowSpec;
+  fine_states: string[];
+  tools: string[];
+};
+
+export async function fetchFlowSpec(company: string): Promise<FlowSpecData> {
+  const resp = await fetch(`/api/flow/spec?company=${encodeURIComponent(company)}`);
+  if (!resp.ok) throw new Error(`/api/flow/spec ${resp.status}`);
+  return (await resp.json()) as FlowSpecData;
+}
+
+export async function saveFlowSpec(
+  company: string,
+  spec: FlowSpec,
+): Promise<{ ok: boolean; errors?: string[] }> {
+  const resp = await fetch("/api/flow/spec", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ company, spec }),
+  });
+  return (await resp.json()) as { ok: boolean; errors?: string[] };
+}
+
 /** Author a new flow company. 400 (validation) comes back as {ok:false, errors}. */
 export async function createFlowCompany(body: {
   company: string;

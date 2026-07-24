@@ -545,6 +545,52 @@ def flow_companies() -> list[str]:
     return list(load_flow_registry())
 
 
+def _flow_paths(company: str) -> "tuple[Any, Any]":
+    entry = load_flow_registry()[company]
+    return (REPO_ROOT / "data" / "flows" / entry["spec"],
+            REPO_ROOT / "data" / "pre-scripts" / entry["catalog"])
+
+
+def get_flow_spec(company: str) -> dict[str, Any]:
+    """Load a company's FlowSpec + the vocab the editor needs (catalog fine_states,
+    declared tool names). Returns {} if the company/spec isn't found."""
+    company = (company or "").strip().upper()
+    if company not in load_flow_registry():
+        return {}
+    spec_path, cat_path = _flow_paths(company)
+    if not spec_path.exists():
+        return {}
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    fine_states: list[str] = []
+    if cat_path.exists():
+        cat = json.loads(cat_path.read_text(encoding="utf-8"))
+        fine_states = sorted({e.get("_fine_state", "") for e in cat if e.get("_fine_state")})
+    tools = [d.get("name") for d in spec.get("tools", {}).get("declarations", [])]
+    return {"company": company, "spec": spec, "fine_states": fine_states, "tools": tools}
+
+
+def save_flow_spec(company: str, spec: dict) -> dict[str, Any]:
+    """Validate an edited FlowSpec against the company's catalog and write it.
+    No restart needed — FlowLiveSession reads the spec fresh per session."""
+    from demo.server.flow.flowspec import validate_flow_spec
+
+    company = (company or "").strip().upper()
+    reg = load_flow_registry()
+    if company not in reg:
+        return {"ok": False, "errors": [f"ไม่รู้จักบริษัท {company}"]}
+    spec_path, cat_path = _flow_paths(company)
+    catalog = json.loads(cat_path.read_text(encoding="utf-8")) if cat_path.exists() else []
+    # keep identity fields consistent with the registry
+    spec["company"] = company
+    spec.setdefault("flow_id", f"{company}-outbound-remind")
+    spec.setdefault("spec_version", 2)
+    errs, _ = validate_flow_spec(spec, catalog)
+    if errs:
+        return {"ok": False, "errors": errs[:10]}
+    spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {"ok": True, "company": company}
+
+
 # --- Flow Builder: author a new company's flow from the UI -------------------
 
 _FLOW_BASE_SPEC = REPO_ROOT / "data" / "flows" / "AEON-outbound-remind.json"
