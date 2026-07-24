@@ -79,10 +79,13 @@ export function PersonaPickerModal({
       ?.scrollIntoView({ block: "nearest" });
   }, [mounted, selectedId]);
 
-  const companies = useMemo(
-    () => COMPANY_ORDER.filter((c) => cases.some((x) => x.company === c)),
-    [cases],
-  );
+  const companies = useMemo(() => {
+    const present = [...new Set(cases.map((c) => c.company))];
+    // Known companies in fixed order, then any others (e.g. Builder-created) after.
+    const ordered = COMPANY_ORDER.filter((c) => present.includes(c));
+    const extra = present.filter((c) => c && !COMPANY_ORDER.includes(c)).sort();
+    return [...ordered, ...extra];
+  }, [cases]);
 
   const filtered = useMemo(
     () =>
