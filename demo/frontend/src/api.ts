@@ -154,7 +154,14 @@ export async function fetchFlowCompanies(): Promise<string[]> {
   return (await resp.json()) as string[];
 }
 
-export type FlowBeat = { fine_state: string; hint: string; example: string };
+export type FlowBeat = {
+  fine_state: string;
+  phase: string; // opening | main | close | faq | aux
+  label: string; // Thai description of what the line does
+  required: boolean;
+  hint: string;
+  example: string;
+};
 
 /** Base-flow beats for the Flow Builder form (fine_state + hint + AEON example). */
 export async function fetchFlowBeats(): Promise<FlowBeat[]> {

@@ -1,16 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, Wand2 } from "lucide-react";
+import { X, Wand2, Plus } from "lucide-react";
 import { fetchFlowBeats, createFlowCompany, type FlowBeat } from "../api";
 import { useMountTransition } from "../hooks/useMountTransition";
 
 const MODAL_EXIT_MS = 380;
 const BASE_COMPANY_NAME = "อิอ้อน"; // AEON name baked into the example templates
 
+// Phase → Thai section header + display order.
+const PHASE_GROUPS: { key: string; label: string }[] = [
+  { key: "opening", label: "เปิดสาย (Opening)" },
+  { key: "main", label: "คุยหลัก (Main)" },
+  { key: "close", label: "ปิดสาย (Close)" },
+  { key: "faq", label: "คำถามแทรก (FAQ)" },
+  { key: "aux", label: "ตามบริบท (Auxiliary)" },
+];
+
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** Called after a company is created — (caseId, company) so the app can jump
-   *  straight into a flow session with the new demo persona. */
   onCreated: (caseId: string, company: string) => void;
 };
 
@@ -25,7 +32,6 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
   const [saving, setSaving] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  // Load the beats once (pre-fill each with the AEON example as a starting point).
   useEffect(() => {
     if (!mounted || beats.length) return;
     void fetchFlowBeats()
@@ -44,13 +50,13 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
     () => Object.values(templates).filter((t) => t && t.trim()).length,
     [templates],
   );
+  const pct = beats.length ? Math.round((filledCount / beats.length) * 100) : 0;
+  const byPhase = (key: string) => beats.filter((b) => b.phase === key);
 
   if (!mounted) return null;
 
-  const setBeat = (fs: string, v: string) =>
-    setTemplates((t) => ({ ...t, [fs]: v }));
+  const setBeat = (fs: string, v: string) => setTemplates((t) => ({ ...t, [fs]: v }));
 
-  // Swap the baked-in AEON name for the entered company name across all beats.
   const applyName = () => {
     if (!displayName.trim()) return;
     setTemplates((t) => {
@@ -71,11 +77,8 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
         agent_name: agentName.trim(),
         templates,
       });
-      if (res.ok && res.case_id && res.company) {
-        onCreated(res.case_id, res.company);
-      } else {
-        setErrors(res.errors ?? ["สร้างไม่สำเร็จ"]);
-      }
+      if (res.ok && res.case_id && res.company) onCreated(res.case_id, res.company);
+      else setErrors(res.errors ?? ["สร้างไม่สำเร็จ"]);
     } catch (e: any) {
       setErrors([`สร้างไม่สำเร็จ: ${e?.message ?? e}`]);
     } finally {
@@ -91,10 +94,10 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
     >
       <div
         ref={dialogRef}
-        className="persona-modal flow-builder"
+        className="fx-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="flow-builder-title"
+        aria-labelledby="fx-builder-title"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
@@ -102,91 +105,131 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
           e.stopPropagation();
         }}
       >
-        <header className="persona-modal-head">
-          <h2 id="flow-builder-title" className="persona-modal-title">
-            สร้างบริษัทใหม่ (Flow)
-          </h2>
-          <span className="persona-modal-count">
-            {filledCount}/{beats.length} beats
-          </span>
-          <button
-            type="button"
-            className="persona-modal-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X size={18} aria-hidden="true" />
-          </button>
-        </header>
-
-        <p className="persona-modal-note">
-          กรอกชื่อบริษัท แล้วแก้ข้อความแต่ละจังหวะ (pre-fill ตัวอย่าง AEON ไว้ให้) —
-          จังหวะที่เว้นว่างจะถูกตัดออกจาก flow เอง กด “ใส่ชื่อบริษัทให้อัตโนมัติ” เพื่อแทน
-          “{BASE_COMPANY_NAME}” ด้วยชื่อคุณทุกช่อง
-        </p>
-
-        {errors.length > 0 && (
-          <div className="mic-error" role="alert" style={{ margin: "0 16px 8px" }}>
-            <span>{errors.join(" · ")}</span>
-          </div>
-        )}
-
-        <div className="flow-builder-meta">
-          <label>
-            รหัสบริษัท (A–Z)
-            <input
-              value={company}
-              onChange={(e) => setCompany(e.target.value.toUpperCase())}
-              placeholder="เช่น SCB"
-              maxLength={12}
-            />
-          </label>
-          <label>
-            ชื่อบริษัท (ไทย)
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="เช่น ไทยพาณิชย์"
-            />
-          </label>
-          <label>
-            ชื่อเจ้าหน้าที่ (ไทย)
-            <input
-              value={agentName}
-              onChange={(e) => setAgentName(e.target.value)}
-              placeholder="เช่น น้องเอสซีบี"
-            />
-          </label>
-          <button type="button" className="btn" onClick={applyName} disabled={!displayName.trim()}>
-            <Wand2 size={14} aria-hidden="true" /> ใส่ชื่อบริษัทให้อัตโนมัติ
+        <div className="fx-head">
+          <h2 id="fx-builder-title">สร้างบริษัทใหม่สำหรับ Flow</h2>
+          <span className="fx-step">ข้อมูลบริษัท + บทพูด</span>
+          <button className="fx-x" onClick={onClose} aria-label="Close">
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="persona-modal-body flow-builder-beats">
-          {beats.map((b) => (
-            <div key={b.fine_state} className="flow-beat">
-              <div className="flow-beat-head">
-                <code>{b.fine_state}</code>
-                <span className="flow-beat-hint">{b.hint}</span>
-              </div>
-              <textarea
-                value={templates[b.fine_state] ?? ""}
-                onChange={(e) => setBeat(b.fine_state, e.target.value)}
-                rows={2}
-                placeholder={b.example}
+        <div className="fx-body">
+          {errors.length > 0 && (
+            <div className="fx-errors" role="alert">
+              {errors.map((e, i) => (
+                <div key={i}>{e}</div>
+              ))}
+            </div>
+          )}
+
+          <div className="fx-id-grid">
+            <div className="fx-field">
+              <label>รหัส (A–Z)</label>
+              <input
+                value={company}
+                onChange={(e) => setCompany(e.target.value.toUpperCase())}
+                placeholder="SCB"
+                maxLength={12}
               />
             </div>
-          ))}
+            <div className="fx-field">
+              <label>ชื่อบริษัท (ไทย)</label>
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="ไทยพาณิชย์"
+              />
+            </div>
+            <div className="fx-field">
+              <label>ชื่อเจ้าหน้าที่</label>
+              <input
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                placeholder="น้องเอสซีบี"
+              />
+            </div>
+          </div>
+
+          <div className="fx-autofill">
+            <span>
+              ✨ กด <b>ใส่ชื่อบริษัทให้อัตโนมัติ</b> เพื่อแทน “{BASE_COMPANY_NAME}” ในทุกช่องด้วยชื่อของคุณ
+            </span>
+            <button className="fx-btn fx-mini" onClick={applyName} disabled={!displayName.trim()}>
+              <Wand2 size={13} aria-hidden="true" /> ใส่ชื่ออัตโนมัติ
+            </button>
+          </div>
+
+          <div className="fx-progress">
+            <span className="fx-n">กรอกแล้ว</span>
+            <div className="fx-bar">
+              <i style={{ width: `${pct}%` }} />
+            </div>
+            <span className="fx-n">
+              {filledCount} / {beats.length} จังหวะ
+            </span>
+          </div>
+          <p className="fx-note">
+            แก้ข้อความแต่ละจังหวะได้เลย — <b>ช่องที่เว้นว่างจะถูกตัดออกจาก flow เอง</b>
+          </p>
+
+          {PHASE_GROUPS.map((g, gi) => {
+            const items = byPhase(g.key);
+            if (!items.length) return null;
+            const filled = items.filter((b) => (templates[b.fine_state] ?? "").trim()).length;
+            return (
+              <details className="fx-phase" key={g.key} open={gi < 2}>
+                <summary>
+                  <span className="fx-caret">▶</span> {g.label}
+                  <span className="fx-cnt">
+                    {filled}/{items.length}
+                  </span>
+                </summary>
+                <div className="fx-phase-inner">
+                  {items.map((b) => {
+                    const val = templates[b.fine_state] ?? "";
+                    const isFilled = !!val.trim();
+                    return (
+                      <div className="fx-beat" key={b.fine_state}>
+                        <div className="fx-beat-top">
+                          <span className="fx-what">{b.label}</span>
+                          <code>{b.fine_state}</code>
+                          {b.required ? (
+                            <span className="fx-req">ต้องมี</span>
+                          ) : isFilled ? (
+                            <span className="fx-filled">✓ กรอกแล้ว</span>
+                          ) : (
+                            <span className="fx-empty">เว้นว่าง = ตัดออก</span>
+                          )}
+                        </div>
+                        <textarea
+                          value={val}
+                          onChange={(e) => setBeat(b.fine_state, e.target.value)}
+                          rows={2}
+                          placeholder={b.example}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
+            );
+          })}
         </div>
 
-        <div className="persona-detail-actions" style={{ padding: "12px 16px" }}>
+        <div className="fx-foot">
+          <span className="fx-foot-hint">
+            ต้องมีอย่างน้อย <b>greet_verify</b> · ที่เหลือเว้นว่างได้
+          </span>
+          <span className="fx-spacer" />
+          <button className="fx-btn fx-ghost" onClick={onClose}>
+            ยกเลิก
+          </button>
           <button
-            type="button"
-            className="btn persona-select-btn"
+            className="fx-btn fx-primary"
             onClick={() => void submit()}
             disabled={saving || !company.trim() || !displayName.trim()}
           >
-            {saving ? "กำลังสร้าง…" : "สร้าง + เล่นเลย"}
+            <Plus size={15} aria-hidden="true" /> {saving ? "กำลังสร้าง…" : "สร้าง + เล่นเลย"}
           </button>
         </div>
       </div>

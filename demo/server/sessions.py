@@ -597,36 +597,80 @@ _FLOW_BASE_SPEC = REPO_ROOT / "data" / "flows" / "AEON-outbound-remind.json"
 _FLOW_BASE_CATALOG = REPO_ROOT / "data" / "pre-scripts" / "v10_pre_script_database_parameterized.json"
 
 
-def _base_flow_bindings() -> "tuple[dict, list[str], dict]":
-    """(base_spec, ordered bound fine_states, {fine_state: hint}) from the base flow."""
+# Human-readable Thai label per beat (what the line does), for the Builder UI.
+BEAT_LABELS: dict[str, str] = {
+    "greet_verify": "ทักทาย + ยืนยันตัวตน",
+    "verify_name": "ยืนยันชื่อซ้ำ",
+    "third_party": "ไม่ใช่เจ้าตัวรับสาย",
+    "disclose_balance": "แจ้งยอดค้างชำระ",
+    "ask_pay_today": "ชวนชำระวันนี้",
+    "convince_lost_job": "โน้มน้าว (ตกงาน)",
+    "convince_sick": "โน้มน้าว (ป่วย)",
+    "convince_other": "โน้มน้าว (อื่นๆ)",
+    "probe_hardship": "ถามสาเหตุที่จ่ายไม่ได้",
+    "confirm_info": "สรุปข้อตกลง",
+    "close": "ปิดสาย",
+    "offer_callback": "เสนอโทรกลับ",
+    "apology": "ขอโทษ / ติดต่อไม่ได้",
+    "faq_caller": 'ตอบ "โทรจากไหน"',
+    "ai_disclosure": 'ตอบ "เป็นบอทไหม"',
+    "faq_hold": 'ตอบ "รอแป๊บ"',
+    "faq_repeat": 'ตอบ "พูดอีกที"',
+    "handoff_refuse": 'ตอบ "ขอคุยคนจริง"',
+    "faq_scam": 'ตอบ "มิจฉาชีพรึเปล่า"',
+    "faq_annoyed": 'ตอบ "รำคาญ / อย่าโทรมา"',
+    "offer_channel_only": 'ตอบ "จ่ายที่ไหน / ยังไง"',
+    "offer_channel": "เสนอช่องทางชำระ",
+    "faq_amount": 'ตอบ "ยอดเท่าไหร่"',
+    "faq_due": 'ตอบ "จ่ายเมื่อไหร่"',
+    "faq_wrong_name": "เรียกชื่อผิด",
+    "faq_mourning": "เจ้าของชื่อเสียชีวิต",
+    "faq_faq_referral": "นอกขอบเขต → ให้เบอร์บริษัท",
+    "other": "รับทราบกลางๆ (fallback)",
+}
+BEAT_REQUIRED = {"greet_verify"}
+
+
+def _base_flow_bindings() -> "tuple[dict, list[str], dict, dict]":
+    """(base_spec, ordered fine_states, {fs: hint}, {fs: phase}) from the base flow.
+    phase ∈ {opening, main, close, faq, aux}."""
     spec = json.loads(_FLOW_BASE_SPEC.read_text(encoding="utf-8"))
     hint: dict[str, str] = {}
+    phase: dict[str, str] = {}
     order: list[str] = []
 
-    def add(fs: str, h: str) -> None:
+    def add(fs: str, h: str, ph: str) -> None:
         if fs and fs not in hint:
             hint[fs] = h
+            phase[fs] = ph
             order.append(fs)
 
     for st in spec["states"]:
         for t in st.get("templates", []):
-            add(t["fine_state"], f"state:{st['id']} (phase {st.get('phase','?')})")
+            add(t["fine_state"], f"state:{st['id']}", st.get("phase", "main"))
     for r in spec.get("faq_routing", {}).get("routes", []):
         for t in r.get("templates", []):
-            add(t["fine_state"], f"faq:{r.get('intent')} — {r.get('desc','')}")
+            add(t["fine_state"], f"faq:{r.get('intent')} — {r.get('desc','')}", "faq")
     for t in spec.get("auxiliary_templates", {}).get("allowed", []):
-        add(t["fine_state"], "auxiliary (ตามบริบท)")
-    return spec, order, hint
+        add(t["fine_state"], "auxiliary (ตามบริบท)", "aux")
+    return spec, order, hint, phase
 
 
 def flow_beats() -> list[dict[str, Any]]:
-    """The base flow's beats for the Builder form: fine_state + hint + AEON example."""
-    _, order, hint = _base_flow_bindings()
+    """Base-flow beats for the Builder: fine_state + phase + Thai label + hint + example."""
+    _, order, hint, phase = _base_flow_bindings()
     cat = json.loads(_FLOW_BASE_CATALOG.read_text(encoding="utf-8"))
     ex: dict[str, str] = {}
     for e in cat:
         ex.setdefault(e.get("_fine_state", ""), e.get("template", ""))
-    return [{"fine_state": fs, "hint": hint[fs], "example": ex.get(fs, "")} for fs in order]
+    return [{
+        "fine_state": fs,
+        "phase": phase[fs],
+        "label": BEAT_LABELS.get(fs, fs),
+        "required": fs in BEAT_REQUIRED,
+        "hint": hint[fs],
+        "example": ex.get(fs, ""),
+    } for fs in order]
 
 
 def _strip_unbound(spec: dict, keep: set[str]) -> None:
