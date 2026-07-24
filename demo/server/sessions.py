@@ -499,10 +499,18 @@ class LiveSession:
 # aax6 research package — no aax6 dependency), so this path runs wherever the
 # demo's own venv runs, leaving the qwen/gemini product paths untouched.
 #
-# The single (spec, catalog) pair exposed is AEON outbound-remind, paired with
-# the AEON parameterized catalog it was validated against.
-FLOW_SPEC_FILE = REPO_ROOT / "data" / "flows" / "AEON-outbound-remind.json"
-FLOW_CATALOG_FILE = REPO_ROOT / "data" / "pre-scripts" / "v10_pre_script_database_parameterized.json"
+# sft_flow_v1 is company-agnostic (it follows whatever FlowSpec it's given), so
+# flow mode supports every company that has a (spec, catalog) pair. Each spec
+# shares the debt-collection "outbound-remind" structure; the catalog carries
+# the company's own templates (name, particles). AIS is intentionally absent —
+# its catalog doesn't yet cover the flow's FAQ/convince beats.
+FLOW_REGISTRY: dict[str, tuple[str, str]] = {
+    "AEON": ("AEON-outbound-remind.json", "v10_pre_script_database_parameterized.json"),
+    "JAI": ("JAI-outbound-remind.json", "v11_jai_probe_catalog.json"),
+    "KS": ("KS-outbound-remind.json", "v11_ks_probe_catalog.json"),
+}
+FLOW_COMPANIES = tuple(FLOW_REGISTRY)
+FLOW_FALLBACK_COMPANY = "AEON"
 FLOW_MODEL = os.environ.get("AAX6_FLOW_MODEL", "sft_flow_v1")
 FLOW_MAX_TOOL_LOOPS = 8
 
@@ -575,9 +583,9 @@ class FlowLiveSession:
         self._fill_template = fill_template
         self._SpecBackend = SpecBackend
 
-        # Flow mode is AEON-only (single shipped spec); honor a requested AEON
-        # persona, else fall back to the first AEON persona in the picker pool.
-        self.case_id = self._resolve_aeon_case(case_id)
+        # Resolve to a persona whose company has a FlowSpec; else fall back to
+        # the first persona of the fallback company.
+        self.case_id = self._resolve_flow_case(case_id)
         self._case = _load_test_case(self.case_id)
         self._company = self.case_id.split("-")[1]
 
@@ -588,8 +596,11 @@ class FlowLiveSession:
         cd.setdefault("today", datetime_utils.today_iso())
         self.customer_data = cd
 
-        self._spec = json.loads(FLOW_SPEC_FILE.read_text(encoding="utf-8"))
-        self._catalog = json.loads(FLOW_CATALOG_FILE.read_text(encoding="utf-8"))
+        spec_name, catalog_name = FLOW_REGISTRY[self._company]
+        self._spec = json.loads(
+            (REPO_ROOT / "data" / "flows" / spec_name).read_text(encoding="utf-8"))
+        self._catalog = json.loads(
+            (REPO_ROOT / "data" / "pre-scripts" / catalog_name).read_text(encoding="utf-8"))
         self._by_id = {e["text_id"]: e for e in self._catalog}
 
         system = self._fill_template(render_instruction(self._spec), cd, gender=self.voice_gender)
@@ -645,17 +656,20 @@ class FlowLiveSession:
     # ---- helpers ----
 
     @staticmethod
-    def _resolve_aeon_case(case_id: str) -> str:
+    def _resolve_flow_case(case_id: str) -> str:
+        """Honor the requested persona if its company has a FlowSpec; otherwise
+        fall back to the first persona of the fallback company."""
         with TEST_CASES_FILE.open(encoding="utf-8") as fh:
             cases = json.load(fh)
         ids = {c.get("id") for c in cases}
-        if case_id in ids and case_id.split("-")[1:2] == ["AEON"]:
+        parts = case_id.split("-")
+        if case_id in ids and len(parts) > 1 and parts[1] in FLOW_REGISTRY:
             return case_id
         for c in cases:
             cid = c.get("id", "")
-            if cid.split("-")[1:2] == ["AEON"]:
+            if cid.split("-")[1:2] == [FLOW_FALLBACK_COMPANY]:
                 return cid
-        raise KeyError(f"no AEON persona found in {TEST_CASES_FILE}")
+        raise KeyError(f"no {FLOW_FALLBACK_COMPANY} persona found in {TEST_CASES_FILE}")
 
     def _init_agent(self) -> None:
         self._backend = self._SpecBackend(

@@ -19,6 +19,9 @@ import * as audio from "./audio";
 
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string };
 
+// Companies with a shipped FlowSpec (must match FLOW_REGISTRY in sessions.py).
+const FLOW_COMPANIES = ["AEON", "JAI", "KS"];
+
 export default function App() {
   const {
     state,
@@ -110,18 +113,22 @@ export default function App() {
     [selectCase],
   );
 
-  // Flow mode ships only the AEON outbound-remind spec (the catalog hard-codes
-  // AEON's company name), so it always runs an AEON persona. Handle the engine
-  // toggle explicitly: entering Flow snaps to an AEON persona (so the switch is
-  // visible, not a silent server override at Start); leaving Flow restores the
-  // persona the user had before.
+  // Flow mode ships a FlowSpec per company (each carries the company's own
+  // catalog). Companies without one fall back to AEON, so handle the engine
+  // toggle explicitly: entering Flow snaps to an AEON persona ONLY if the
+  // current persona's company isn't flow-supported (so the switch is visible,
+  // not a silent server override at Start); leaving Flow restores the prior one.
+  const flowSupported = useCallback((caseId: string | null) => {
+    const parts = caseId?.split("-");
+    return !!parts && parts.length > 1 && FLOW_COMPANIES.includes(parts[1]);
+  }, []);
   const preFlowCaseIdRef = useRef<string | null>(null);
   const handleEngineChange = useCallback(
     (e: Engine) => {
       const prev = state.agent;
       setAgent(e);
       if (e === "flow" && prev !== "flow") {
-        if (state.caseId && !state.caseId.startsWith("TC-AEON-")) {
+        if (state.caseId && !flowSupported(state.caseId)) {
           preFlowCaseIdRef.current = state.caseId;
           const aeon = cases.find((c) => c.company === "AEON");
           if (aeon) void handleSelectPersona(aeon.id);
@@ -132,13 +139,15 @@ export default function App() {
         if (restore) void handleSelectPersona(restore);
       }
     },
-    [state.agent, state.caseId, cases, setAgent, handleSelectPersona],
+    [state.agent, state.caseId, cases, setAgent, handleSelectPersona, flowSupported],
   );
 
-  // While Flow is active the picker only offers AEON personas (the only spec
-  // shipped) — prevents re-introducing the silent AEON snap by picking another.
+  // While Flow is active the picker only offers flow-supported companies —
+  // prevents re-introducing the silent fallback by picking an unsupported one.
   const pickerCases =
-    state.agent === "flow" ? cases.filter((c) => c.company === "AEON") : cases;
+    state.agent === "flow"
+      ? cases.filter((c) => FLOW_COMPANIES.includes(c.company))
+      : cases;
 
   const canSave = started && state.bubbles.length > 0 && !state.busy;
 
@@ -349,7 +358,7 @@ export default function App() {
         open={personaModalOpen}
         cases={pickerCases}
         currentCaseId={state.caseId}
-        note={state.agent === "flow" ? "Flow mode runs the AEON outbound-remind flow — AEON personas only." : undefined}
+        note={state.agent === "flow" ? "Flow mode runs the outbound-remind flow — AEON, JAI, KS personas (experimental)." : undefined}
         onClose={() => setPersonaModalOpen(false)}
         onSelect={(id) => void handleSelectPersona(id)}
       />

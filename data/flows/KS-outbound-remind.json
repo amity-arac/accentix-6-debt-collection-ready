@@ -1,0 +1,926 @@
+{
+ "spec_version": 2,
+ "flow_id": "KS-outbound-remind",
+ "company": "KS",
+ "description": "FlowSpec for KS outbound-remind — adapted from the AEON flow (shared debt-collection structure), paired with the KS catalog.",
+ "role": "เลียนแบบบอทโทรจริงในโปรดักชัน (flow \"Outbound - Remind\" สกัดจาก 30,000 สาย)",
+ "sources": [
+  "data/system_instructions/pre-script/v11_communicator_instruction-AEON.md",
+  "documentation/v10-teacher-flow-map.md",
+  "src/aax6/core/backend.py"
+ ],
+ "catalog": "data/pre-scripts/v10_pre_script_database_parameterized.json",
+ "goal": "ทักทาย/ยืนยันชื่อ → แจ้งยอด → ชวนชำระวันนี้ → (ลังเล) โน้มน้าวตามเหตุ → ปิดสาย/นัด — สั้น กระชับ เหมือนคนคุยโทรศัพท์",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "amount",
+  "minimum_payment",
+  "due_date",
+  "due_status",
+  "company_phone"
+ ],
+ "events": {
+  "name_confirmed": {
+   "desc": "ลูกค้ายืนยันว่าเป็นเจ้าของชื่อ",
+   "cues": [
+    "ใช่",
+    "ครับ",
+    "ค่ะ",
+    "พูดอยู่"
+   ]
+  },
+  "no_input": {
+   "desc": "เงียบ หรือตอบไม่ชัดจนตีความไม่ได้ (NO-INPUT — ไม่ใช่การปฏิเสธ)"
+  },
+  "third_party": {
+   "desc": "คนอื่นรับสาย / ปลายสายบอกว่าไม่ใช่เจ้าของชื่อ"
+  },
+  "agrees_to_pay": {
+   "desc": "รับปากจะชำระ — วันนี้ หรือให้วันที่/จำนวน/ช่องทางมา"
+  },
+  "already_paid": {
+   "desc": "แจ้งว่าชำระไปแล้ว"
+  },
+  "hardship_lost_job": {
+   "desc": "จ่ายไม่ได้เพราะตกงาน/รายได้หด"
+  },
+  "hardship_sick": {
+   "desc": "จ่ายไม่ได้เพราะป่วย/ปัญหาสุขภาพ"
+  },
+  "hardship_other": {
+   "desc": "ลังเล/จ่ายไม่ได้ด้วยเหตุอื่น หรือปฏิเสธครั้งแรกแบบไม่ให้เหตุ"
+  },
+  "refuses": {
+   "desc": "ยังปฏิเสธ/ยืนยันจ่ายไม่ได้หลังถูกโน้มน้าวแล้ว — คำเดิมหรือคำใหม่ก็นับ"
+  },
+  "stop_signal": {
+   "desc": "สัญญาณปฏิเสธที่ต้องหยุดทันที ไม่ต้องรอครบโควตาโน้มน้าว",
+   "cues": [
+    "บอกแล้วไง",
+    "ไม่มีจริงๆ",
+    "ฟังกันบ้างไหม",
+    "พูดซ้ำสิ่งเดิมครั้งที่ 2 ด้วยน้ำเสียงรำคาญ"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "ขอเลื่อน / ขอให้โทรกลับภายหลัง"
+  },
+  "gives_new_phone": {
+   "desc": "ให้เบอร์ติดต่อใหม่"
+  },
+  "faq": {
+   "desc": "คำถาม/คำพูดแทรกระหว่างสาย — route ตาม faq_routing แล้วกลับเข้า state เดิม"
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "ไม่มี KYC ถามเลข 4 หลัก และไม่มีการโอนสายไปเจ้าหน้าที่จริง (ตามบอทจริง)"
+  ],
+  "declarations": [
+   {
+    "name": "check_account_status",
+    "impl": "check_account_status",
+    "desc": "อ่านข้อมูลบัญชี (ยอด/วันครบกำหนด/สถานะ)",
+    "args": {},
+    "gating": {
+     "after_event": "name_confirmed",
+     "required_before_state": "disclose_ask",
+     "max_calls_per_conversation": 1,
+     "note": "ห้ามเรียก turn แรกก่อนทักทาย; เรียกทันทีหลังลูกค้ายืนยันชื่อ ก่อน reply แจ้งยอดครั้งแรก"
+    }
+   },
+   {
+    "name": "record_verbal_commitment",
+    "impl": "record_verbal_commitment",
+    "desc": "บันทึกคำมั่นด้วยวาจา (amount, date, channel)",
+    "args": {
+     "amount": {
+      "type": "string"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ]
+     }
+    },
+    "gating": {
+     "must_precede": "payment_date"
+    }
+   },
+   {
+    "name": "payment_date",
+    "impl": "payment_date",
+    "desc": "บันทึกนัดชำระลง CRM",
+    "args": {
+     "last_4_digits": {
+      "type": "string",
+      "optional": true
+     },
+     "amount": {
+      "type": "number"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ]
+     }
+    },
+    "gating": {
+     "requires_prior": "record_verbal_commitment",
+     "args_must_match_commitment": true
+    }
+   },
+   {
+    "name": "callback_datetime",
+    "impl": "callback_datetime",
+    "desc": "บันทึกนัดโทรกลับ",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     }
+    }
+   },
+   {
+    "name": "get_current_datetime",
+    "impl": "get_current_datetime",
+    "desc": "ขอวันที่มาตรฐาน",
+    "args": {},
+    "gating": {
+     "required_before": "non_today_date_in_args_or_reply"
+    }
+   },
+   {
+    "name": "record_outcome",
+    "impl": "record_outcome",
+    "desc": "บันทึกผลสาย (result, reason, remark)",
+    "args": {
+     "result": {
+      "type": "string",
+      "enum": [
+       "ptp",
+       "refused",
+       "unreachable",
+       "reached",
+       "tcb",
+       "tin"
+      ]
+     },
+     "reason": {
+      "type": "string",
+      "optional": true
+     },
+     "remark": {
+      "type": "string",
+      "optional": true
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    }
+   },
+   {
+    "name": "update_phone",
+    "impl": "update_phone",
+    "desc": "บันทึกเบอร์ติดต่อใหม่",
+    "args": {
+     "number": {
+      "type": "string"
+     }
+    }
+   }
+  ],
+  "validation": {
+   "date_format": "YYYY-MM-DD (Weekday)",
+   "payment_channels": [
+    "atm",
+    "bank_transfer",
+    "branch",
+    "counter_service",
+    "mobile_app",
+    "other"
+   ],
+   "case_status_gates": {
+    "pending_review": "account_under_review",
+    "closed": "account_closed"
+   },
+   "result_codes": [
+    "ptp",
+    "refused",
+    "unreachable",
+    "reached",
+    "tcb",
+    "tin"
+   ]
+  }
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_verify"
+    }
+   ],
+   "note": "reply ทักทาย+ยืนยันชื่อก่อน ยังไม่เรียก tool ใดๆ",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "no_input",
+     "to": "verify_retry"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    }
+   ]
+  },
+  {
+   "id": "verify_retry",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "verify_name"
+    }
+   ],
+   "note": "ถามยืนยันชื่อซ้ำ — อนุญาตเฉพาะกรณี NO-INPUT เท่านั้น",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "inferred": true,
+     "note": "เงียบซ้ำรอบสอง → ปิดสาย unreachable",
+     "spec_note": "ไม่ระบุตรงๆ ใน v11 instruction; อนุมานจาก production behavior"
+    }
+   ]
+  },
+  {
+   "id": "third_party",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "third_party"
+    }
+   ],
+   "note": "คนอื่นรับสาย — ขอเบอร์/ฝากติดต่อ ห้ามเปิดเผยยอดหนี้",
+   "on": [
+    {
+     "event": "gives_new_phone",
+     "tools": [
+      "update_phone"
+     ],
+     "to": "close_unreachable"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    },
+    {
+     "event": "refuses",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "disclose_ask",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "disclose_balance"
+    },
+    {
+     "fine_state": "ask_pay_today"
+    }
+   ],
+   "note": "แจ้งยอด+ขั้นต่ำ+วันครบกำหนด (ครั้งเดียวต่อสาย) แล้วถามสะดวกชำระวันนี้ไหม — นับเป็นการขอให้จ่ายครั้งที่ 1",
+   "counts_as": "pay_ask",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "already_paid",
+     "to": "close_paid"
+    },
+    {
+     "event": "hardship_lost_job",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_sick",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_other",
+     "to": "convince"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "convince",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "convince_other",
+     "when_event": "hardship_other"
+    },
+    {
+     "fine_state": "probe_hardship",
+     "optional": true,
+     "note": "ใช้ถามอุปสรรคเมื่อเหตุไม่ชัด ก่อนเลือก convince variant"
+    }
+   ],
+   "note": "โน้มน้าวตามเหตุ ทำได้ครั้งเดียว — นับเป็นการขอให้จ่ายครั้งที่ 2 (ครั้งสุดท้าย)",
+   "counts_as": "pay_ask",
+   "max_visits": 1,
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "refuses",
+     "to": "close_refused"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "ptp_capture",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    },
+    {
+     "fine_state": "close"
+    }
+   ],
+   "entry_tools": [
+    "record_verbal_commitment",
+    "payment_date"
+   ],
+   "outcome": {
+    "result": "ptp",
+    "reasons": [
+     "ptp",
+     "minimum"
+    ]
+   },
+   "note": "จับ PTP: record_verbal_commitment→payment_date (ค่าตรงกัน) → record_outcome(ptp) → สรุปนัด+ปิดสาย; ใช้ get_current_datetime ก่อนถ้าวันที่ไม่ใช่วันนี้",
+   "terminal": true
+  },
+  {
+   "id": "close_paid",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    }
+   ],
+   "outcome": {
+    "result": "ptp",
+    "reasons": [
+     "paid"
+    ]
+   },
+   "note": "ลูกค้าแจ้งชำระแล้ว — ขอบคุณ+ปิดสาย",
+   "terminal": true,
+   "spec_note": "result ptp/paid ตาม v11 outcome mapping"
+  },
+  {
+   "id": "close_refused",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    }
+   ],
+   "outcome": {
+    "result": "refused",
+    "reasons": []
+   },
+   "note": "ครบโควตาขอให้จ่าย 2 ครั้ง หรือเจอ stop_signal → record_outcome(refused) แล้วปิดทันที ห้ามโน้มน้าวครั้งที่ 3",
+   "terminal": true
+  },
+  {
+   "id": "callback_close",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "offer_callback"
+    }
+   ],
+   "entry_tools": [
+    "callback_datetime"
+   ],
+   "outcome": {
+    "result": "tcb",
+    "reasons": [
+     "callback"
+    ],
+    "inferred": true,
+    "note": "v11 ไม่ระบุ outcome ของ callback ตรงๆ; tcb=transfer-to-callback ตาม v10 flow map"
+   },
+   "terminal": true
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    },
+    {
+     "fine_state": "apology"
+    }
+   ],
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "other_person",
+     "wrong_number",
+     "no_input"
+    ]
+   },
+   "terminal": true
+  },
+  {
+   "id": "close_confirm_info",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    }
+   ],
+   "outcome": {
+    "result": "reached",
+    "reasons": [
+     "no_input"
+    ],
+    "inferred": true,
+    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้รับข้อมูลครบถ้วนแล้ว ปิดสาย; result 'reached' อนุมาน (v11 ระบุแค่ retry_predue → close)"
+   },
+   "terminal": true,
+   "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้แจ้งข้อมูลครบถ้วนแล้ว ปิดสายสุภาพ"
+  }
+ ],
+ "faq_routing": {
+  "note": "แทรกได้จากทุก state ที่ไม่ terminal — ตอบด้วย template ที่ตรง intent แล้ว resume state เดิม (ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ) เว้นแต่ระบุ terminal",
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "โทรมาจากไหน",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "bot",
+    "desc": "เป็นบอท/AI ใช่ไหม",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "hold",
+    "desc": "สักครู่/แป๊บนึง",
+    "templates": [
+     {
+      "fine_state": "faq_hold"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "repeat",
+    "desc": "อะไรนะ/พูดอีกที",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "agent",
+    "desc": "ขอคุยกับเจ้าหน้าที่คนจริง",
+    "templates": [
+     {
+      "fine_state": "handoff_refuse"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "tcb",
+      "reasons": [
+       "agent"
+      ]
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "scam",
+    "desc": "มิจฉาชีพรึเปล่า",
+    "templates": [
+     {
+      "fine_state": "faq_scam"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "annoyed",
+    "desc": "รำคาญ/ไม่ต้องโทรมา",
+    "templates": [
+     {
+      "fine_state": "faq_annoyed"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "channel",
+    "desc": "จ่ายที่ไหน/ยังไง",
+    "templates": [
+     {
+      "fine_state": "offer_channel_only"
+     }
+    ],
+    "then": "resume",
+    "note": "ตอบช่องทางอย่างเดียว ห้ามแจ้งยอด/วันครบกำหนดซ้ำ"
+   },
+   {
+    "intent": "amount",
+    "desc": "ยอดเท่าไหร่",
+    "templates": [
+     {
+      "fine_state": "faq_amount"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "due",
+    "desc": "ต้องจ่ายเมื่อไหร่",
+    "templates": [
+     {
+      "fine_state": "faq_due"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "wrong_name",
+    "desc": "เรียกชื่อผิด",
+    "templates": [
+     {
+      "fine_state": "faq_wrong_name"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "tin",
+      "reasons": [
+       "wrong_name"
+      ]
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "mourning",
+    "desc": "เจ้าของชื่อเสียชีวิต",
+    "templates": [
+     {
+      "fine_state": "faq_mourning"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "reached",
+      "reasons": [
+       "mourning"
+      ],
+      "inferred": true,
+      "note": "v11 ระบุแค่ 'เสียใจ+บันทึก ปิดสุภาพ' — result อนุมาน"
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "out_of_scope",
+    "desc": "นอกขอบเขต: card_available/bill_missing/apply_loan/ask_balance/outstanding_balance/change_due/change_acc_owner/credit_limit/reduce_balance/check_interest/withdraw_after_paid",
+    "templates": [
+     {
+      "fine_state": "faq_faq_referral"
+     }
+    ],
+    "then": "resume",
+    "note": "แนะนำติดต่อ [company_phone] แล้วกลับเข้า flow"
+   }
+  ]
+ },
+ "auxiliary_templates": {
+  "note": "template ที่ไม่ผูกกับ state เดียว — ใช้ได้ตามบริบทใน phase ที่ตรง",
+  "allowed": [
+   {
+    "fine_state": "offer_channel",
+    "desc": "บอกช่องทางชำระประกอบการตกลงจ่าย"
+   },
+   {
+    "fine_state": "other",
+    "desc": "negotiation general-purpose"
+   },
+   {
+    "fine_state": "apology",
+    "desc": "ขออภัยตามบริบท"
+   },
+   {
+    "fine_state": "ai_disclosure",
+    "desc": "แนะนำตัวว่าเป็นระบบอัตโนมัติ เมื่อถูกถามหรือเปิดสาย"
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "max_pay_asks",
+   "type": "max_occurrences",
+   "counts": "pay_ask",
+   "max": 2,
+   "on_exceed": {
+    "to": "close_refused"
+   },
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ขอให้จ่ายได้สูงสุด 2 ครั้งต่อสาย (ask_pay_today 1 + convince 1) นับทุกเหตุผลที่ลูกค้าให้ ครบแล้วยังไม่รับปาก → refused ปิดทันที"
+  },
+  {
+   "id": "disclose_once",
+   "type": "once_per_call",
+   "template_fine_state": "disclose_balance",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่"
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ถามคำถามเดิมซ้ำได้เฉพาะกรณีลูกค้าเงียบ (NO-INPUT) เท่านั้น — การปฏิเสธ/บอกจ่ายไม่ได้คือ input ชัดเจน ห้ามถามซ้ำ"
+  },
+  {
+   "id": "no_reverify_after_confirm",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "template_fine_states": [
+    "greet_verify",
+    "verify_name"
+   ],
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ยืนยันชื่อแล้วห้ามถามชื่อซ้ำ — check_account_status แล้วแจ้งยอดทันที"
+  },
+  {
+   "id": "answered_no_repeat",
+   "type": "no_repeat_answered_request",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ลูกค้าตอบ request แล้ว (จ่ายไม่ได้/ให้วันมา/ปฏิเสธ) = เดินหน้าต่อ ห้ามยิงคำถามเดิมซ้ำ"
+  },
+  {
+   "id": "stop_signal_immediate_close",
+   "type": "immediate_transition_on",
+   "event": "stop_signal",
+   "to": "close_refused",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "เจอสัญญาณหยุด → record_outcome(refused) ปิดทันที ไม่ต้องรอครบโควตาโน้มน้าว"
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "exceptions": [
+    [
+     "disclose_balance",
+     "ask_pay_today"
+    ],
+    [
+     "confirm_info",
+     "close"
+    ]
+   ],
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "template = หนึ่ง turn เต็ม เลือก 1 อัน/turn — ห้าม chain เนื้อซ้ำ (ยกเว้นคู่ที่ระบุ)"
+  },
+  {
+   "id": "faq_resume",
+   "type": "resume_after_interrupt",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ตอบ FAQ แล้วกลับเข้า flow จากจุดเดิม — ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ"
+  },
+  {
+   "id": "outcome_required",
+   "type": "require_tool_before_end",
+   "tool": "record_outcome",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "จบสายต้อง record_outcome(result, reason, remark) เสมอ ครั้งเดียว"
+  },
+  {
+   "id": "overdue_future_ptp_is_refusal",
+   "type": "outcome_precondition",
+   "when": {
+    "crm": {
+     "due_status": "overdue"
+    },
+    "last_payment_date": "future"
+   },
+   "reject": {
+    "result": "ptp"
+   },
+   "require_instead": {
+    "result": "refused"
+   },
+   "enforce": [
+    "backend"
+   ],
+   "desc": "บัญชี overdue และวันจ่ายที่บันทึกไว้เป็นอนาคต → ระบบไม่รับ ptp ให้บันทึก refused แทน (หรือเจรจาให้ชำระวันนี้ก่อนบันทึก)",
+   "source_ref": "Miro §1.1/§3.2 — enforced in backend.record_outcome"
+  },
+  {
+   "id": "busy_voicemail_preconnection_only",
+   "type": "outcome_precondition",
+   "when": {
+    "after_tool": "check_account_status"
+   },
+   "reject": {
+    "reasons": [
+     "busy",
+     "voice_mail"
+    ]
+   },
+   "enforce": [
+    "backend"
+   ],
+   "desc": "busy/voice_mail ใช้ได้เฉพาะสายที่ไม่เคยติด — ถ้าเรียก check_account_status แล้วถือว่าสายติด ให้บันทึกตามที่เกิดจริง (reached/refused)",
+   "source_ref": "Miro §3.1 — enforced in backend.record_outcome"
+  },
+  {
+   "id": "commitment_pair",
+   "type": "tool_pair",
+   "first": "record_verbal_commitment",
+   "second": "payment_date",
+   "args_must_match": true,
+   "enforce": [
+    "backend"
+   ],
+   "desc": "payment_date ต้องมี record_verbal_commitment ค่าตรงกัน (amount/date/channel) มาก่อน ไม่งั้นถูก reject",
+   "source_ref": "3-Element Enforcer — enforced in backend.payment_date"
+  }
+ ],
+ "outcomes": {
+  "required_at_close": true,
+  "results": {
+   "ptp": {
+    "reasons": [
+     "ptp",
+     "paid",
+     "minimum"
+    ],
+    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
+   },
+   "refused": {
+    "reasons": [],
+    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
+   },
+   "unreachable": {
+    "reasons": [
+     "other_person",
+     "wrong_number",
+     "busy",
+     "voice_mail",
+     "no_input"
+    ],
+    "desc": "ไม่ถึงตัวลูกหนี้"
+   },
+   "reached": {
+    "reasons": [
+     "mourning",
+     "no_input"
+    ],
+    "desc": "ถึงตัวแต่จบแบบอื่น",
+    "inferred": true
+   },
+   "tcb": {
+    "reasons": [
+     "agent",
+     "callback"
+    ],
+    "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
+   },
+   "tin": {
+    "reasons": [
+     "wrong_name"
+    ],
+    "desc": "incorrect name"
+   }
+  }
+ }
+}
