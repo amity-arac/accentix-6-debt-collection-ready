@@ -1624,6 +1624,15 @@ button.bubble.tool-result {
 .fx-filled { color: var(--fx-ok); font-size: 11px; font-weight: 600; margin-left: auto; }
 .fx-empty { color: var(--fx-faint); font-size: 11px; margin-left: auto; }
 .fx-beat textarea { width: 100%; min-height: 42px; resize: vertical; font: inherit; font-size: 14px; color: var(--fx-ink); background: var(--fx-surface); border: 1px solid var(--fx-line2); border-radius: 8px; padding: 8px 10px; line-height: 1.4; }
+.fx-beat.fx-off { opacity: .55; }
+.fx-beat.fx-off .fx-what { text-decoration: line-through; }
+.fx-beat-x { margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--fx-faint); background: none; border: 1px solid var(--fx-line); border-radius: 999px; padding: 2px 8px; cursor: pointer; }
+.fx-beat-x:hover { color: var(--fx-danger); border-color: color-mix(in srgb, var(--fx-danger) 40%, var(--fx-line)); }
+.fx-addbeat { align-self: flex-start; border-style: dashed; }
+.fx-composer { display: flex; flex-direction: column; gap: 6px; border: 1px dashed var(--fx-line2); border-radius: 8px; padding: 10px; }
+.fx-composer input { font: inherit; font-size: 13px; color: var(--fx-ink); background: var(--fx-surface); border: 1px solid var(--fx-line2); border-radius: 6px; padding: 6px 9px; }
+.fx-composer textarea { font: inherit; font-size: 14px; color: var(--fx-ink); background: var(--fx-surface); border: 1px solid var(--fx-line2); border-radius: 6px; padding: 7px 9px; resize: vertical; line-height: 1.4; }
+.fx-composer-row { display: flex; gap: 8px; }
 
 .fx-sec-title { font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--fx-faint); margin: 20px 0 10px; display: flex; align-items: center; gap: 10px; }
 .fx-sec-title .fx-line { flex: 1; height: 1px; background: var(--fx-line); }

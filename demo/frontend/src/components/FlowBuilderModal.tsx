@@ -28,6 +28,11 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
   const [displayName, setDisplayName] = useState("");
   const [agentName, setAgentName] = useState("");
   const [templates, setTemplates] = useState<Record<string, string>>({});
+  const [excluded, setExcluded] = useState<Record<string, boolean>>({});
+  const [custom, setCustom] = useState<{ fine_state: string; phase: string; template: string }[]>([]);
+  const [composerPhase, setComposerPhase] = useState<string | null>(null);
+  const [cFs, setCFs] = useState("");
+  const [cText, setCText] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -47,15 +52,48 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
   }, [mounted]);
 
   const filledCount = useMemo(
-    () => Object.values(templates).filter((t) => t && t.trim()).length,
-    [templates],
+    () =>
+      beats.filter((b) => !excluded[b.fine_state] && (templates[b.fine_state] ?? "").trim()).length +
+      custom.length,
+    [beats, templates, excluded, custom],
   );
-  const pct = beats.length ? Math.round((filledCount / beats.length) * 100) : 0;
+  const total = beats.length + custom.length;
+  const pct = total ? Math.round((filledCount / total) * 100) : 0;
   const byPhase = (key: string) => beats.filter((b) => b.phase === key);
+  const customByPhase = (key: string) => custom.filter((c) => c.phase === key);
+  // Custom beats can only bind to states that exist in the flow (opening/main/close).
+  const CAN_ADD = new Set(["opening", "main", "close"]);
 
   if (!mounted) return null;
 
   const setBeat = (fs: string, v: string) => setTemplates((t) => ({ ...t, [fs]: v }));
+  const toggleExclude = (fs: string) => setExcluded((e) => ({ ...e, [fs]: !e[fs] }));
+
+  const openComposer = (phase: string) => {
+    setComposerPhase(phase);
+    setCFs("");
+    setCText("");
+  };
+  const addCustom = (phase: string) => {
+    const fs = cFs.trim();
+    const text = cText.trim();
+    if (!/^[a-z][a-z0-9_]*$/.test(fs)) {
+      setErrors(["ชื่อ beat ใช้ได้แค่ a-z / 0-9 / _ ขึ้นต้นด้วยตัวอักษร"]);
+      return;
+    }
+    if (!text) {
+      setErrors(["ใส่ข้อความของ beat ด้วย"]);
+      return;
+    }
+    if (beats.some((b) => b.fine_state === fs) || custom.some((c) => c.fine_state === fs)) {
+      setErrors([`มี beat ชื่อ ${fs} อยู่แล้ว`]);
+      return;
+    }
+    setErrors([]);
+    setCustom((c) => [...c, { fine_state: fs, phase, template: text }]);
+    setComposerPhase(null);
+  };
+  const removeCustom = (fs: string) => setCustom((c) => c.filter((x) => x.fine_state !== fs));
 
   const applyName = () => {
     if (!displayName.trim()) return;
@@ -71,11 +109,16 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
     setErrors([]);
     setSaving(true);
     try {
+      // Excluded beats → sent empty so the backend trims them from the flow.
+      const outTemplates = Object.fromEntries(
+        Object.entries(templates).map(([k, v]) => [k, excluded[k] ? "" : v]),
+      );
       const res = await createFlowCompany({
         company: company.trim().toUpperCase(),
         display_name: displayName.trim(),
         agent_name: agentName.trim(),
-        templates,
+        templates: outTemplates,
+        custom,
       });
       if (res.ok && res.case_id && res.company) onCreated(res.case_id, res.company);
       else setErrors(res.errors ?? ["สร้างไม่สำเร็จ"]);
@@ -165,51 +208,133 @@ export function FlowBuilderModal({ open, onClose, onCreated }: Props) {
               <i style={{ width: `${pct}%` }} />
             </div>
             <span className="fx-n">
-              {filledCount} / {beats.length} จังหวะ
+              {filledCount} / {total} จังหวะ
             </span>
           </div>
           <p className="fx-note">
-            แก้ข้อความแต่ละจังหวะได้เลย — <b>ช่องที่เว้นว่างจะถูกตัดออกจาก flow เอง</b>
+            แก้ข้อความแต่ละจังหวะ · <b>“✕ ไม่ใช้”</b> เพื่อตัดจังหวะออก · <b>“＋ เพิ่มบทเอง”</b> เพื่อสร้างบทใหม่
           </p>
 
           {PHASE_GROUPS.map((g, gi) => {
             const items = byPhase(g.key);
-            if (!items.length) return null;
-            const filled = items.filter((b) => (templates[b.fine_state] ?? "").trim()).length;
+            const customs = customByPhase(g.key);
+            const canAdd = CAN_ADD.has(g.key);
+            if (!items.length && !customs.length && !canAdd) return null;
+            const filled =
+              items.filter((b) => !excluded[b.fine_state] && (templates[b.fine_state] ?? "").trim()).length +
+              customs.length;
             return (
               <details className="fx-phase" key={g.key} open={gi < 2}>
                 <summary>
                   <span className="fx-caret">▶</span> {g.label}
                   <span className="fx-cnt">
-                    {filled}/{items.length}
+                    {filled}/{items.length + customs.length}
                   </span>
                 </summary>
                 <div className="fx-phase-inner">
                   {items.map((b) => {
                     const val = templates[b.fine_state] ?? "";
                     const isFilled = !!val.trim();
+                    const off = !!excluded[b.fine_state];
                     return (
-                      <div className="fx-beat" key={b.fine_state}>
+                      <div className={`fx-beat${off ? " fx-off" : ""}`} key={b.fine_state}>
                         <div className="fx-beat-top">
                           <span className="fx-what">{b.label}</span>
                           <code>{b.fine_state}</code>
                           {b.required ? (
                             <span className="fx-req">ต้องมี</span>
+                          ) : off ? (
+                            <span className="fx-empty">ตัดออกแล้ว</span>
                           ) : isFilled ? (
                             <span className="fx-filled">✓ กรอกแล้ว</span>
                           ) : (
                             <span className="fx-empty">เว้นว่าง = ตัดออก</span>
                           )}
+                          {!b.required && (
+                            <button
+                              type="button"
+                              className="fx-beat-x"
+                              onClick={() => toggleExclude(b.fine_state)}
+                            >
+                              {off ? "↺ ใช้" : "✕ ไม่ใช้"}
+                            </button>
+                          )}
                         </div>
-                        <textarea
-                          value={val}
-                          onChange={(e) => setBeat(b.fine_state, e.target.value)}
-                          rows={2}
-                          placeholder={b.example}
-                        />
+                        {!off && (
+                          <textarea
+                            value={val}
+                            onChange={(e) => setBeat(b.fine_state, e.target.value)}
+                            rows={2}
+                            placeholder={b.example}
+                          />
+                        )}
                       </div>
                     );
                   })}
+
+                  {customs.map((c) => (
+                    <div className="fx-beat" key={c.fine_state}>
+                      <div className="fx-beat-top">
+                        <span className="fx-what">บทที่เพิ่มเอง</span>
+                        <code>{c.fine_state}</code>
+                        <span className="fx-new">ใหม่</span>
+                        <button
+                          type="button"
+                          className="fx-beat-x"
+                          onClick={() => removeCustom(c.fine_state)}
+                        >
+                          ✕ ลบ
+                        </button>
+                      </div>
+                      <textarea
+                        value={c.template}
+                        rows={2}
+                        onChange={(e) =>
+                          setCustom((arr) =>
+                            arr.map((x) =>
+                              x.fine_state === c.fine_state ? { ...x, template: e.target.value } : x,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  ))}
+
+                  {canAdd &&
+                    (composerPhase === g.key ? (
+                      <div className="fx-composer">
+                        <input
+                          placeholder="ชื่อ beat (เช่น offer_promo)"
+                          value={cFs}
+                          onChange={(e) => setCFs(e.target.value)}
+                        />
+                        <textarea
+                          placeholder="ข้อความ (ใช้ {customer_name} {amount} {suffix} ได้)"
+                          value={cText}
+                          rows={2}
+                          onChange={(e) => setCText(e.target.value)}
+                        />
+                        <div className="fx-composer-row">
+                          <button className="fx-btn fx-mini" onClick={() => addCustom(g.key)}>
+                            เพิ่มบท
+                          </button>
+                          <button
+                            className="fx-btn fx-mini fx-ghost"
+                            onClick={() => setComposerPhase(null)}
+                          >
+                            ยกเลิก
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="fx-btn fx-mini fx-addbeat"
+                        onClick={() => openComposer(g.key)}
+                      >
+                        <Plus size={12} aria-hidden="true" /> เพิ่มบทเอง
+                      </button>
+                    ))}
                 </div>
               </details>
             );

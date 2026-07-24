@@ -122,6 +122,7 @@ class FlowCompanyBody(BaseModel):
     display_name: str = ""
     agent_name: str = ""
     templates: dict[str, str] = {}
+    custom: list[dict] = []
 
 
 class FlowSpecBody(BaseModel):
@@ -224,7 +225,7 @@ async def create_flow_company(body: FlowCompanyBody) -> JSONResponse:
     persona). Returns {ok, case_id} or {ok:False, errors:[...]} (400)."""
     try:
         result = sessions.create_flow_company(
-            body.company, body.display_name, body.agent_name, body.templates
+            body.company, body.display_name, body.agent_name, body.templates, body.custom
         )
     except Exception as e:
         logger.exception("flow company create failed")

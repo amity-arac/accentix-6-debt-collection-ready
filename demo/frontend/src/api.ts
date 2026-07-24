@@ -232,6 +232,7 @@ export async function createFlowCompany(body: {
   display_name: string;
   agent_name: string;
   templates: Record<string, string>;
+  custom?: { fine_state: string; phase: string; template: string }[];
 }): Promise<CreateFlowResult> {
   const resp = await fetch("/api/flow/company", {
     method: "POST",

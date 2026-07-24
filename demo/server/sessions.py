@@ -739,10 +739,13 @@ def _demo_persona(company: str, display_name: str, agent_name: str) -> dict[str,
 
 
 def create_flow_company(
-    company: str, display_name: str, agent_name: str, templates: dict[str, str]
+    company: str, display_name: str, agent_name: str, templates: dict[str, str],
+    custom: list[dict] | None = None,
 ) -> dict[str, Any]:
     """Author a new flow company from Builder input. Writes catalog + spec, appends
-    the registry + a demo persona. Returns {ok, case_id} or {ok:False, errors:[...]}."""
+    the registry + a demo persona. `custom` = [{fine_state, phase, template}] extra
+    beats the author added; each is written to the catalog AND bound into a state
+    of its phase. Returns {ok, case_id} or {ok:False, errors:[...]}."""
     from demo.server.flow.flowspec import validate_flow_spec
 
     company = (company or "").strip().upper()
@@ -772,11 +775,35 @@ def create_flow_company(
             })
             tid += 1
 
+    # Custom beats: add to catalog + remember for binding into the spec below.
+    seen_fs = {e["_fine_state"] for e in catalog}
+    to_bind: list[tuple[str, str]] = []  # (fine_state, phase)
+    for c in (custom or []):
+        fs = (c.get("fine_state") or "").strip()
+        text = (c.get("template") or "").strip()
+        phase = (c.get("phase") or "main").strip()
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", fs) or not text or fs in seen_fs:
+            continue
+        catalog.append({
+            "company": company, "text_id": tid, "template": text,
+            "_fine_state": fs, "intent_name": fs, "category": "A",
+            "state": fs.split("_")[0], "is_closer": False, "is_demand": False,
+            "is_acknowledgment": False, "expects_response": True,
+        })
+        seen_fs.add(fs)
+        tid += 1
+        to_bind.append((fs, phase))
+
     spec = json.loads(_FLOW_BASE_SPEC.read_text(encoding="utf-8"))
     spec["company"] = company
     spec["flow_id"] = f"{company}-outbound-remind"
     spec["description"] = f"Flow Builder — {display_name} outbound-remind (adapted from AEON base)."
-    _strip_unbound(spec, set(filled))
+    keep = set(filled) | {fs for fs, _ in to_bind}
+    _strip_unbound(spec, keep)
+    # Bind each custom beat into the first state of its phase (fallback: first state).
+    for fs, phase in to_bind:
+        st = next((s for s in spec["states"] if s.get("phase") == phase), None) or spec["states"][0]
+        st.setdefault("templates", []).append({"fine_state": fs})
 
     errs, _ = validate_flow_spec(spec, catalog)
     if errs:
