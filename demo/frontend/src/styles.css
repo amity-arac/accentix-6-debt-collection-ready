@@ -1514,6 +1514,15 @@ button.bubble.tool-result {
   text-transform: uppercase;
   letter-spacing: var(--tracking-micro);
 }
+.persona-modal-note {
+  margin: 0 var(--space-4, 16px) var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
+  background: var(--surface-sunken, rgba(127, 127, 127, 0.08));
+  border-radius: 8px;
+  line-height: 1.4;
+}
 .persona-modal-close {
   margin-left: auto;
   display: inline-flex;

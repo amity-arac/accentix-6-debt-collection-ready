@@ -10,6 +10,8 @@ type Props = {
   open: boolean;
   cases: PersonaCase[];
   currentCaseId: string | null;
+  /** Optional context line under the title (e.g. Flow mode's AEON-only note). */
+  note?: string;
   onClose: () => void;
   onSelect: (caseId: string) => void;
 };
@@ -38,6 +40,7 @@ export function PersonaPickerModal({
   open,
   cases,
   currentCaseId,
+  note,
   onClose,
   onSelect,
 }: Props) {
@@ -159,6 +162,12 @@ export function PersonaPickerModal({
             <X size={18} aria-hidden="true" />
           </button>
         </header>
+
+        {note && (
+          <p className="persona-modal-note" role="note">
+            {note}
+          </p>
+        )}
 
         <div className="persona-filters">
           <div className="persona-filter-group" role="group" aria-label="Company">

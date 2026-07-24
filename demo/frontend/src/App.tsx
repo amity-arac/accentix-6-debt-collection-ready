@@ -14,7 +14,7 @@ import { useChirpSpeech } from "./hooks/useChirpSpeech";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 import { requestMicPermission } from "./speech";
 import { isChirpSupported } from "./sttSocket";
-import { fetchCases, saveTrajectory, type PersonaCase } from "./api";
+import { fetchCases, saveTrajectory, type Engine, type PersonaCase } from "./api";
 import * as audio from "./audio";
 
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string };
@@ -24,7 +24,9 @@ export default function App() {
     state,
     start,
     setAgent,
+    setVoiceGender,
     selectCase,
+    fireOpening,
     sendUserMessage,
     reset,
     togglePause,
@@ -107,6 +109,36 @@ export default function App() {
     },
     [selectCase],
   );
+
+  // Flow mode ships only the AEON outbound-remind spec (the catalog hard-codes
+  // AEON's company name), so it always runs an AEON persona. Handle the engine
+  // toggle explicitly: entering Flow snaps to an AEON persona (so the switch is
+  // visible, not a silent server override at Start); leaving Flow restores the
+  // persona the user had before.
+  const preFlowCaseIdRef = useRef<string | null>(null);
+  const handleEngineChange = useCallback(
+    (e: Engine) => {
+      const prev = state.agent;
+      setAgent(e);
+      if (e === "flow" && prev !== "flow") {
+        if (state.caseId && !state.caseId.startsWith("TC-AEON-")) {
+          preFlowCaseIdRef.current = state.caseId;
+          const aeon = cases.find((c) => c.company === "AEON");
+          if (aeon) void handleSelectPersona(aeon.id);
+        }
+      } else if (e !== "flow" && prev === "flow") {
+        const restore = preFlowCaseIdRef.current;
+        preFlowCaseIdRef.current = null;
+        if (restore) void handleSelectPersona(restore);
+      }
+    },
+    [state.agent, state.caseId, cases, setAgent, handleSelectPersona],
+  );
+
+  // While Flow is active the picker only offers AEON personas (the only spec
+  // shipped) — prevents re-introducing the silent AEON snap by picking another.
+  const pickerCases =
+    state.agent === "flow" ? cases.filter((c) => c.company === "AEON") : cases;
 
   const canSave = started && state.bubbles.length > 0 && !state.busy;
 
@@ -202,10 +234,15 @@ export default function App() {
     : "listening";
 
   const handleStart = async () => {
-    // If the user toggled to an agent the server hasn't been rebuilt with
-    // yet, re-init so the live session is bound to the chosen LLM. Otherwise
-    // a stale auto-init session (default agent) would race the toggle.
-    if (!state.ready || state.serverAgent !== state.agent) {
+    // If the user toggled an agent OR voice the server hasn't been rebuilt with
+    // yet, re-init so the live session is bound to the chosen LLM AND the text
+    // gender matches the picked voice. Otherwise a stale auto-init session
+    // (default agent/voice) would race the toggle — e.g. male voice + ค่ะ text.
+    if (
+      !state.ready
+      || state.serverAgent !== state.agent
+      || state.serverVoiceGender !== state.voiceGender
+    ) {
       const ok = await initSession();
       if (!ok) return;
     }
@@ -225,6 +262,8 @@ export default function App() {
       }, 0);
     }
     setStarted(true);
+    // Outbound call: the bot greets first, before the caller says anything.
+    void fireOpening();
   };
 
   const handleTyped = (text: string) => {
@@ -279,7 +318,9 @@ export default function App() {
         startError={startError}
         onStart={handleStart}
         agent={state.agent}
-        onAgentChange={setAgent}
+        onAgentChange={handleEngineChange}
+        voiceGender={state.voiceGender}
+        onVoiceGenderChange={setVoiceGender}
         micState={micState}
         micSupported={mic.supported}
         micError={mic.error}
@@ -301,13 +342,14 @@ export default function App() {
         onCancel={() => setResetModalOpen(false)}
         onConfirm={() => {
           setResetModalOpen(false);
-          void reset();
+          void reset().then(() => fireOpening());  // fresh call → bot greets first
         }}
       />
       <PersonaPickerModal
         open={personaModalOpen}
-        cases={cases}
+        cases={pickerCases}
         currentCaseId={state.caseId}
+        note={state.agent === "flow" ? "Flow mode runs the AEON outbound-remind flow — AEON personas only." : undefined}
         onClose={() => setPersonaModalOpen(false)}
         onSelect={(id) => void handleSelectPersona(id)}
       />
@@ -333,7 +375,7 @@ export default function App() {
       {state.done && (
         <EndOfCallCard
           onRestart={() => {
-            void reset();
+            void reset().then(() => fireOpening());  // fresh call → bot greets first
           }}
           onSave={() => setSaveOpen(true)}
           saving={saveState.phase === "saving"}
