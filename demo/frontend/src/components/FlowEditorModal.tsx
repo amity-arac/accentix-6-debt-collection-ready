@@ -76,6 +76,11 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const [newEvent, setNewEvent] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  // Beat composer (per selected node). MUST be declared before any early return
+  // so the hook order stays stable.
+  const [beatMode, setBeatMode] = useState(false);
+  const [bFs, setBFs] = useState("");
+  const [bText, setBText] = useState("");
   const idc = useRef(0);
   const nid = () => `n${idc.current++}`;
 
@@ -171,9 +176,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
     setEdges((es) => es.filter((e) => e.data?.event !== ev));
   };
 
-  // beats composer (per selected node)
-  const [beatMode, setBeatMode] = useState(false);
-  const [bFs, setBFs] = useState(""); const [bText, setBText] = useState("");
+  // beats composer helpers (state declared above, before the early return)
   const addExistingBeat = (id: string, fs: string) =>
     patchNode(id, (d) => (d.beats.includes(fs) ? d : { ...d, beats: [...d.beats, fs] }));
   const createBeat = (id: string) => {
