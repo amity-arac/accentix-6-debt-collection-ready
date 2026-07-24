@@ -763,7 +763,7 @@ def create_flow_company(
     if "greet_verify" not in filled:
         return {"ok": False, "errors": ["ต้องมีอย่างน้อย greet_verify (ประโยคเปิดสาย)"]}
 
-    _, order, _ = _base_flow_bindings()
+    _, order, _, _ = _base_flow_bindings()
     catalog, tid = [], 1000
     for fs in order:
         if fs in filled:
