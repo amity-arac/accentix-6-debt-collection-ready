@@ -1578,6 +1578,9 @@ button.bubble.tool-result {
 .fx-x { margin-left: auto; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid var(--fx-line); background: var(--fx-surface); color: var(--fx-ink); cursor: pointer; }
 
 .fx-body { flex: 1 1 auto; min-height: 0; padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; color: var(--fx-ink); }
+/* Body is a flex column; without this its children compress to fit (diagram
+   collapses to a sliver, state cards to empty bars) instead of scrolling. */
+.fx-body > * { flex-shrink: 0; }
 .fx-foot { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-top: 1px solid var(--fx-line); background: var(--fx-sunken); flex-shrink: 0; }
 .fx-foot-hint { font-size: 12px; color: var(--fx-faint); }
 .fx-spacer { flex: 1; }
