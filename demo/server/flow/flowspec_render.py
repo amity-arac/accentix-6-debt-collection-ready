@@ -105,13 +105,13 @@ def render_instruction(spec: dict) -> str:
     crm = ["## ข้อมูลลูกค้า (CRM Snapshot)"]
     for field in spec.get("crm_fields", []):
         label = _CRM_LABELS.get(field, field)
-        crm.append(f"- **{label}:** [{field}]")
+        crm.append(f"- **{label}:** {{{field}}}")
     sec.append("\n".join(crm))
 
     # --- reply format + tools ---
     fmt = [
         "## วิธีตอบ (Reply Format)",
-        "ตอบลูกค้าโดยเรียก `reply(text_ids=[...])` เลือกจาก **Available Pre-Scripts** ที่ระบบต่อท้ายให้เท่านั้น — **ห้ามสร้างข้อความอิสระ** ระบบเติม slot ([customer_name]/[amount]/...) อัตโนมัติ",
+        "ตอบลูกค้าโดยเรียก `reply(text_ids=[...])` เลือกจาก **Available Pre-Scripts** ที่ระบบต่อท้ายให้เท่านั้น — **ห้ามสร้างข้อความอิสระ** ระบบเติม slot ({customer_name}/{amount}/...) อัตโนมัติ",
         "",
         "**เครื่องมือ silent (ไม่มีข้อความถึงลูกค้า — เรียกก่อน `reply`):**",
     ]

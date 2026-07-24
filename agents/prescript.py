@@ -1,11 +1,41 @@
 """Shared pre-script utilities: template filling and script catalog building."""
 
+import hashlib
 import logging
 import re
 
 from simulator import datetime_utils
 
 logger = logging.getLogger(__name__)
+
+# Render-time gender substitution (v10_pre_script_database_parameterized.json).
+# Templates carry {suffix}/{q_suffix}/{pronoun} placeholders instead of a
+# baked-in ครับ/ค่ะ/ผม/ดิฉัน — the SAME template produces both genders, so the
+# model never chooses a gendered text_id and gender-mixing is structurally
+# impossible. No-op on the older fully-duplicated catalog.
+GENDER_SUFFIXES = {
+    "M": {"suffix": "ครับ", "q_suffix": "ครับ", "pronoun": "ผม"},
+    "F": {"suffix": "ค่ะ", "q_suffix": "คะ", "pronoun": "ดิฉัน"},
+}
+
+
+def locked_gender_for_case(case_id: str) -> str:
+    """Deterministic per-case gender lock: same case_id always renders the same
+    gender. Purely a consistent-voice choice for the synthetic agent."""
+    return "M" if int(hashlib.md5(case_id.encode()).hexdigest(), 16) % 2 == 0 else "F"
+
+
+def render_gender(template: str, gender: str) -> str:
+    """Substitute {suffix}/{q_suffix}/{pronoun} placeholders. No-op if the
+    template has none (the older fully-duplicated catalog)."""
+    if not any(p in template for p in ("{suffix}", "{q_suffix}", "{pronoun}")):
+        return template
+    values = GENDER_SUFFIXES.get(gender, GENDER_SUFFIXES["M"])
+    # Targeted replace (NOT str.format) — data placeholders are now also {curly}
+    # ({customer_name}, {amount}, …) and .format() would choke on them.
+    for key, val in values.items():
+        template = template.replace("{" + key + "}", val)
+    return template
 
 
 class DateFormatError(ValueError):
@@ -233,6 +263,7 @@ def fill_template(
     agent_context_data: dict,
     dynamic_vars: dict | None = None,
     strict_dates: bool = False,
+    gender: str | None = None,
 ) -> str:
     """Replace [placeholder] tokens and resolve {{if field}}...{{/if}} conditional blocks.
 
@@ -245,8 +276,12 @@ def fill_template(
     are validated against the canonical ISO format and rendered to natural
     Thai. Malformed values raise DateFormatError, which the reply tool handler
     converts to `{sent: False, reason: "date_format_invalid", ...}`.
+
+    `gender` resolves {suffix}/{q_suffix}/{pronoun} placeholders (parameterized
+    catalog only). Defaults to "M" if templates need it but none supplied.
     """
     dynamic_vars = dynamic_vars or {}
+    template = render_gender(template, gender or "M")
 
     # Pass 1: resolve conditional blocks. SYSTEM check first, DYNAMIC second.
     def resolve_conditional(match: re.Match) -> str:
@@ -313,6 +348,11 @@ def fill_template(
         return match.group(0)
 
     result = re.sub(r"\[([^\]]+)\]", replacer, result)
+    # Pass 2b: same substitution for {placeholder} tokens, so templates can use a
+    # single brace style. Runs after render_gender ({suffix}/{q_suffix}/{pronoun}
+    # are already resolved) and after {{if}} conditionals, so only data/dynamic
+    # placeholders remain. Backward compatible — [placeholder] still works above.
+    result = re.sub(r"\{([^{}]+)\}", replacer, result)
 
     # Pass 3: normalize whitespace from removed blocks.
     return re.sub(r" {2,}", " ", result).strip()
