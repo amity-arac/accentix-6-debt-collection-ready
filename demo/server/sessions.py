@@ -120,13 +120,27 @@ class ReplaySession:
 # ---------------------------------------------------------------------------
 
 
-def _load_test_case(case_id: str) -> dict[str, Any]:
+# Personas created at runtime by the Flow Builder land here (kept out of the
+# shipped personas_data.json). Merged into the picker + case lookups.
+BUILDER_CASES_FILE = REPO_ROOT / "data" / "test-cases" / "_builder_personas.json"
+
+
+def _all_cases() -> list[dict[str, Any]]:
     with TEST_CASES_FILE.open(encoding="utf-8") as fh:
         cases = json.load(fh)
-    for case in cases:
+    if BUILDER_CASES_FILE.exists():
+        try:
+            cases = cases + json.loads(BUILDER_CASES_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return cases
+
+
+def _load_test_case(case_id: str) -> dict[str, Any]:
+    for case in _all_cases():
         if case.get("id") == case_id:
             return case
-    raise KeyError(f"case_id {case_id!r} not found in {TEST_CASES_FILE}")
+    raise KeyError(f"case_id {case_id!r} not found")
 
 
 # Display fields lifted verbatim from each case's `customer_data` for the picker.
@@ -175,12 +189,9 @@ def _persona_summary(case: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
-@functools.lru_cache(maxsize=1)
 def list_cases() -> list[dict[str, Any]]:
-    """All personas as flat picker rows. Cached — the source file is static."""
-    with TEST_CASES_FILE.open(encoding="utf-8") as fh:
-        cases = json.load(fh)
-    return [_persona_summary(c) for c in cases]
+    """All personas as flat picker rows (shipped pool + any Builder-created)."""
+    return [_persona_summary(c) for c in _all_cases()]
 
 
 def normalize_live_hops(reply_result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -503,16 +514,181 @@ class LiveSession:
 # flow mode supports every company that has a (spec, catalog) pair. Each spec
 # shares the debt-collection "outbound-remind" structure; the catalog carries
 # the company's own templates (name, particles).
-FLOW_REGISTRY: dict[str, tuple[str, str]] = {
-    "AEON": ("AEON-outbound-remind.json", "v10_pre_script_database_parameterized.json"),
-    "JAI": ("JAI-outbound-remind.json", "v11_jai_probe_catalog.json"),
-    "KS": ("KS-outbound-remind.json", "v11_ks_probe_catalog.json"),
-    "AIS": ("AIS-outbound-remind.json", "v11_ais_probe_catalog.json"),
+# The registry is file-backed so the Flow Builder can add companies at runtime
+# (write files + append here) without a code change or redeploy. The built-in
+# defaults seed it / act as a fallback if the file is missing.
+FLOW_REGISTRY_FILE = REPO_ROOT / "data" / "flows" / "flow_registry.json"
+_FLOW_REGISTRY_DEFAULT: dict[str, dict[str, str]] = {
+    "AEON": {"spec": "AEON-outbound-remind.json", "catalog": "v10_pre_script_database_parameterized.json"},
+    "JAI": {"spec": "JAI-outbound-remind.json", "catalog": "v11_jai_probe_catalog.json"},
+    "KS": {"spec": "KS-outbound-remind.json", "catalog": "v11_ks_probe_catalog.json"},
+    "AIS": {"spec": "AIS-outbound-remind.json", "catalog": "v11_ais_probe_catalog.json"},
 }
-FLOW_COMPANIES = tuple(FLOW_REGISTRY)
 FLOW_FALLBACK_COMPANY = "AEON"
 FLOW_MODEL = os.environ.get("AAX6_FLOW_MODEL", "sft_flow_v1")
 FLOW_MAX_TOOL_LOOPS = 8
+
+
+def load_flow_registry() -> dict[str, dict[str, str]]:
+    """company -> {spec, catalog, [display_name]}. File-backed; falls back to the
+    built-in defaults (and merges them in so shipped companies always resolve)."""
+    reg = dict(_FLOW_REGISTRY_DEFAULT)
+    if FLOW_REGISTRY_FILE.exists():
+        try:
+            reg.update(json.loads(FLOW_REGISTRY_FILE.read_text(encoding="utf-8")))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return reg
+
+
+def flow_companies() -> list[str]:
+    return list(load_flow_registry())
+
+
+# --- Flow Builder: author a new company's flow from the UI -------------------
+
+_FLOW_BASE_SPEC = REPO_ROOT / "data" / "flows" / "AEON-outbound-remind.json"
+_FLOW_BASE_CATALOG = REPO_ROOT / "data" / "pre-scripts" / "v10_pre_script_database_parameterized.json"
+
+
+def _base_flow_bindings() -> "tuple[dict, list[str], dict]":
+    """(base_spec, ordered bound fine_states, {fine_state: hint}) from the base flow."""
+    spec = json.loads(_FLOW_BASE_SPEC.read_text(encoding="utf-8"))
+    hint: dict[str, str] = {}
+    order: list[str] = []
+
+    def add(fs: str, h: str) -> None:
+        if fs and fs not in hint:
+            hint[fs] = h
+            order.append(fs)
+
+    for st in spec["states"]:
+        for t in st.get("templates", []):
+            add(t["fine_state"], f"state:{st['id']} (phase {st.get('phase','?')})")
+    for r in spec.get("faq_routing", {}).get("routes", []):
+        for t in r.get("templates", []):
+            add(t["fine_state"], f"faq:{r.get('intent')} — {r.get('desc','')}")
+    for t in spec.get("auxiliary_templates", {}).get("allowed", []):
+        add(t["fine_state"], "auxiliary (ตามบริบท)")
+    return spec, order, hint
+
+
+def flow_beats() -> list[dict[str, Any]]:
+    """The base flow's beats for the Builder form: fine_state + hint + AEON example."""
+    _, order, hint = _base_flow_bindings()
+    cat = json.loads(_FLOW_BASE_CATALOG.read_text(encoding="utf-8"))
+    ex: dict[str, str] = {}
+    for e in cat:
+        ex.setdefault(e.get("_fine_state", ""), e.get("template", ""))
+    return [{"fine_state": fs, "hint": hint[fs], "example": ex.get(fs, "")} for fs in order]
+
+
+def _strip_unbound(spec: dict, keep: set[str]) -> None:
+    """Drop template bindings whose fine_state isn't in `keep` (so the spec stays
+    valid when the author leaves some beats blank)."""
+    for st in spec["states"]:
+        st["templates"] = [t for t in st.get("templates", []) if t.get("fine_state") in keep]
+    for r in spec.get("faq_routing", {}).get("routes", []):
+        r["templates"] = [t for t in r.get("templates", []) if t.get("fine_state") in keep]
+    aux = spec.get("auxiliary_templates", {})
+    if "allowed" in aux:
+        aux["allowed"] = [t for t in aux["allowed"] if t.get("fine_state") in keep]
+
+
+def _demo_persona(company: str, display_name: str, agent_name: str) -> dict[str, Any]:
+    cid = f"TC-{company}-BUILD-001"
+    cd = {
+        "customer_name": "คุณสมมติ ทดสอบระบบ",
+        "loan_type": "สินเชื่อ",
+        "total_amount_due": 30000,
+        "minimum_payment_due": 3000,
+        "due_date": "2026-05-15 (Thursday)",
+        "due_status": "overdue",
+        "customer_phone": "081-234-5678",
+        "msisdn": "081-234-5678",
+        "last_4_digits": "1234",
+        "case_status": "normal",
+        "case_status_note": None,
+        "company_name": display_name,
+        "agent_name": agent_name,
+    }
+    return {
+        "id": cid, "topic": f"{display_name} — flow demo persona", "eval_track": "Track_A",
+        "patience": 3, "was_flipped": False, "customer_data": cd,
+        "user_system_prompt": (
+            f"<persona>ลูกค้าของ{display_name} ที่มียอดค้างชำระ</persona>\n"
+            "<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n"
+            "<constraints>คุยตามธรรมชาติ</constraints>"
+        ),
+    }
+
+
+def create_flow_company(
+    company: str, display_name: str, agent_name: str, templates: dict[str, str]
+) -> dict[str, Any]:
+    """Author a new flow company from Builder input. Writes catalog + spec, appends
+    the registry + a demo persona. Returns {ok, case_id} or {ok:False, errors:[...]}."""
+    from demo.server.flow.flowspec import validate_flow_spec
+
+    company = (company or "").strip().upper()
+    display_name = (display_name or "").strip()
+    agent_name = (agent_name or "").strip() or display_name
+    if not re.fullmatch(r"[A-Z][A-Z0-9]{1,11}", company):
+        return {"ok": False, "errors": ["company code ต้องเป็น A-Z/0-9 (ขึ้นต้นด้วยตัวอักษร) 2–12 ตัว"]}
+    if company in load_flow_registry():
+        return {"ok": False, "errors": [f"บริษัท {company} มีอยู่แล้ว"]}
+    if not display_name:
+        return {"ok": False, "errors": ["ต้องระบุชื่อบริษัท (display name)"]}
+
+    # keep only beats the author filled in
+    filled = {fs: t.strip() for fs, t in (templates or {}).items() if t and t.strip()}
+    if "greet_verify" not in filled:
+        return {"ok": False, "errors": ["ต้องมีอย่างน้อย greet_verify (ประโยคเปิดสาย)"]}
+
+    _, order, _ = _base_flow_bindings()
+    catalog, tid = [], 1000
+    for fs in order:
+        if fs in filled:
+            catalog.append({
+                "company": company, "text_id": tid, "template": filled[fs],
+                "_fine_state": fs, "intent_name": fs, "category": "A",
+                "state": fs.split("_")[0], "is_closer": False, "is_demand": False,
+                "is_acknowledgment": False, "expects_response": True,
+            })
+            tid += 1
+
+    spec = json.loads(_FLOW_BASE_SPEC.read_text(encoding="utf-8"))
+    spec["company"] = company
+    spec["flow_id"] = f"{company}-outbound-remind"
+    spec["description"] = f"Flow Builder — {display_name} outbound-remind (adapted from AEON base)."
+    _strip_unbound(spec, set(filled))
+
+    errs, _ = validate_flow_spec(spec, catalog)
+    if errs:
+        return {"ok": False, "errors": errs[:8]}
+
+    spec_name = f"{company}-outbound-remind.json"
+    catalog_name = f"{company.lower()}_builder_catalog.json"
+    (REPO_ROOT / "data" / "flows" / spec_name).write_text(
+        json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
+    (REPO_ROOT / "data" / "pre-scripts" / catalog_name).write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    reg = load_flow_registry()
+    reg[company] = {"spec": spec_name, "catalog": catalog_name, "display_name": display_name}
+    FLOW_REGISTRY_FILE.write_text(json.dumps(reg, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    persona = _demo_persona(company, display_name, agent_name)
+    existing = []
+    if BUILDER_CASES_FILE.exists():
+        try:
+            existing = json.loads(BUILDER_CASES_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            existing = []
+    existing = [c for c in existing if c.get("id") != persona["id"]] + [persona]
+    BUILDER_CASES_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    return {"ok": True, "company": company, "case_id": persona["id"], "beats": len(catalog)}
 
 
 def _flow_reply_schema(valid_text_ids: list[int]) -> dict:
@@ -596,11 +772,11 @@ class FlowLiveSession:
         cd.setdefault("today", datetime_utils.today_iso())
         self.customer_data = cd
 
-        spec_name, catalog_name = FLOW_REGISTRY[self._company]
+        entry = load_flow_registry()[self._company]
         self._spec = json.loads(
-            (REPO_ROOT / "data" / "flows" / spec_name).read_text(encoding="utf-8"))
+            (REPO_ROOT / "data" / "flows" / entry["spec"]).read_text(encoding="utf-8"))
         self._catalog = json.loads(
-            (REPO_ROOT / "data" / "pre-scripts" / catalog_name).read_text(encoding="utf-8"))
+            (REPO_ROOT / "data" / "pre-scripts" / entry["catalog"]).read_text(encoding="utf-8"))
         self._by_id = {e["text_id"]: e for e in self._catalog}
 
         system = self._fill_template(render_instruction(self._spec), cd, gender=self.voice_gender)
@@ -659,17 +835,17 @@ class FlowLiveSession:
     def _resolve_flow_case(case_id: str) -> str:
         """Honor the requested persona if its company has a FlowSpec; otherwise
         fall back to the first persona of the fallback company."""
-        with TEST_CASES_FILE.open(encoding="utf-8") as fh:
-            cases = json.load(fh)
+        registry = load_flow_registry()
+        cases = _all_cases()
         ids = {c.get("id") for c in cases}
         parts = case_id.split("-")
-        if case_id in ids and len(parts) > 1 and parts[1] in FLOW_REGISTRY:
+        if case_id in ids and len(parts) > 1 and parts[1] in registry:
             return case_id
         for c in cases:
             cid = c.get("id", "")
             if cid.split("-")[1:2] == [FLOW_FALLBACK_COMPANY]:
                 return cid
-        raise KeyError(f"no {FLOW_FALLBACK_COMPANY} persona found in {TEST_CASES_FILE}")
+        raise KeyError(f"no {FLOW_FALLBACK_COMPANY} persona found")
 
     def _init_agent(self) -> None:
         self._backend = self._SpecBackend(

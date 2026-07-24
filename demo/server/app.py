@@ -117,6 +117,13 @@ class SaveBody(BaseModel):
     comment: str = ""
 
 
+class FlowCompanyBody(BaseModel):
+    company: str = ""
+    display_name: str = ""
+    agent_name: str = ""
+    templates: dict[str, str] = {}
+
+
 # ---------------------------------------------------------------------------
 # NDJSON helpers
 # ---------------------------------------------------------------------------
@@ -169,9 +176,34 @@ async def _stream_turn(session: sessions.Session, msg: str) -> AsyncIterator[byt
 
 @app.get("/api/cases")
 async def list_cases() -> JSONResponse:
-    """All available personas as flat picker rows (id, company, topic, account
-    facts, parsed persona/situation/constraints). Static; cached server-side."""
+    """All available personas as flat picker rows (shipped pool + Builder-created)."""
     return JSONResponse(sessions.list_cases())
+
+
+@app.get("/api/flow/companies")
+async def flow_companies() -> JSONResponse:
+    """Company codes that have a FlowSpec (drives the frontend's flow-supported set)."""
+    return JSONResponse(sessions.flow_companies())
+
+
+@app.get("/api/flow/beats")
+async def flow_beats() -> JSONResponse:
+    """Base-flow beats for the Flow Builder form: [{fine_state, hint, example}]."""
+    return JSONResponse(sessions.flow_beats())
+
+
+@app.post("/api/flow/company")
+async def create_flow_company(body: FlowCompanyBody) -> JSONResponse:
+    """Author a new flow company (writes catalog+spec, registers, adds a demo
+    persona). Returns {ok, case_id} or {ok:False, errors:[...]} (400)."""
+    try:
+        result = sessions.create_flow_company(
+            body.company, body.display_name, body.agent_name, body.templates
+        )
+    except Exception as e:
+        logger.exception("flow company create failed")
+        raise HTTPException(500, detail=f"create failed: {e}")
+    return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
 @app.get("/api/session")

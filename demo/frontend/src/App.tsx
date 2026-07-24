@@ -5,6 +5,7 @@ import { ChatStream } from "./components/ChatStream";
 import { ControlBar } from "./components/ControlBar";
 import { ResetConfirmModal } from "./components/ResetConfirmModal";
 import { PersonaPickerModal } from "./components/PersonaPickerModal";
+import { FlowBuilderModal } from "./components/FlowBuilderModal";
 import { SaveDialog } from "./components/SaveDialog";
 import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
@@ -14,13 +15,19 @@ import { useChirpSpeech } from "./hooks/useChirpSpeech";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 import { requestMicPermission } from "./speech";
 import { isChirpSupported } from "./sttSocket";
-import { fetchCases, saveTrajectory, type Engine, type PersonaCase } from "./api";
+import {
+  fetchCases,
+  fetchFlowCompanies,
+  saveTrajectory,
+  type Engine,
+  type PersonaCase,
+} from "./api";
 import * as audio from "./audio";
 
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string };
 
-// Companies with a shipped FlowSpec (must match FLOW_REGISTRY in sessions.py).
-const FLOW_COMPANIES = ["AEON", "JAI", "KS", "AIS"];
+// Fallback flow-supported companies until /api/flow/companies responds.
+const FLOW_COMPANIES_DEFAULT = ["AEON", "JAI", "KS", "AIS"];
 
 export default function App() {
   const {
@@ -44,6 +51,8 @@ export default function App() {
   const [personaModalOpen, setPersonaModalOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [cases, setCases] = useState<PersonaCase[]>([]);
+  const [flowCompanies, setFlowCompanies] = useState<string[]>(FLOW_COMPANIES_DEFAULT);
+  const [builderOpen, setBuilderOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
   const initRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,6 +101,13 @@ export default function App() {
       .catch(() => {
         /* picker degrades to empty; default session unaffected */
       });
+    void fetchFlowCompanies()
+      .then((cos) => {
+        if (!cancelled && cos.length) setFlowCompanies(cos);
+      })
+      .catch(() => {
+        /* keep the default flow-supported set */
+      });
     return () => {
       cancelled = true;
     };
@@ -118,10 +134,13 @@ export default function App() {
   // toggle explicitly: entering Flow snaps to an AEON persona ONLY if the
   // current persona's company isn't flow-supported (so the switch is visible,
   // not a silent server override at Start); leaving Flow restores the prior one.
-  const flowSupported = useCallback((caseId: string | null) => {
-    const parts = caseId?.split("-");
-    return !!parts && parts.length > 1 && FLOW_COMPANIES.includes(parts[1]);
-  }, []);
+  const flowSupported = useCallback(
+    (caseId: string | null) => {
+      const parts = caseId?.split("-");
+      return !!parts && parts.length > 1 && flowCompanies.includes(parts[1]);
+    },
+    [flowCompanies],
+  );
   const preFlowCaseIdRef = useRef<string | null>(null);
   const handleEngineChange = useCallback(
     (e: Engine) => {
@@ -146,8 +165,24 @@ export default function App() {
   // prevents re-introducing the silent fallback by picking an unsupported one.
   const pickerCases =
     state.agent === "flow"
-      ? cases.filter((c) => FLOW_COMPANIES.includes(c.company))
+      ? cases.filter((c) => flowCompanies.includes(c.company))
       : cases;
+
+  // After the Builder creates a company: refresh companies + personas, switch to
+  // Flow, and jump into the new demo persona so it's immediately playable.
+  const handleFlowCreated = useCallback(
+    async (caseId: string, _company: string) => {
+      setBuilderOpen(false);
+      await Promise.all([
+        fetchFlowCompanies().then((c) => c.length && setFlowCompanies(c)).catch(() => {}),
+        fetchCases().then(setCases).catch(() => {}),
+      ]);
+      setAgent("flow");
+      preFlowCaseIdRef.current = null; // don't restore a prior persona
+      await handleSelectPersona(caseId);
+    },
+    [setAgent, handleSelectPersona],
+  );
 
   const canSave = started && state.bubbles.length > 0 && !state.busy;
 
@@ -328,6 +363,7 @@ export default function App() {
         onStart={handleStart}
         agent={state.agent}
         onAgentChange={handleEngineChange}
+        onBuildFlow={() => setBuilderOpen(true)}
         voiceGender={state.voiceGender}
         onVoiceGenderChange={setVoiceGender}
         micState={micState}
@@ -361,6 +397,11 @@ export default function App() {
         note={state.agent === "flow" ? "Flow mode runs the outbound-remind flow — all companies (experimental)." : undefined}
         onClose={() => setPersonaModalOpen(false)}
         onSelect={(id) => void handleSelectPersona(id)}
+      />
+      <FlowBuilderModal
+        open={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        onCreated={(caseId, company) => void handleFlowCreated(caseId, company)}
       />
       {state.streamError && (
         <div className="stream-error-banner" role="alert">

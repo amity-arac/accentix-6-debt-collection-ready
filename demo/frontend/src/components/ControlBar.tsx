@@ -22,6 +22,7 @@ type Props = {
   onStart: () => void;
   agent: Engine;
   onAgentChange: (a: Engine) => void;
+  onBuildFlow: () => void;
   voiceGender: VoiceGender;
   onVoiceGenderChange: (g: VoiceGender) => void;
   micState: MicState;
@@ -49,6 +50,7 @@ export function ControlBar({
   onStart,
   agent,
   onAgentChange,
+  onBuildFlow,
   voiceGender,
   onVoiceGenderChange,
   micState,
@@ -140,6 +142,17 @@ export function ControlBar({
             Male
           </button>
         </div>
+        {agent === "flow" && (
+          <button
+            type="button"
+            className="btn"
+            onClick={onBuildFlow}
+            disabled={starting}
+            title="สร้างบริษัทใหม่สำหรับ flow mode"
+          >
+            ＋ New company
+          </button>
+        )}
         <button
           className="btn start"
           onClick={onStart}

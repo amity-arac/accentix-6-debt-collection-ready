@@ -1523,6 +1523,73 @@ button.bubble.tool-result {
   border-radius: 8px;
   line-height: 1.4;
 }
+
+/* --- Flow Builder modal --- */
+.persona-modal.flow-builder {
+  max-width: 720px;
+  width: 92vw;
+}
+.flow-builder-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  align-items: flex-end;
+  padding: 0 var(--space-4, 16px) var(--space-2, 8px);
+}
+.flow-builder-meta label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
+  flex: 1 1 150px;
+}
+.flow-builder-meta input {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+  background: var(--surface, transparent);
+  color: inherit;
+  font-size: var(--fs-body, 14px);
+}
+.flow-builder-beats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  overflow-y: auto;
+}
+.flow-beat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.flow-beat-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.flow-beat-head code {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+}
+.flow-beat-hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
+}
+.flow-beat textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.3));
+  background: var(--surface, transparent);
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--fs-body, 14px);
+  line-height: 1.4;
+}
 .persona-modal-close {
   margin-left: auto;
   display: inline-flex;

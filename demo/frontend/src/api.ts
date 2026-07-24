@@ -147,6 +147,45 @@ export async function fetchCases(): Promise<PersonaCase[]> {
   return (await resp.json()) as PersonaCase[];
 }
 
+/** Company codes that have a FlowSpec (drives the flow-supported set). */
+export async function fetchFlowCompanies(): Promise<string[]> {
+  const resp = await fetch("/api/flow/companies");
+  if (!resp.ok) throw new Error(`/api/flow/companies ${resp.status}`);
+  return (await resp.json()) as string[];
+}
+
+export type FlowBeat = { fine_state: string; hint: string; example: string };
+
+/** Base-flow beats for the Flow Builder form (fine_state + hint + AEON example). */
+export async function fetchFlowBeats(): Promise<FlowBeat[]> {
+  const resp = await fetch("/api/flow/beats");
+  if (!resp.ok) throw new Error(`/api/flow/beats ${resp.status}`);
+  return (await resp.json()) as FlowBeat[];
+}
+
+export type CreateFlowResult = {
+  ok: boolean;
+  company?: string;
+  case_id?: string;
+  beats?: number;
+  errors?: string[];
+};
+
+/** Author a new flow company. 400 (validation) comes back as {ok:false, errors}. */
+export async function createFlowCompany(body: {
+  company: string;
+  display_name: string;
+  agent_name: string;
+  templates: Record<string, string>;
+}): Promise<CreateFlowResult> {
+  const resp = await fetch("/api/flow/company", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return (await resp.json()) as CreateFlowResult;
+}
+
 export async function streamSession(
   handlers: StreamHandlers,
   opts: { engine?: Engine; caseId?: string; voiceGender?: VoiceGender } = {},
