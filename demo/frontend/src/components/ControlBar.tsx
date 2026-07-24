@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, X } from "lucide-react";
+import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, Volume2, X } from "lucide-react";
 import { ThinkingDot } from "./ThinkingDot";
 import { LatencyMetrics } from "./LatencyMetrics";
 import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
-import type { Agent } from "../api";
+import type { Engine, VoiceGender } from "../api";
 
 // Pre-start, the caller picks which agent drives the call: the fine-tuned Qwen
 // (sft_v2, served via vLLM) or Gemini (API). Choosing re-creates the live
@@ -20,8 +20,10 @@ type Props = {
   starting: boolean;
   startError: string;
   onStart: () => void;
-  agent: Agent;
-  onAgentChange: (a: Agent) => void;
+  agent: Engine;
+  onAgentChange: (a: Engine) => void;
+  voiceGender: VoiceGender;
+  onVoiceGenderChange: (g: VoiceGender) => void;
   micState: MicState;
   micSupported: boolean;
   micError: string;
@@ -47,6 +49,8 @@ export function ControlBar({
   onStart,
   agent,
   onAgentChange,
+  voiceGender,
+  onVoiceGenderChange,
   micState,
   micSupported,
   micError,
@@ -95,6 +99,45 @@ export function ControlBar({
             title="Gemini (cloud API) running the same pre-script playbook + tools"
           >
             Gemini
+          </button>
+          <button
+            type="button"
+            className={`agent-segmented-btn ${agent === "flow" ? "on" : ""}`}
+            onClick={() => onAgentChange("flow")}
+            disabled={starting}
+            aria-pressed={agent === "flow"}
+            title="Flow-interpreter (sft_flow_v1 reads a FlowSpec) — AEON outbound-remind. Experimental."
+          >
+            Flow
+          </button>
+        </div>
+        <div
+          className="agent-segmented"
+          role="group"
+          aria-label="Choose the TTS voice"
+        >
+          <span className="agent-segmented-label">
+            <Volume2 size={13} aria-hidden="true" /> Voice
+          </span>
+          <button
+            type="button"
+            className={`agent-segmented-btn ${voiceGender === "F" ? "on" : ""}`}
+            onClick={() => onVoiceGenderChange("F")}
+            disabled={starting}
+            aria-pressed={voiceGender === "F"}
+            title="Female Chirp 3 HD voice (Despina)"
+          >
+            Female
+          </button>
+          <button
+            type="button"
+            className={`agent-segmented-btn ${voiceGender === "M" ? "on" : ""}`}
+            onClick={() => onVoiceGenderChange("M")}
+            disabled={starting}
+            aria-pressed={voiceGender === "M"}
+            title="Male Chirp 3 HD voice (Puck)"
+          >
+            Male
           </button>
         </div>
         <button

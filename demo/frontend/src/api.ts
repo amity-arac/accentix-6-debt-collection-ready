@@ -41,6 +41,10 @@ export type CustomerData = {
 };
 
 export type Agent = "qwen" | "gemini";
+/** Engine picked in the ControlBar: the two catalog agents, plus "flow" — the
+ *  flow-interpreter path (sft_flow_v1 reading a FlowSpec). "flow" is not an
+ *  agent; the server routes it to FlowLiveSession via `?flow=1`. */
+export type Engine = Agent | "flow";
 
 /* One persona row from GET /api/cases — flat picker shape (account facts +
  * parsed role-play sections). Mirrors `_persona_summary` on the backend. */
@@ -65,12 +69,15 @@ export type PersonaCase = {
   case_status_note?: string | null;
 };
 
+export type VoiceGender = "M" | "F";
+
 export type StreamSessionMsg = {
   type: "session";
   session_id: string;
   mode: "replay" | "live";
   case_id: string;
-  agent: Agent | null;
+  agent: Engine | null;
+  voice_gender: VoiceGender;
   customer_data: CustomerData;
 };
 export type StreamHopMsg = { type: "hop"; hop: Hop };
@@ -142,11 +149,14 @@ export async function fetchCases(): Promise<PersonaCase[]> {
 
 export async function streamSession(
   handlers: StreamHandlers,
-  opts: { agent?: Agent; caseId?: string } = {},
+  opts: { engine?: Engine; caseId?: string; voiceGender?: VoiceGender } = {},
 ): Promise<void> {
   const qs = new URLSearchParams();
-  if (opts.agent) qs.set("agent", opts.agent);
+  // "flow" routes to the flow-interpreter session; qwen/gemini pick the agent.
+  if (opts.engine === "flow") qs.set("flow", "1");
+  else if (opts.engine) qs.set("agent", opts.engine);
   if (opts.caseId) qs.set("case_id", opts.caseId);
+  if (opts.voiceGender) qs.set("gender", opts.voiceGender);
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const resp = await fetch(`/api/session${suffix}`);
   await consumeNdjson(resp, handlers);
@@ -170,6 +180,18 @@ export async function streamReset(
   handlers: StreamHandlers,
 ): Promise<void> {
   const resp = await fetch(`/api/session/${sessionId}/reset`, {
+    method: "POST",
+  });
+  await consumeNdjson(resp, handlers);
+}
+
+/** Fire the agent's proactive opening greeting (outbound call — bot speaks
+ *  first). Hops stream through the same handler pipeline as a normal turn. */
+export async function streamOpening(
+  sessionId: string,
+  handlers: StreamHandlers,
+): Promise<void> {
+  const resp = await fetch(`/api/session/${sessionId}/opening`, {
     method: "POST",
   });
   await consumeNdjson(resp, handlers);

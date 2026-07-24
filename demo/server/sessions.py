@@ -23,6 +23,8 @@ import functools
 import json
 import os
 import re
+import time
+import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Protocol
@@ -53,6 +55,7 @@ class Session(Protocol):
     customer_data: dict[str, Any]
     mode: str  # "replay" | "live"
     agent_name: str | None  # "qwen" | "gemini" | None (replay)
+    voice_gender: str  # "M" | "F" — which Chirp 3 HD voice speaks this session's replies
     done: bool
 
     def reset_pointer(self) -> None: ...
@@ -69,9 +72,10 @@ class ReplaySession:
     mode = "replay"
     agent_name: str | None = None
 
-    def __init__(self, case_id: str) -> None:
+    def __init__(self, case_id: str, voice_gender: str = "F") -> None:
         self.session_id = uuid.uuid4().hex[:12]
         self.case_id = case_id
+        self.voice_gender = voice_gender if voice_gender in ("M", "F") else "F"
         case = replay.load_case(case_id)
         self.customer_data = dict(case.get("customer_data", {}))
         self._turns = replay.extract_agent_turns(case["full-trajectory"])
@@ -218,9 +222,10 @@ def normalize_live_hops(reply_result: dict[str, Any]) -> list[dict[str, Any]]:
 class LiveSession:
     mode = "live"
 
-    def __init__(self, case_id: str, agent: str = DEFAULT_AGENT) -> None:
+    def __init__(self, case_id: str, agent: str = DEFAULT_AGENT, voice_gender: str = "F") -> None:
         if agent not in VALID_AGENTS:
             raise ValueError(f"agent must be one of {VALID_AGENTS!r}, got {agent!r}")
+        self.voice_gender = voice_gender if voice_gender in ("M", "F") else "F"
 
         # Import lazily so replay-mode users don't pay the cost of pulling in
         # google-genai, vLLM, simulator, etc.
@@ -303,11 +308,21 @@ class LiveSession:
         system_prompt = self._load_prescript_prompt(
             base, self._company, self.customer_data, prompt_variant=variant,
         )
-        self._backend = self._CaseBackend(self.customer_data, v6_active=self._v6_active)
+        # v10 clones a real bot that only verifies by name (never asks for the
+        # 4-digit KYC code), so payment_date's identity check is relaxed for v10.
+        require_kyc = os.environ.get("AAX6_PROMPT_VERSION", "").strip() not in ("v10", "v11")
+        self._backend = self._CaseBackend(
+            self.customer_data, v6_active=self._v6_active, require_kyc=require_kyc
+        )
         kwargs: dict[str, Any] = {
             "system_prompt": system_prompt,
             "script_db": self._company_scripts,
             "agent_context_data": self.customer_data,
+            # v11: render gendered templates to match the user's voice pick, so the
+            # spoken TTS voice (M/F) and the Thai particles (ครับ/ค่ะ) agree. No-op
+            # on the older non-parameterized catalog.
+            "case_id": self.case_id,
+            "gender": self.voice_gender,
         }
         if self.agent_name == "qwen":
             base_url = os.environ.get("AAX6_VLLM_BASE_URL")
@@ -393,7 +408,7 @@ class LiveSession:
                     # bubble immediately so the user sees activity ~500ms-1s
                     # earlier than waiting for the full tool_call hop.
                     name = item.get("name")
-                    if name != "reply" and not filler_emitted:
+                    if name != "reply" and not filler_emitted and FILLER_TEXT:
                         filler_emitted = True
                         yield _emit({
                             "kind": "reply",
@@ -409,7 +424,7 @@ class LiveSession:
                     # the first non-reply tool fires this turn. In streaming
                     # mode this is a no-op because the tool_call_pending
                     # branch above already set filler_emitted=True.
-                    if name != "reply" and not filler_emitted:
+                    if name != "reply" and not filler_emitted and FILLER_TEXT:
                         filler_emitted = True
                         yield _emit({
                             "kind": "reply",
@@ -441,7 +456,9 @@ class LiveSession:
                     if reply_text and os.environ.get(
                         "AAX6_TTS_PREWARM_REPLY", "1"
                     ).strip().lower() not in ("0", "false", ""):
-                        asyncio.create_task(tts.prewarm([reply_text]))
+                        from services.speech.config import VOICE_BY_GENDER
+                        voice_name = VOICE_BY_GENDER.get(self.voice_gender, VOICE_BY_GENDER["F"])
+                        asyncio.create_task(tts.prewarm([reply_text], voice_name))
                     yield _emit({
                         "kind": "reply",
                         "text": reply_text,
@@ -466,6 +483,314 @@ class LiveSession:
         self._transcript.append({"user": user_msg, "hops": turn_hops})
         self._turn_count += 1
         if "[TASK_COMPLETED]" in (result.get("text") or ""):
+            self.done = True
+        if self._turn_count >= MAX_LIVE_TURNS:
+            self.done = True
+
+
+# ---------------------------------------------------------------------------
+# Flow-interpreter session (sft_flow_v1 reads a FlowSpec from the prompt)
+# ---------------------------------------------------------------------------
+
+# Flow mode is a DEV/testing path, not part of the shipped customer product: it
+# drives the flow-interpreter adapter (sft_flow_v1), which reads a FlowSpec +
+# catalog from its prompt instead of the per-company v9 playbook. The flow
+# logic is vendored self-contained under demo/server/flow/ (ported from the
+# aax6 research package — no aax6 dependency), so this path runs wherever the
+# demo's own venv runs, leaving the qwen/gemini product paths untouched.
+#
+# The single (spec, catalog) pair exposed is AEON outbound-remind, paired with
+# the AEON parameterized catalog it was validated against.
+FLOW_SPEC_FILE = REPO_ROOT / "data" / "flows" / "AEON-outbound-remind.json"
+FLOW_CATALOG_FILE = REPO_ROOT / "data" / "pre-scripts" / "v10_pre_script_database_parameterized.json"
+FLOW_MODEL = os.environ.get("AAX6_FLOW_MODEL", "sft_flow_v1")
+FLOW_MAX_TOOL_LOOPS = 8
+
+
+def _flow_reply_schema(valid_text_ids: list[int]) -> dict:
+    """Reply tool schema (enum = catalog ids) — inlined copy of
+    aax6.training.prepare_flow_data._reply_schema so flow mode doesn't pull in
+    that module's heavy training-time import chain (flowgen / trajectory_converter)."""
+    return {
+        "type": "function",
+        "function": {
+            "name": "reply",
+            "description": "Reply to the customer with pre-approved script template(s).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text_ids": {
+                        "type": "array",
+                        "items": {"type": "integer", "enum": sorted(valid_text_ids)},
+                        "description": "text_id(s) of the chosen script template(s), in speaking order.",
+                    },
+                    "dynamic_vars": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
+                            "required": ["name", "value"],
+                        },
+                        "description": "List of {name, value} pairs to fill DYNAMIC placeholders in the chosen text_ids.",
+                    },
+                },
+                "required": ["text_ids"],
+            },
+        },
+    }
+
+
+def _flow_vllm_chat(base_url: str, payload: dict, timeout: int = 180) -> dict:
+    req = urllib.request.Request(
+        base_url.rstrip("/") + "/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    resp = json.load(urllib.request.urlopen(req, timeout=timeout))
+    return resp["choices"][0]["message"]
+
+
+class FlowLiveSession:
+    """Live flow-interpreter session: sft_flow_v1 × an AEON FlowSpec × the human
+    caller. Ports aax6.simulation.flow_sim.run_conversation into the demo's
+    streaming Session protocol, byte-consistent with training. The greeting is
+    seeded from the spec's initial state and emitted by aiter_opening (the demo
+    is outbound — the bot greets first)."""
+
+    mode = "live"
+    agent_name = "flow"
+
+    def __init__(self, case_id: str, voice_gender: str = "F") -> None:
+        # Lazy imports — flow logic + its heavier deps load only when flow mode
+        # is actually used, keeping the default replay/live paths cheap.
+        from demo.server.flow.flowspec import build_tool_schemas
+        from demo.server.flow.flowspec_render import render_instruction
+        from demo.server.flow.spec_backend import SpecBackend
+        from agents.prescript import build_script_catalog, fill_template
+        from simulator.config import COMPANY_NAMES, COMPANY_AGENT_NAMES, COMPANY_PHONES
+        from simulator import datetime_utils
+
+        self.session_id = uuid.uuid4().hex[:12]
+        self.voice_gender = voice_gender if voice_gender in ("M", "F") else "F"
+        self._fill_template = fill_template
+        self._SpecBackend = SpecBackend
+
+        # Flow mode is AEON-only (single shipped spec); honor a requested AEON
+        # persona, else fall back to the first AEON persona in the picker pool.
+        self.case_id = self._resolve_aeon_case(case_id)
+        self._case = _load_test_case(self.case_id)
+        self._company = self.case_id.split("-")[1]
+
+        cd = dict(self._case["customer_data"])
+        cd.setdefault("company_phone", COMPANY_PHONES.get(self._company))
+        cd.setdefault("company_name", COMPANY_NAMES.get(self._company))
+        cd.setdefault("agent_name", COMPANY_AGENT_NAMES.get(self._company))
+        cd.setdefault("today", datetime_utils.today_iso())
+        self.customer_data = cd
+
+        self._spec = json.loads(FLOW_SPEC_FILE.read_text(encoding="utf-8"))
+        self._catalog = json.loads(FLOW_CATALOG_FILE.read_text(encoding="utf-8"))
+        self._by_id = {e["text_id"]: e for e in self._catalog}
+
+        system = self._fill_template(render_instruction(self._spec), cd, gender=self.voice_gender)
+        system += "\n\n" + build_script_catalog(self._catalog, compact=True)
+        self._system = system
+        self._tools = build_tool_schemas(self._spec) + [
+            _flow_reply_schema([e["text_id"] for e in self._catalog])
+        ]
+
+        self._base_url = os.environ.get("AAX6_VLLM_BASE_URL", "http://localhost:8000/v1")
+        self._model = FLOW_MODEL
+        self._turn_count = 0
+        self.done = False
+        self._last_turn_timing: dict[str, Any] | None = None
+        self._transcript: list[dict[str, Any]] = []
+        self._init_agent()
+
+    # ---- public ----
+
+    async def aiter_opening(self) -> AsyncIterator[dict[str, Any]]:
+        """Bot-first outbound greeting: emit the spec-seeded opener. No LLM call."""
+        if self._greeted:
+            return
+        self._greeted = True
+        hops = self._greeting_hops()
+        self._transcript.append({"user": "", "hops": hops})
+        self._last_turn_timing = {"llm_ms": 0.0, "llm_hops": 0}
+        for h in hops:
+            yield h
+
+    async def aiter_turn(self, user_msg: str) -> AsyncIterator[dict[str, Any]]:
+        if self.done:
+            return
+        # If the caller speaks before the opening was fired, seed the greeting
+        # into history first (keeps the trained greeting→customer→agent order).
+        # _greeting_hops() appends the anchor to self._messages as a side effect;
+        # the returned hops are dropped since the opening bubble was skipped.
+        if not self._greeted:
+            self._greeted = True
+            self._greeting_hops()
+        async for hop in self._aiter_run(user_msg):
+            yield hop
+
+    def reset_pointer(self) -> None:
+        self._turn_count = 0
+        self.done = False
+        self._transcript = []
+        self._init_agent()
+
+    async def prewarm(self) -> None:  # protocol parity; flow mode skips prewarm
+        return
+
+    # ---- helpers ----
+
+    @staticmethod
+    def _resolve_aeon_case(case_id: str) -> str:
+        with TEST_CASES_FILE.open(encoding="utf-8") as fh:
+            cases = json.load(fh)
+        ids = {c.get("id") for c in cases}
+        if case_id in ids and case_id.split("-")[1:2] == ["AEON"]:
+            return case_id
+        for c in cases:
+            cid = c.get("id", "")
+            if cid.split("-")[1:2] == ["AEON"]:
+                return cid
+        raise KeyError(f"no AEON persona found in {TEST_CASES_FILE}")
+
+    def _init_agent(self) -> None:
+        self._backend = self._SpecBackend(
+            {k: v for k, v in self.customer_data.items() if not str(k).startswith("_")},
+            self._spec,
+        )
+        self._messages: list[dict[str, Any]] = [{"role": "system", "content": self._system}]
+        self._greeted = False
+
+    def _greeting_hops(self) -> list[dict[str, Any]]:
+        spec, cd = self._spec, self.customer_data
+        init = next(st for st in spec["states"] if st.get("initial"))
+        greet_fs = init["templates"][0]["fine_state"]
+        cands = [e for e in self._catalog if e.get("_fine_state") == greet_fs]
+        entry = cands[0] if cands else self._catalog[0]
+        text = self._fill_template(entry["template"], cd, gender=self.voice_gender)
+        args = {"text_ids": [entry["text_id"]], "dynamic_vars": []}
+        self._messages.append({
+            "role": "assistant", "content": text,
+            "tool_calls": [{"id": "call_seed_greeting", "type": "function",
+                            "function": {"name": "reply",
+                                         "arguments": json.dumps(args, ensure_ascii=False)}}],
+        })
+        return [
+            {"kind": "tool_call", "name": "reply", "args": args},
+            {"kind": "reply", "text": text, "text_ids": [entry["text_id"]], "dynamic_vars": {}},
+        ]
+
+    def _render_reply(self, args: dict) -> tuple[list[int], str, dict]:
+        """Resolve reply text_ids → rendered Thai; tolerant of the qwen3_xml
+        parser handing back stringified args (mirrors flow_sim.render_reply)."""
+        ids = args.get("text_ids", [])
+        if isinstance(ids, str):
+            try:
+                ids = json.loads(ids)
+            except json.JSONDecodeError:
+                ids = [x for x in ids.replace("[", " ").replace("]", " ").replace(",", " ").split()
+                       if x.isdigit()]
+        if isinstance(ids, int):
+            ids = [ids]
+        dyn = args.get("dynamic_vars") or []
+        if isinstance(dyn, str):
+            try:
+                dyn = json.loads(dyn)
+            except json.JSONDecodeError:
+                dyn = []
+        if isinstance(dyn, list):
+            dyn = {d.get("name"): d.get("value") for d in dyn if isinstance(d, dict)}
+        seen: set[int] = set()
+        good, texts = [], []
+        for tid in ids:
+            e = self._by_id.get(int(tid)) if str(tid).lstrip("-").isdigit() else None
+            if e is None or int(tid) in seen:
+                continue
+            seen.add(int(tid))
+            good.append(int(tid))
+            texts.append(self._fill_template(
+                e["template"], self.customer_data, dynamic_vars=dyn, gender=self.voice_gender))
+        return good, " ".join(texts), dyn if isinstance(dyn, dict) else {}
+
+    async def _aiter_run(self, user_msg: str) -> AsyncIterator[dict[str, Any]]:
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+        _SENTINEL = object()
+        turn_hops: list[dict[str, Any]] = []
+
+        def push(hop: dict[str, Any]) -> None:
+            turn_hops.append(hop)
+            loop.call_soon_threadsafe(queue.put_nowait, hop)
+
+        def blocking() -> tuple[str, float, int]:
+            llm_ms, llm_hops = 0.0, 0
+            agent_text = ""
+            try:
+                self._messages.append({"role": "user", "content": user_msg})
+                for _loop in range(FLOW_MAX_TOOL_LOOPS):
+                    t0 = time.perf_counter()
+                    msg = _flow_vllm_chat(self._base_url, {
+                        "model": self._model, "messages": self._messages,
+                        "tools": self._tools, "temperature": 0.0, "max_tokens": 400,
+                    })
+                    llm_ms += (time.perf_counter() - t0) * 1000.0
+                    llm_hops += 1
+                    tcs = msg.get("tool_calls") or []
+                    if not tcs:
+                        agent_text = (msg.get("content") or "").strip()
+                        if agent_text:
+                            push({"kind": "reply", "text": agent_text, "text_ids": [], "dynamic_vars": {}})
+                        break
+                    tc = tcs[0]
+                    fn = tc["function"]
+                    raw_args = fn.get("arguments")
+                    args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+                    if fn["name"] == "reply":
+                        ids, text, dyn = self._render_reply(args)
+                        clean_args = {"text_ids": ids, "dynamic_vars": args.get("dynamic_vars") or []}
+                        self._messages.append({
+                            "role": "assistant", "content": text,
+                            "tool_calls": [{"id": tc.get("id", "call_x"), "type": "function",
+                                            "function": {"name": "reply",
+                                                         "arguments": json.dumps(clean_args, ensure_ascii=False)}}],
+                        })
+                        push({"kind": "tool_call", "name": "reply", "args": clean_args})
+                        push({"kind": "reply", "text": text, "text_ids": ids, "dynamic_vars": dyn})
+                        agent_text = text
+                        break
+                    result = self._backend.dispatch(fn["name"], args)
+                    self._messages.append({
+                        "role": "assistant",
+                        "tool_calls": [{"id": tc.get("id", "call_x"), "type": "function",
+                                        "function": {"name": fn["name"],
+                                                     "arguments": json.dumps(args, ensure_ascii=False)}}],
+                    })
+                    self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                           "content": json.dumps(result, ensure_ascii=False)})
+                    push({"kind": "tool_call", "name": fn["name"], "args": args})
+                    push({"kind": "tool_result", "name": fn["name"], "result": result})
+                return agent_text, llm_ms, llm_hops
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, _SENTINEL)
+
+        task = asyncio.create_task(asyncio.to_thread(blocking))
+        try:
+            while True:
+                item = await queue.get()
+                if item is _SENTINEL:
+                    break
+                yield item
+        finally:
+            agent_text, llm_ms, llm_hops = await task
+
+        self._transcript.append({"user": user_msg, "hops": turn_hops})
+        self._last_turn_timing = {"llm_ms": round(llm_ms, 1), "llm_hops": llm_hops}
+        self._turn_count += 1
+        if "[TASK_COMPLETED]" in (agent_text or ""):
             self.done = True
         if self._turn_count >= MAX_LIVE_TURNS:
             self.done = True
@@ -531,7 +856,15 @@ def build_trajectory_case(session: "LiveSession", comment: str = "") -> dict[str
 # ---------------------------------------------------------------------------
 
 
-def build(case_id: str, mode: str, agent: str = DEFAULT_AGENT) -> Session:
+def build(
+    case_id: str,
+    mode: str,
+    agent: str = DEFAULT_AGENT,
+    voice_gender: str = "F",
+    flow: bool = False,
+) -> Session:
+    if flow:  # flow-interpreter is always live — it can't replay
+        return FlowLiveSession(case_id, voice_gender=voice_gender)
     if mode == "live":
-        return LiveSession(case_id, agent=agent)
-    return ReplaySession(case_id)
+        return LiveSession(case_id, agent=agent, voice_gender=voice_gender)
+    return ReplaySession(case_id, voice_gender=voice_gender)

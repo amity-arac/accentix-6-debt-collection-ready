@@ -3,9 +3,11 @@ import {
   streamSession,
   streamTurn,
   streamReset,
-  type Agent,
+  streamOpening,
+  type Engine,
   type CustomerData,
   type Hop,
+  type VoiceGender,
 } from "../api";
 import * as audio from "../audio";
 import * as latency from "../latency";
@@ -30,8 +32,10 @@ export type SessionState = {
   sessionId: string | null;
   mode: "replay" | "live" | null;
   caseId: string | null;
-  agent: Agent;
-  serverAgent: Agent | null;
+  agent: Engine;
+  serverAgent: Engine | null;
+  voiceGender: VoiceGender;        // user's current pick
+  serverVoiceGender: VoiceGender | null;  // what the live session was actually built with
   customer: CustomerData;
   bubbles: BubbleEntry[];
   busy: boolean; // a stream is being consumed
@@ -51,6 +55,8 @@ export function useSession() {
     caseId: null,
     agent: "qwen",
     serverAgent: null,
+    voiceGender: "F",
+    serverVoiceGender: null,
     customer: {},
     bubbles: [],
     busy: false,
@@ -58,15 +64,28 @@ export function useSession() {
     paused: false,
     streamError: null,
   });
-  // Latest user-chosen agent, read inside start() to avoid closure staleness.
-  const agentRef = useRef<Agent>("qwen");
+  // Current live session id, mirrored into a ref so callbacks fired right after
+  // start() (e.g. fireOpening) see the fresh id without waiting for a re-render.
+  const sessionIdRef = useRef<string | null>(null);
+  // Latest user-chosen engine, read inside start() to avoid closure staleness.
+  const agentRef = useRef<Engine>("qwen");
   // Latest user-chosen persona/case id (null → backend default). Read inside
   // start() so a fresh session is created for the picked persona.
   const caseIdRef = useRef<string | null>(null);
+  // Latest user-chosen TTS voice gender, read inside start(). Independent of
+  // the reply text's own grammatical gender — this only picks which Chirp 3 HD
+  // voice speaks it (see audio.ts's setVoiceGender).
+  const voiceGenderRef = useRef<VoiceGender>("F");
 
-  const setAgent = useCallback((agent: Agent) => {
+  const setAgent = useCallback((agent: Engine) => {
     agentRef.current = agent;
     setState((s) => ({ ...s, agent }));
+  }, []);
+
+  const setVoiceGender = useCallback((voiceGender: VoiceGender) => {
+    voiceGenderRef.current = voiceGender;
+    audio.setVoiceGender(voiceGender);
+    setState((s) => ({ ...s, voiceGender }));
   }, []);
 
   // Hops arrive over the network at their own pace. Render each one the moment
@@ -223,6 +242,7 @@ export function useSession() {
         {
           onSession: (m) => {
             capturedSession = { id: m.session_id, done: false };
+            sessionIdRef.current = m.session_id;
             setState((s) => ({
               ...s,
               ready: true,
@@ -230,6 +250,9 @@ export function useSession() {
               mode: m.mode,
               caseId: m.case_id,
               serverAgent: m.agent,
+              // record what the session was BUILT with; don't clobber the user's
+              // current pick (state.voiceGender) — handleStart compares the two.
+              serverVoiceGender: m.voice_gender,
               customer: m.customer_data,
               bubbles: [],
               done: false,
@@ -243,7 +266,11 @@ export function useSession() {
             }
           },
         },
-        { agent: agentRef.current, caseId: caseIdRef.current ?? undefined },
+        {
+          engine: agentRef.current,
+          caseId: caseIdRef.current ?? undefined,
+          voiceGender: voiceGenderRef.current,
+        },
       );
     } catch (e: any) {
       const msg = `Failed to load session: ${e?.message ?? e}`;
@@ -314,6 +341,28 @@ export function useSession() {
     [state.sessionId, state.done, onHop],
   );
 
+  // Outbound-call opening: the bot greets first (before the caller speaks).
+  // Fired by App right after Start. Hops flow through the same onHop pipeline
+  // (greeting bubble + TTS). No-op if the session already ended.
+  const fireOpening = useCallback(async () => {
+    const sid = sessionIdRef.current;  // ref: fresh id even right after start()
+    if (!sid) return;
+    setState((s) => ({ ...s, busy: true }));
+    try {
+      await streamOpening(sid, {
+        onHop: (m) => onHop(m.hop),
+        onDone: (m) => {
+          latency.markDone(m.llm_ms ?? null, m.llm_hops ?? null);
+          if (m.session_done) setState((s) => ({ ...s, done: true }));
+        },
+      });
+    } catch {
+      /* opening is best-effort; the caller can still speak first if it fails */
+    } finally {
+      setState((s) => ({ ...s, busy: false }));
+    }
+  }, [onHop]);
+
   const resetInFlightRef = useRef(false);
 
   const reset = useCallback(async () => {
@@ -339,6 +388,7 @@ export function useSession() {
     try {
       await streamReset(sid, {
         onSession: (m) => {
+          sessionIdRef.current = m.session_id;
           setState((s) => ({
             ...s,
             ready: true,
@@ -395,7 +445,9 @@ export function useSession() {
     state,
     start,
     setAgent,
+    setVoiceGender,
     selectCase,
+    fireOpening,
     sendUserMessage,
     reset,
     togglePause,

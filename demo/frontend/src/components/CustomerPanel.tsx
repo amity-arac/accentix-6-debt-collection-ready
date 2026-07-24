@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, IdCard } from "lucide-react";
-import type { Agent, CustomerData } from "../api";
+import type { Engine, CustomerData } from "../api";
 import { renderDate, looksLikeCanonicalDate } from "../format/dateRender";
 
 type Props = {
   caseId: string | null;
   mode: "replay" | "live" | null;
-  agent: Agent | null;
+  agent: Engine | null;
   customer: CustomerData;
   collapsed: boolean;
   onToggleCollapse: () => void;

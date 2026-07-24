@@ -139,6 +139,7 @@ async def _stream_session_only(session: sessions.Session) -> AsyncIterator[bytes
         "mode": session.mode,
         "case_id": getattr(session, "case_id", None),
         "agent": getattr(session, "agent_name", None),
+        "voice_gender": getattr(session, "voice_gender", "F"),
         "customer_data": session.customer_data,
     }).encode("utf-8")
     yield _line({"type": "done", "session_done": session.done}).encode("utf-8")
@@ -177,14 +178,24 @@ async def list_cases() -> JSONResponse:
 async def create_session(
     agent: str | None = Query(default=None),
     case_id: str | None = Query(default=None),
+    gender: str | None = Query(default=None),
+    flow: bool = Query(default=False),
 ) -> StreamingResponse:
     mode, default_case_id, default_agent = _config()
     chosen_case = (case_id or default_case_id).strip()
     chosen_agent = (agent or default_agent).strip().lower()
     if chosen_agent not in sessions.VALID_AGENTS:
         chosen_agent = default_agent
+    chosen_gender = (gender or "F").strip().upper()
+    if chosen_gender not in ("M", "F"):
+        chosen_gender = "F"
+    # Flow-interpreter mode is always a live session (it can't replay).
+    if flow and mode != "live":
+        mode = "live"
     try:
-        session = sessions.build(chosen_case, mode, agent=chosen_agent)
+        session = sessions.build(
+            chosen_case, mode, agent=chosen_agent, voice_gender=chosen_gender, flow=flow
+        )
     except KeyError as e:
         raise HTTPException(404, detail=str(e))
     except Exception as e:
@@ -197,8 +208,10 @@ async def create_session(
     # /api/tts calls are cache hits. Skip if neither GCP creds nor a project
     # is configured — the synth call would just 401/raise.
     if isinstance(session, sessions.ReplaySession) and _gcp_creds_present():
+        from services.speech.config import VOICE_BY_GENDER
         texts = session.all_reply_texts()
-        asyncio.create_task(tts.prewarm(texts))
+        voice_name = VOICE_BY_GENDER.get(session.voice_gender, VOICE_BY_GENDER["F"])
+        asyncio.create_task(tts.prewarm(texts, voice_name))
 
     # Live-mode optimization: fire-and-forget vLLM prefix prewarm so the
     # user's first turn hits a warm KV cache instead of paying full
@@ -209,6 +222,36 @@ async def create_session(
     return StreamingResponse(
         _stream_session_only(session),
         media_type=NDJSON_MEDIA,
+    )
+
+
+async def _stream_opening(session: sessions.Session) -> AsyncIterator[bytes]:
+    """Fire the agent's proactive opening greeting (outbound call — the bot
+    speaks first). Streams the same hop schema as a normal turn."""
+    if session.done:
+        yield _line({"type": "done", "session_done": True}).encode("utf-8")
+        return
+    async for hop in session.aiter_opening():  # type: ignore[attr-defined]
+        yield _line({"type": "hop", "hop": hop}).encode("utf-8")
+    timing = getattr(session, "_last_turn_timing", None) or {}
+    yield _line({
+        "type": "done",
+        "session_done": session.done,
+        "llm_ms": timing.get("llm_ms"),
+        "llm_hops": timing.get("llm_hops"),
+    }).encode("utf-8")
+
+
+@app.post("/api/session/{session_id}/opening")
+async def session_opening(session_id: str) -> StreamingResponse:
+    """Outbound-call opening: the bot greets first, before the caller speaks."""
+    session = SESSIONS.get(session_id)
+    if session is None:
+        raise HTTPException(404, detail=f"unknown session_id {session_id!r}")
+    return StreamingResponse(
+        _stream_opening(session),
+        media_type=NDJSON_MEDIA,
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
 
 
@@ -272,17 +315,25 @@ async def save_trajectory(session_id: str, body: SaveBody = SaveBody()) -> JSONR
 
 
 @app.get("/api/tts")
-async def tts_stream(text: str = Query(..., min_length=1, max_length=4096)) -> StreamingResponse:
+async def tts_stream(
+    text: str = Query(..., min_length=1, max_length=4096),
+    gender: str = Query(default="F"),
+) -> StreamingResponse:
     """Stream raw PCM bytes (headerless int16 LE @ 24 kHz) as they arrive from
     the Chirp 3 HD gRPC streaming synth. The client reads this body with
     `fetch` and schedules each chunk on a Web Audio `AudioContext` (see
     `demo/frontend/src/audio.ts`) — no container demux, no codec decode, so the
     first samples are audible on arrival instead of paying the native `<audio>`
-    element's decode-startup floor."""
+    element's decode-startup floor.
+
+    `gender` ("M"/"F") picks which Chirp 3 HD voice speaks — independent of the
+    reply text's own grammatical gender (ครับ/ค่ะ particles)."""
+    from services.speech.config import VOICE_BY_GENDER
+    voice_name = VOICE_BY_GENDER.get(gender.strip().upper(), VOICE_BY_GENDER["F"])
 
     async def _gen() -> AsyncIterator[bytes]:
         try:
-            async for chunk in tts.stream_synth(text):
+            async for chunk in tts.stream_synth(text, voice_name):
                 yield chunk
         except Exception:
             logger.exception("tts stream failed")
@@ -293,7 +344,7 @@ async def tts_stream(text: str = Query(..., min_length=1, max_length=4096)) -> S
     # Whether this text is already synthesized — known up front, so it can ride a
     # header (unlike the measured synth time, which isn't known until the first
     # chunk, after headers flush). Lets the client attribute TTS latency.
-    cache_state = "hit" if tts.is_cached(text) else "miss"
+    cache_state = "hit" if tts.is_cached(text, voice_name) else "miss"
     return StreamingResponse(
         _gen(),
         media_type=tts.AUDIO_MEDIA_TYPE,
