@@ -216,11 +216,12 @@ export async function fetchFlowSpec(company: string): Promise<FlowSpecData> {
 export async function saveFlowSpec(
   company: string,
   spec: FlowSpec,
+  newTemplates: { fine_state: string; template: string }[] = [],
 ): Promise<{ ok: boolean; errors?: string[] }> {
   const resp = await fetch("/api/flow/spec", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ company, spec }),
+    body: JSON.stringify({ company, spec, new_templates: newTemplates }),
   });
   return (await resp.json()) as { ok: boolean; errors?: string[] };
 }

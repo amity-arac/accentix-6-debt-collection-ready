@@ -569,9 +569,13 @@ def get_flow_spec(company: str) -> dict[str, Any]:
     return {"company": company, "spec": spec, "fine_states": fine_states, "tools": tools}
 
 
-def save_flow_spec(company: str, spec: dict) -> dict[str, Any]:
+def save_flow_spec(
+    company: str, spec: dict, new_templates: list[dict] | None = None
+) -> dict[str, Any]:
     """Validate an edited FlowSpec against the company's catalog and write it.
-    No restart needed — FlowLiveSession reads the spec fresh per session."""
+    `new_templates` = [{fine_state, template}] authored in the editor — appended
+    to the catalog (new fine_states only) so states can bind brand-new beats.
+    No restart needed — FlowLiveSession reads spec + catalog fresh per session."""
     from demo.server.flow.flowspec import validate_flow_spec
 
     company = (company or "").strip().upper()
@@ -580,15 +584,36 @@ def save_flow_spec(company: str, spec: dict) -> dict[str, Any]:
         return {"ok": False, "errors": [f"ไม่รู้จักบริษัท {company}"]}
     spec_path, cat_path = _flow_paths(company)
     catalog = json.loads(cat_path.read_text(encoding="utf-8")) if cat_path.exists() else []
-    # keep identity fields consistent with the registry
+
+    # Append new templates (new fine_states only) authored in the editor.
+    existing_fs = {e.get("_fine_state") for e in catalog}
+    next_tid = (max((e.get("text_id", 999) for e in catalog), default=999) + 1)
+    added = 0
+    for nt in (new_templates or []):
+        fs = (nt.get("fine_state") or "").strip()
+        text = (nt.get("template") or "").strip()
+        if not fs or not text or fs in existing_fs:
+            continue
+        catalog.append({
+            "company": company, "text_id": next_tid, "template": text,
+            "_fine_state": fs, "intent_name": fs, "category": "A",
+            "state": fs.split("_")[0], "is_closer": False, "is_demand": False,
+            "is_acknowledgment": False, "expects_response": True,
+        })
+        existing_fs.add(fs)
+        next_tid += 1
+        added += 1
+
     spec["company"] = company
     spec.setdefault("flow_id", f"{company}-outbound-remind")
     spec.setdefault("spec_version", 2)
     errs, _ = validate_flow_spec(spec, catalog)
     if errs:
         return {"ok": False, "errors": errs[:10]}
+    if added:
+        cat_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=1), encoding="utf-8")
     spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
-    return {"ok": True, "company": company}
+    return {"ok": True, "company": company, "added_templates": added}
 
 
 # --- Flow Builder: author a new company's flow from the UI -------------------

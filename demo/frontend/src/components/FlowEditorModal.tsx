@@ -26,6 +26,10 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const [spec, setSpec] = useState<FlowSpec | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  // Available beat fine_states (catalog + newly authored). newTemplates holds
+  // the Thai text for the ones created here, written to the catalog on save.
+  const [avail, setAvail] = useState<string[]>([]);
+  const [newTemplates, setNewTemplates] = useState<Record<string, string>>({});
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -33,9 +37,12 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
     setData(null);
     setSpec(null);
     setErrors([]);
+    setNewTemplates({});
+    setAvail([]);
     void fetchFlowSpec(company)
       .then((d) => {
         setData(d);
+        setAvail(d.fine_states);
         setSpec(JSON.parse(JSON.stringify(d.spec)) as FlowSpec);
       })
       .catch(() => setErrors([`โหลด spec ของ ${company} ไม่สำเร็จ`]));
@@ -84,12 +91,37 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
       for (const st of s.states) st.on = (st.on ?? []).filter((t) => t.event !== name);
     });
 
+  const addBeatToState = (idx: number, fs: string) =>
+    editState(idx, (s) => (s.templates = [...(s.templates ?? []), { fine_state: fs }]));
+
+  // Author a brand-new beat (fine_state + Thai text) attached to this state.
+  // The text is written to the catalog on save (see saveFlowSpec new_templates).
+  const createBeat = (idx: number) => {
+    const fs = window.prompt("ชื่อ beat ใหม่ (fine_state เช่น offer_promo):")?.trim();
+    if (!fs) return;
+    if (!/^[a-z][a-z0-9_]*$/.test(fs)) {
+      setErrors(["fine_state ใช้ได้แค่ a-z / 0-9 / _ และขึ้นต้นด้วยตัวอักษร"]);
+      return;
+    }
+    const text = window
+      .prompt(`ข้อความของ "${fs}" (ใช้ {customer_name} {amount} {suffix} ได้):`)
+      ?.trim();
+    if (!text) return;
+    setNewTemplates((m) => ({ ...m, [fs]: text }));
+    setAvail((a) => (a.includes(fs) ? a : [...a, fs]));
+    addBeatToState(idx, fs);
+  };
+
   const save = async () => {
     if (!spec || !company) return;
     setErrors([]);
     setSaving(true);
     try {
-      const res = await saveFlowSpec(company, spec);
+      const res = await saveFlowSpec(
+        company,
+        spec,
+        Object.entries(newTemplates).map(([fine_state, template]) => ({ fine_state, template })),
+      );
       if (res.ok) onSaved(company);
       else setErrors(res.errors ?? ["บันทึกไม่สำเร็จ"]);
     } catch (e: any) {
@@ -252,8 +284,13 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                       <span className="fx-erow-lbl">พูด</span>
                       <div className="fx-chips">
                         {(st.templates ?? []).map((t, ti) => (
-                          <span className="fx-chip" key={ti}>
+                          <span
+                            className="fx-chip"
+                            key={ti}
+                            title={newTemplates[t.fine_state] || undefined}
+                          >
                             {t.fine_state}
+                            {t.fine_state in newTemplates && <span className="fx-new">ใหม่</span>}
                             <button
                               className="fx-rm"
                               onClick={() => editState(idx, (s) => s.templates!.splice(ti, 1))}
@@ -268,12 +305,13 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                           value=""
                           onChange={(e) => {
                             const fs = e.target.value;
-                            if (fs)
-                              editState(idx, (s) => (s.templates = [...(s.templates ?? []), { fine_state: fs }]));
+                            if (fs === "__new__") createBeat(idx);
+                            else if (fs) addBeatToState(idx, fs);
                           }}
                         >
                           <option value="">＋ เพิ่มบท…</option>
-                          {data.fine_states.map((fs) => (
+                          <option value="__new__">＋ สร้างบทใหม่ (พิมพ์ข้อความเอง)…</option>
+                          {avail.map((fs) => (
                             <option key={fs} value={fs}>{fs}</option>
                           ))}
                         </select>

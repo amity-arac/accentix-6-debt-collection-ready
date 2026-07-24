@@ -127,6 +127,7 @@ class FlowCompanyBody(BaseModel):
 class FlowSpecBody(BaseModel):
     company: str = ""
     spec: dict = {}
+    new_templates: list[dict] = []
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +211,7 @@ async def get_flow_spec(company: str = Query(...)) -> JSONResponse:
 async def save_flow_spec(body: FlowSpecBody) -> JSONResponse:
     """Validate + write an edited FlowSpec (structure editor). No restart needed."""
     try:
-        result = sessions.save_flow_spec(body.company, body.spec)
+        result = sessions.save_flow_spec(body.company, body.spec, body.new_templates)
     except Exception as e:
         logger.exception("flow spec save failed")
         raise HTTPException(500, detail=f"save failed: {e}")
