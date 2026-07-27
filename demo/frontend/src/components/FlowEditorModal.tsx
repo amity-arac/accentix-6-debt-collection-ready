@@ -77,6 +77,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const [nodes, setNodes] = useState<Node<NodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [events, setEvents] = useState<string[]>([]);
+  const [cues, setCues] = useState<Record<string, string[]>>({});
   const [avail, setAvail] = useState<string[]>([]);
   const [newTemplates, setNewTemplates] = useState<Record<string, string>>({});
   const [selNode, setSelNode] = useState<string | null>(null);
@@ -105,7 +106,9 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
       .then((d) => {
         setData(d);
         setAvail(d.fine_states);
-        setEvents(Object.keys(d.spec.events ?? {}));
+        const evs = (d.spec.events ?? {}) as Record<string, { cues?: string[] }>;
+        setEvents(Object.keys(evs));
+        setCues(Object.fromEntries(Object.entries(evs).map(([k, v]) => [k, v.cues ?? []])));
         setTools((((d.spec as any).tools?.declarations) ?? []).map((t: any) => ({
           name: t.name, impl: t.impl ?? "generic", orig: t,
         })));
@@ -185,13 +188,21 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const addEvent = () => {
     const ev = newEvent.trim();
     if (!/^[a-z][a-z0-9_]*$/.test(ev)) { setErrors(["event ใช้ a-z/0-9/_ ขึ้นต้นด้วยตัวอักษร"]); return; }
-    if (!events.includes(ev)) setEvents((e) => [...e, ev]);
+    if (!events.includes(ev)) { setEvents((e) => [...e, ev]); setCues((c) => ({ ...c, [ev]: [] })); }
     setNewEvent(""); setErrors([]);
   };
   const removeEvent = (ev: string) => {
     setEvents((e) => e.filter((x) => x !== ev));
+    setCues((c) => { const n = { ...c }; delete n[ev]; return n; });
     setEdges((es) => es.filter((e) => e.data?.event !== ev));
   };
+  const addCue = (ev: string, cue: string) => {
+    const v = cue.trim();
+    if (!v) return;
+    setCues((c) => ((c[ev] ?? []).includes(v) ? c : { ...c, [ev]: [...(c[ev] ?? []), v] }));
+  };
+  const removeCue = (ev: string, cue: string) =>
+    setCues((c) => ({ ...c, [ev]: (c[ev] ?? []).filter((x) => x !== cue) }));
 
   // --- tools ---
   const toolNames = tools.map((t) => t.name);
@@ -256,9 +267,14 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
           src.on.push(tr);
         }
       });
-      // events (keep descriptions where they existed)
+      // events: keep orig desc, write edited cues (what the model matches on)
       const evOut: Record<string, any> = {};
-      for (const ev of events) evOut[ev] = (data.spec.events ?? {})[ev] ?? { desc: "" };
+      for (const ev of events) {
+        const orig = (data.spec.events ?? {})[ev] ?? {};
+        const cueList = cues[ev] ?? [];
+        evOut[ev] = { ...orig, ...(cueList.length ? { cues: cueList } : {}) };
+        if (!evOut[ev].desc) evOut[ev].desc = "";
+      }
       spec.events = evOut;
       // tool declarations (preserve gating/args from orig; add new by impl)
       spec.tools = spec.tools ?? {};
@@ -412,18 +428,39 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
               </>
             ) : (
               <>
-                <h3>Events</h3>
-                <div className="fx-chips">
+                <h3>Events + cues</h3>
+                <p className="fx-note" style={{ margin: 0 }}>
+                  cues = ตัวอย่างคำที่ลูกค้าพูดเพื่อ <b>trigger transition</b> นี้ — <b>ไม่มี cues → transition มักไม่ยิง</b> (โมเดลไม่รู้ว่าจะเปลี่ยน state ตอนไหน)
+                </p>
+                <div className="fx-events-list">
                   {events.map((ev) => (
-                    <span className="fx-chip fx-event" key={ev}>{ev}
-                      <button className="fx-rm" onClick={() => removeEvent(ev)}><X size={11} /></button>
-                    </span>
+                    <div className="fx-event-row" key={ev}>
+                      <div className="fx-event-name">
+                        <code>{ev}</code>
+                        {(cues[ev] ?? []).length === 0 && <span className="fx-warn-tag">ไม่มี cues</span>}
+                        <button className="fx-rm" onClick={() => removeEvent(ev)} aria-label={`remove ${ev}`}><X size={11} /></button>
+                      </div>
+                      <div className="fx-chips">
+                        {(cues[ev] ?? []).map((cue, i) => (
+                          <span className="fx-chip" key={i}>{cue}
+                            <button className="fx-rm" onClick={() => removeCue(ev, cue)}><X size={10} /></button>
+                          </span>
+                        ))}
+                        <input
+                          className="fx-cue-input"
+                          placeholder="+ คำ (Enter)"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") { addCue(ev, e.currentTarget.value); e.currentTarget.value = ""; }
+                          }}
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
-                <div className="fx-composer-row" style={{ marginTop: 4 }}>
+                <div className="fx-composer-row" style={{ marginTop: 8 }}>
                   <input className="fx-ev-input" placeholder="event ใหม่" value={newEvent} onChange={(e) => setNewEvent(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") addEvent(); }} />
-                  <button className="fx-btn fx-mini" onClick={addEvent}><Plus size={12} /></button>
+                  <button className="fx-btn fx-mini" onClick={addEvent}><Plus size={12} /> event</button>
                 </div>
                 <div className="fx-divider" />
                 <h3>Tools</h3>

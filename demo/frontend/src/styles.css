@@ -1761,6 +1761,13 @@ button.bubble.tool-result {
 .fx-side-checks label { display: inline-flex; align-items: center; gap: 5px; }
 .fx-divider { height: 1px; background: var(--fx-line); }
 .fx-ev-input { flex: 1; font: inherit; font-size: 13px; color: var(--fx-ink); background: var(--fx-surface); border: 1px solid var(--fx-line2); border-radius: 7px; padding: 6px 9px; }
+.fx-events-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.fx-event-row { border: 1px solid var(--fx-line); border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.fx-event-name { display: flex; align-items: center; gap: 7px; }
+.fx-event-name code { font-family: var(--fx-mono); font-size: 12px; font-weight: 700; color: var(--fx-ink); }
+.fx-warn-tag { font-size: 9px; font-weight: 700; color: var(--fx-warn); background: color-mix(in srgb, var(--fx-warn) 14%, transparent); padding: 1px 6px; border-radius: 999px; }
+.fx-event-name .fx-rm { margin-left: auto; }
+.fx-cue-input { font: inherit; font-size: 12px; color: var(--fx-ink); background: var(--fx-surface); border: 1px dashed var(--fx-line2); border-radius: 999px; padding: 2px 9px; width: 100px; }
 
 /* custom node */
 .rf-node { width: 138px; background: var(--fx-surface); border: 1.5px solid var(--fx-line2); border-radius: 10px; padding: 8px 10px; box-shadow: 0 2px 8px -3px rgba(0,0,0,.18); color: var(--fx-ink); }
