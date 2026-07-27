@@ -9,6 +9,7 @@ import { FlowBuilderModal } from "./components/FlowBuilderModal";
 import { FlowEditorModal } from "./components/FlowEditorModal";
 import { CompanySelect } from "./components/CompanySelect";
 import { ModeSelect } from "./components/ModeSelect";
+import { InstructionModal } from "./components/InstructionModal";
 import { SaveDialog } from "./components/SaveDialog";
 import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
@@ -60,6 +61,7 @@ export default function App() {
   const [flowCompanies, setFlowCompanies] = useState<string[]>(FLOW_COMPANIES_DEFAULT);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [instrOpen, setInstrOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -343,6 +345,7 @@ export default function App() {
           company={company}
           onPlay={() => void enterPlayground(company)}
           onEdit={() => setEditorOpen(true)}
+          onView={() => setInstrOpen(true)}
           onBack={() => setScreen("company")}
         />
       )}
@@ -456,6 +459,11 @@ export default function App() {
         company={company}
         onClose={() => setEditorOpen(false)}
         onSaved={() => void handleFlowSaved()}
+      />
+      <InstructionModal
+        open={instrOpen}
+        company={company}
+        onClose={() => setInstrOpen(false)}
       />
       <SaveDialog
         open={saveOpen}

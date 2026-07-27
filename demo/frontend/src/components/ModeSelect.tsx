@@ -1,14 +1,15 @@
-import { Headphones, Wrench } from "lucide-react";
+import { Headphones, Wrench, FileText } from "lucide-react";
 import { COMPANY_LABELS } from "../api";
 
 type Props = {
   company: string;
   onPlay: () => void;
   onEdit: () => void;
+  onView: () => void;
   onBack: () => void;
 };
 
-export function ModeSelect({ company, onPlay, onEdit, onBack }: Props) {
+export function ModeSelect({ company, onPlay, onEdit, onView, onBack }: Props) {
   const label = COMPANY_LABELS[company] ?? company;
   return (
     <div className="studio">
@@ -40,6 +41,16 @@ export function ModeSelect({ company, onPlay, onEdit, onBack }: Props) {
             แก้โครง flow แบบลากวาง — states, transitions, beats, events, tools
           </span>
           <span className="mode-go">เปิด editor →</span>
+        </button>
+        <button className="mode-card" onClick={onView}>
+          <span className="mode-ic">
+            <FileText size={24} aria-hidden="true" />
+          </span>
+          <span className="mode-t">อ่าน instruction</span>
+          <span className="mode-d">
+            ดู prompt ที่โมเดลอ่านจริง — render สดจาก flow ปัจจุบัน
+          </span>
+          <span className="mode-go">เปิดดู →</span>
         </button>
       </div>
     </div>

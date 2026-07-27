@@ -551,6 +551,24 @@ def _flow_paths(company: str) -> "tuple[Any, Any]":
             REPO_ROOT / "data" / "pre-scripts" / entry["catalog"])
 
 
+def flow_instruction(company: str) -> str:
+    """The rendered system instruction for a company's flow — exactly what
+    FlowLiveSession feeds the model (render_instruction(spec) + the catalog),
+    with [placeholders] intact (filled per-call at runtime)."""
+    from demo.server.flow.flowspec_render import render_instruction
+    from agents.prescript import build_script_catalog
+
+    company = (company or "").strip().upper()
+    if company not in load_flow_registry():
+        return ""
+    spec_path, cat_path = _flow_paths(company)
+    if not spec_path.exists():
+        return ""
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    catalog = json.loads(cat_path.read_text(encoding="utf-8")) if cat_path.exists() else []
+    return render_instruction(spec) + "\n\n" + build_script_catalog(catalog, compact=True)
+
+
 def get_flow_spec(company: str) -> dict[str, Any]:
     """Load a company's FlowSpec + the vocab the editor needs (catalog fine_states,
     declared tool names). Returns {} if the company/spec isn't found."""

@@ -199,6 +199,15 @@ async def flow_beats() -> JSONResponse:
     return JSONResponse(sessions.flow_beats())
 
 
+@app.get("/api/flow/instruction")
+async def flow_instruction(company: str = Query(...)) -> JSONResponse:
+    """Rendered system instruction (prompt) for a company's flow — for reading."""
+    txt = sessions.flow_instruction(company)
+    if not txt:
+        raise HTTPException(404, detail=f"no flow instruction for company {company!r}")
+    return JSONResponse({"company": company, "instruction": txt})
+
+
 @app.get("/api/flow/spec")
 async def get_flow_spec(company: str = Query(...)) -> JSONResponse:
     """A company's FlowSpec + editor vocab (catalog fine_states, tool names)."""

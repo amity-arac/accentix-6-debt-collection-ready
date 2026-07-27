@@ -215,6 +215,12 @@ export type FlowSpecData = {
   tools: string[];
 };
 
+export async function fetchFlowInstruction(company: string): Promise<string> {
+  const resp = await fetch(`/api/flow/instruction?company=${encodeURIComponent(company)}`);
+  if (!resp.ok) throw new Error(`/api/flow/instruction ${resp.status}`);
+  return ((await resp.json()) as { instruction: string }).instruction;
+}
+
 export async function fetchFlowSpec(company: string): Promise<FlowSpecData> {
   const resp = await fetch(`/api/flow/spec?company=${encodeURIComponent(company)}`);
   if (!resp.ok) throw new Error(`/api/flow/spec ${resp.status}`);
