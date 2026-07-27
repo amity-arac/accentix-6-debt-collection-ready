@@ -199,6 +199,12 @@ async def flow_beats() -> JSONResponse:
     return JSONResponse(sessions.flow_beats())
 
 
+@app.get("/api/flow/cue-library")
+async def flow_cue_library() -> JSONResponse:
+    """event name -> suggested cue phrases (from the intent taxonomy) for the editor."""
+    return JSONResponse(sessions.cue_library())
+
+
 @app.get("/api/flow/instruction")
 async def flow_instruction(company: str = Query(...)) -> JSONResponse:
     """Rendered system instruction (prompt) for a company's flow — for reading."""

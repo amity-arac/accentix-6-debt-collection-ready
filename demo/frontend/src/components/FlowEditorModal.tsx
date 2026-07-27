@@ -15,7 +15,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { X, Plus, Trash2 } from "lucide-react";
-import { fetchFlowSpec, saveFlowSpec, type FlowSpecData } from "../api";
+import { fetchFlowSpec, fetchCueLibrary, saveFlowSpec, type FlowSpecData } from "../api";
 import { useMountTransition } from "../hooks/useMountTransition";
 
 const MODAL_EXIT_MS = 380;
@@ -78,6 +78,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [events, setEvents] = useState<string[]>([]);
   const [cues, setCues] = useState<Record<string, string[]>>({});
+  const [library, setLibrary] = useState<Record<string, string[]>>({});
   const [avail, setAvail] = useState<string[]>([]);
   const [newTemplates, setNewTemplates] = useState<Record<string, string>>({});
   const [selNode, setSelNode] = useState<string | null>(null);
@@ -97,6 +98,11 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const [tImpl, setTImpl] = useState(KNOWN_IMPLS[0]);
   const idc = useRef(0);
   const nid = () => `n${idc.current++}`;
+
+  useEffect(() => {
+    if (!mounted) return;
+    void fetchCueLibrary().then(setLibrary).catch(() => setLibrary({}));
+  }, [mounted]);
 
   useEffect(() => {
     if (!mounted || !company) return;
@@ -454,6 +460,21 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                           }}
                         />
                       </div>
+                      {(() => {
+                        const sugg = (library[ev] ?? []).filter((c) => !(cues[ev] ?? []).includes(c));
+                        if (sugg.length === 0) return null;
+                        return (
+                          <div className="fx-suggest">
+                            <span className="fx-suggest-lbl">แนะนำ</span>
+                            {sugg.map((c) => (
+                              <button className="fx-sugg-chip" key={c} onClick={() => addCue(ev, c)} title="คลิกเพื่อเพิ่ม">
+                                <Plus size={9} /> {c}
+                              </button>
+                            ))}
+                            <button className="fx-sugg-all" onClick={() => sugg.forEach((c) => addCue(ev, c))}>+ ทั้งหมด</button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

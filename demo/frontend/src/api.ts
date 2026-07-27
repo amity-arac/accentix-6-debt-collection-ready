@@ -178,6 +178,12 @@ export async function fetchFlowBeats(): Promise<FlowBeat[]> {
   return (await resp.json()) as FlowBeat[];
 }
 
+export async function fetchCueLibrary(): Promise<Record<string, string[]>> {
+  const resp = await fetch("/api/flow/cue-library");
+  if (!resp.ok) throw new Error(`/api/flow/cue-library ${resp.status}`);
+  return (await resp.json()) as Record<string, string[]>;
+}
+
 export type CreateFlowResult = {
   ok: boolean;
   company?: string;

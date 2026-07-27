@@ -1,8 +1,8 @@
 {
   "spec_version": 2,
-  "flow_id": "AIS-outbound-remind",
-  "company": "AIS",
-  "description": "FlowSpec for AIS outbound-remind — adapted from AEON flow, paired with the AIS telecom catalog.",
+  "flow_id": "NEWCO-outbound-remind",
+  "company": "NEWCO",
+  "description": "SKELETON — copy this, change company/flow_id, pair with your catalog. Same outbound-remind structure as AEON.",
   "role": "เลียนแบบบอทโทรจริงในโปรดักชัน (flow \"Outbound - Remind\" สกัดจาก 30,000 สาย)",
   "sources": [
     "data/system_instructions/pre-script/v11_communicator_instruction-AEON.md",

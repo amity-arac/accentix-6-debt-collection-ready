@@ -545,6 +545,20 @@ def flow_companies() -> list[str]:
     return list(load_flow_registry())
 
 
+_CUE_LIBRARY_FILE = REPO_ROOT / "data" / "flows" / "intent_cues.json"
+
+
+def cue_library() -> dict[str, list[str]]:
+    """event name -> suggested cue phrases, derived from the intent taxonomy
+    (tools/build_cue_library.py). Powers the editor's "suggest cues" button."""
+    if _CUE_LIBRARY_FILE.exists():
+        try:
+            return json.loads(_CUE_LIBRARY_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
 def _flow_paths(company: str) -> "tuple[Any, Any]":
     entry = load_flow_registry()[company]
     return (REPO_ROOT / "data" / "flows" / entry["spec"],
