@@ -21,13 +21,21 @@ import { useMountTransition } from "../hooks/useMountTransition";
 const MODAL_EXIT_MS = 380;
 const PHASES = ["opening", "main", "close"];
 const PHASE_X: Record<string, number> = { opening: 40, main: 340, close: 640 };
+// Backend behaviours a tool can bind to (mirrors flowspec.KNOWN_IMPLS).
+const KNOWN_IMPLS = [
+  "check_account_status", "record_verbal_commitment", "payment_date",
+  "callback_datetime", "get_current_datetime", "record_outcome", "update_phone",
+  "transfer_to_human_agent", "verify_identity", "generic",
+];
 
+type ToolDecl = { name: string; impl: string; orig: any };
 type NodeData = {
   name: string;
   phase: string;
   initial?: boolean;
   terminal?: boolean;
   beats: string[];
+  entryTools: string[];
   orig: any;
 };
 
@@ -81,6 +89,11 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const [beatMode, setBeatMode] = useState(false);
   const [bFs, setBFs] = useState("");
   const [bText, setBText] = useState("");
+  // Tool declarations (the set of tools + impl the flow exposes).
+  const [tools, setTools] = useState<ToolDecl[]>([]);
+  const [toolMode, setToolMode] = useState(false);
+  const [tName, setTName] = useState("");
+  const [tImpl, setTImpl] = useState(KNOWN_IMPLS[0]);
   const idc = useRef(0);
   const nid = () => `n${idc.current++}`;
 
@@ -93,6 +106,9 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
         setData(d);
         setAvail(d.fine_states);
         setEvents(Object.keys(d.spec.events ?? {}));
+        setTools((((d.spec as any).tools?.declarations) ?? []).map((t: any) => ({
+          name: t.name, impl: t.impl ?? "generic", orig: t,
+        })));
         const byPhaseCount: Record<string, number> = {};
         const map: Record<string, string> = {};
         const ns: Node<NodeData>[] = (d.spec.states ?? []).map((s: any) => {
@@ -104,7 +120,8 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
             id: rid, type: "flowState", position: { x: PHASE_X[phase] ?? 340, y },
             data: {
               name: s.id, phase, initial: !!s.initial, terminal: !!s.terminal,
-              beats: (s.templates ?? []).map((t: any) => t.fine_state), orig: s,
+              beats: (s.templates ?? []).map((t: any) => t.fine_state),
+              entryTools: s.entry_tools ?? [], orig: s,
             },
           };
         });
@@ -114,7 +131,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
             if (map[s.id] && map[t.to])
               es.push({
                 id: `${map[s.id]}-${i}`, source: map[s.id], target: map[t.to],
-                label: t.event, data: { event: t.event, orig: t },
+                label: t.event, data: { event: t.event, tools: t.tools ?? [], orig: t },
                 markerEnd: { type: MarkerType.ArrowClosed },
               });
           }),
@@ -155,7 +172,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
     const id = nid();
     setNodes((ns) => [...ns, {
       id, type: "flowState", position: { x: 340, y: 40 + ns.length * 20 },
-      data: { name: `state${i}`, phase: "main", beats: [], orig: {} },
+      data: { name: `state${i}`, phase: "main", beats: [], entryTools: [], orig: {} },
     }]);
     setSelNode(id); setSelEdge(null);
   };
@@ -175,6 +192,27 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
     setEvents((e) => e.filter((x) => x !== ev));
     setEdges((es) => es.filter((e) => e.data?.event !== ev));
   };
+
+  // --- tools ---
+  const toolNames = tools.map((t) => t.name);
+  const addTool = () => {
+    const n = tName.trim();
+    if (!/^[a-z][a-z0-9_]*$/.test(n)) { setErrors(["ชื่อ tool ใช้ a-z/0-9/_ ขึ้นต้นด้วยตัวอักษร"]); return; }
+    if (toolNames.includes(n)) { setErrors([`มี tool ${n} อยู่แล้ว`]); return; }
+    setTools((ts) => [...ts, { name: n, impl: tImpl, orig: { name: n, impl: tImpl } }]);
+    setToolMode(false); setTName(""); setErrors([]);
+  };
+  const removeTool = (n: string) => {
+    setTools((ts) => ts.filter((t) => t.name !== n));
+    setNodes((ns) => ns.map((x) => ({ ...x, data: { ...x.data, entryTools: x.data.entryTools.filter((t) => t !== n) } })));
+    setEdges((es) => es.map((e) => ({ ...e, data: { ...e.data, tools: (e.data?.tools ?? []).filter((t: string) => t !== n) } })));
+  };
+  const addEntryTool = (id: string, t: string) =>
+    patchNode(id, (d) => (d.entryTools.includes(t) ? d : { ...d, entryTools: [...d.entryTools, t] }));
+  const removeEntryTool = (id: string, t: string) =>
+    patchNode(id, (d) => ({ ...d, entryTools: d.entryTools.filter((x) => x !== t) }));
+  const patchEdgeTools = (id: string, fn: (arr: string[]) => string[]) =>
+    setEdges((es) => es.map((e) => (e.id === id ? { ...e, data: { ...e.data, tools: fn(e.data?.tools ?? []) } } : e)));
 
   // beats composer helpers (state declared above, before the early return)
   const addExistingBeat = (id: string, fs: string) =>
@@ -203,6 +241,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
         if (n.data.initial) s.initial = true; else delete s.initial;
         if (n.data.terminal) s.terminal = true; else delete s.terminal;
         s.templates = n.data.beats.map((fs) => ({ fine_state: fs }));
+        if (n.data.entryTools.length) s.entry_tools = n.data.entryTools; else delete s.entry_tools;
         s.on = [];
         return s;
       });
@@ -212,13 +251,18 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
         const src = byRf[e.source]; const tgt = nodes.find((n) => n.id === e.target);
         if (src && tgt) {
           const extra = e.data?.orig ? { ...e.data.orig } : {};
-          src.on.push({ ...extra, event: e.data?.event ?? e.label, to: tgt.data.name });
+          const tr: any = { ...extra, event: e.data?.event ?? e.label, to: tgt.data.name };
+          if ((e.data?.tools ?? []).length) tr.tools = e.data.tools; else delete tr.tools;
+          src.on.push(tr);
         }
       });
       // events (keep descriptions where they existed)
       const evOut: Record<string, any> = {};
       for (const ev of events) evOut[ev] = (data.spec.events ?? {})[ev] ?? { desc: "" };
       spec.events = evOut;
+      // tool declarations (preserve gating/args from orig; add new by impl)
+      spec.tools = spec.tools ?? {};
+      spec.tools.declarations = tools.map((t) => ({ ...(t.orig || {}), name: t.name, impl: t.impl }));
 
       const res = await saveFlowSpec(
         company, spec,
@@ -321,6 +365,21 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                     </div>
                   )}
                 </div>
+                <div className="fx-field">
+                  <label>เรียก tool ตอนเข้า state (silent)</label>
+                  <div className="fx-chips">
+                    {selectedNode.data.entryTools.map((t, i) => (
+                      <span className="fx-chip fx-event" key={i}>{t}
+                        <button className="fx-rm" onClick={() => removeEntryTool(selectedNode.id, t)}><X size={11} /></button>
+                      </span>
+                    ))}
+                    <select className="fx-add-select" value=""
+                      onChange={(e) => { if (e.target.value) addEntryTool(selectedNode.id, e.target.value); }}>
+                      <option value="">＋ tool…</option>
+                      {toolNames.filter((t) => !selectedNode.data.entryTools.includes(t)).map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
                 <div className="fx-divider" />
                 <button className="fx-btn fx-mini fx-danger" onClick={() => deleteNode(selectedNode.id)}><Trash2 size={12} /> ลบ state นี้</button>
               </>
@@ -333,6 +392,21 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                   <select value={selectedEdge.data?.event ?? ""} onChange={(e) => patchEdge(selectedEdge.id, e.target.value)}>
                     {events.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
                   </select>
+                </div>
+                <div className="fx-field">
+                  <label>เรียก tool ตอน transition นี้</label>
+                  <div className="fx-chips">
+                    {(selectedEdge.data?.tools ?? []).map((t: string, i: number) => (
+                      <span className="fx-chip fx-event" key={i}>{t}
+                        <button className="fx-rm" onClick={() => patchEdgeTools(selectedEdge.id, (a) => a.filter((x) => x !== t))}><X size={11} /></button>
+                      </span>
+                    ))}
+                    <select className="fx-add-select" value=""
+                      onChange={(e) => { const v = e.target.value; if (v) patchEdgeTools(selectedEdge.id, (a) => a.includes(v) ? a : [...a, v]); }}>
+                      <option value="">＋ tool…</option>
+                      {toolNames.filter((t) => !(selectedEdge.data?.tools ?? []).includes(t)).map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <button className="fx-btn fx-mini fx-danger" onClick={() => deleteEdge(selectedEdge.id)}><Trash2 size={12} /> ลบทางแยก</button>
               </>
@@ -352,8 +426,31 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                   <button className="fx-btn fx-mini" onClick={addEvent}><Plus size={12} /></button>
                 </div>
                 <div className="fx-divider" />
+                <h3>Tools</h3>
+                <div className="fx-chips">
+                  {tools.map((t) => (
+                    <span className="fx-chip fx-event" key={t.name} title={`impl: ${t.impl}`}>{t.name}
+                      <button className="fx-rm" onClick={() => removeTool(t.name)}><X size={11} /></button>
+                    </span>
+                  ))}
+                </div>
+                {toolMode ? (
+                  <div className="fx-composer" style={{ marginTop: 6 }}>
+                    <input placeholder="ชื่อ tool (เช่น send_sms)" value={tName} onChange={(e) => setTName(e.target.value)} />
+                    <select value={tImpl} onChange={(e) => setTImpl(e.target.value)}>
+                      {KNOWN_IMPLS.map((im) => <option key={im} value={im}>{im}</option>)}
+                    </select>
+                    <div className="fx-composer-row">
+                      <button className="fx-btn fx-mini" onClick={addTool}>เพิ่ม</button>
+                      <button className="fx-btn fx-mini fx-ghost" onClick={() => setToolMode(false)}>ยกเลิก</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="fx-btn fx-mini fx-addbeat" style={{ marginTop: 4 }} onClick={() => setToolMode(true)}><Plus size={12} /> เพิ่ม tool</button>
+                )}
+                <div className="fx-divider" />
                 <p className="fx-note" style={{ margin: 0 }}>
-                  🖱️ <b>ลากกล่อง</b> = ย้าย · ลากจากจุดขวากล่อง → อีกกล่อง = <b>สร้างทางแยก</b> · <b>คลิกกล่อง/เส้น</b> = แก้ตรงนี้
+                  🖱️ <b>ลากกล่อง</b> = ย้าย · ลากจากจุดขวากล่อง → อีกกล่อง = <b>สร้างทางแยก</b> · <b>คลิกกล่อง/เส้น</b> = แก้ตรงนี้ · <b>tool</b> ผูกที่ state (entry) หรือ transition
                 </p>
               </>
             )}
@@ -361,7 +458,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
         </div>
 
         <div className="fx-foot">
-          <span className="fx-foot-hint">บันทึกแล้ว validate อัตโนมัติ · ระบบเก็บ tools/constraints ให้ · ลบ state แล้วทางแยกที่ชี้หามันลบให้เอง</span>
+          <span className="fx-foot-hint">บันทึกแล้ว validate อัตโนมัติ · แก้ tools/entry/transition ได้ (constraints/gating ขั้นสูงเก็บให้) · ลบ state/tool แล้ว ref ที่ค้างถูกตัดให้เอง</span>
           <span className="fx-spacer" />
           <button className="fx-btn fx-ghost" onClick={onClose}>ยกเลิก</button>
           <button className="fx-btn fx-primary" onClick={() => void save()} disabled={saving || !data}>
