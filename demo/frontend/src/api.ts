@@ -71,6 +71,14 @@ export type PersonaCase = {
 
 export type VoiceGender = "M" | "F";
 
+/** Thai display names for known company codes (fallback = the code itself). */
+export const COMPANY_LABELS: Record<string, string> = {
+  AEON: "อิอ้อน",
+  JAI: "เจ มันนี่",
+  KS: "อยุธยา แคปปิตอล",
+  AIS: "เอไอเอส",
+};
+
 export type StreamSessionMsg = {
   type: "session";
   session_id: string;

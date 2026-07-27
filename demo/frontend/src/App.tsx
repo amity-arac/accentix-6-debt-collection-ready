@@ -7,6 +7,8 @@ import { ResetConfirmModal } from "./components/ResetConfirmModal";
 import { PersonaPickerModal } from "./components/PersonaPickerModal";
 import { FlowBuilderModal } from "./components/FlowBuilderModal";
 import { FlowEditorModal } from "./components/FlowEditorModal";
+import { CompanySelect } from "./components/CompanySelect";
+import { ModeSelect } from "./components/ModeSelect";
 import { SaveDialog } from "./components/SaveDialog";
 import { EndOfCallCard } from "./components/EndOfCallCard";
 import { ShortcutsHint } from "./components/ShortcutsHint";
@@ -44,6 +46,9 @@ export default function App() {
     bargeIn,
     clearStreamError,
   } = useSession();
+  // App shell: company → mode → playground. Editor/builder are modal overlays.
+  const [screen, setScreen] = useState<"company" | "mode" | "play">("company");
+  const [company, setCompany] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string>("");
@@ -56,7 +61,6 @@ export default function App() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
-  const initRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initSession = useCallback(async (): Promise<boolean> => {
@@ -73,14 +77,8 @@ export default function App() {
     }
   }, [start]);
 
-  // Auto-create the session on mount so the CustomerPanel populates
-  // immediately. No agent reply fires until the user clicks Start and
-  // sends their first message — see `_stream_session_only` on the server.
-  useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-    void initSession();
-  }, [initSession]);
+  // No auto-init: the session is created when the user enters the Playground
+  // for a chosen company (see enterPlayground). The landing is company-select.
 
   // Benchmark hook (?bench=1 only): expose the session reset so the E2E harness
   // (benchmark/e2e) can start a fresh conversation every N turns without the
@@ -131,71 +129,55 @@ export default function App() {
     [selectCase],
   );
 
-  // Flow mode ships a FlowSpec per company (each carries the company's own
-  // catalog). Companies without one fall back to AEON, so handle the engine
-  // toggle explicitly: entering Flow snaps to an AEON persona ONLY if the
-  // current persona's company isn't flow-supported (so the switch is visible,
-  // not a silent server override at Start); leaving Flow restores the prior one.
-  const flowSupported = useCallback(
-    (caseId: string | null) => {
-      const parts = caseId?.split("-");
-      return !!parts && parts.length > 1 && flowCompanies.includes(parts[1]);
+  // Engine toggle inside the Playground — company is fixed by the shell, so this
+  // just swaps the driving LLM (re-init happens on Start if it changed).
+  const handleEngineChange = useCallback((e: Engine) => setAgent(e), [setAgent]);
+
+  // Playground picker offers only the selected company's personas.
+  const pickerCases = company ? cases.filter((c) => c.company === company) : cases;
+
+  // Enter the Playground for a company: default to the Flow engine, load the
+  // company's first persona (creates the session), show the setup screen.
+  const enterPlayground = useCallback(
+    async (co: string) => {
+      setCompany(co);
+      setAgent("flow");
+      setStarted(false);
+      setScreen("play");
+      const first = cases.find((c) => c.company === co);
+      if (first) await handleSelectPersona(first.id);
     },
-    [flowCompanies],
-  );
-  const preFlowCaseIdRef = useRef<string | null>(null);
-  const handleEngineChange = useCallback(
-    (e: Engine) => {
-      const prev = state.agent;
-      setAgent(e);
-      if (e === "flow" && prev !== "flow") {
-        if (state.caseId && !flowSupported(state.caseId)) {
-          preFlowCaseIdRef.current = state.caseId;
-          const aeon = cases.find((c) => c.company === "AEON");
-          if (aeon) void handleSelectPersona(aeon.id);
-        }
-      } else if (e !== "flow" && prev === "flow") {
-        const restore = preFlowCaseIdRef.current;
-        preFlowCaseIdRef.current = null;
-        if (restore) void handleSelectPersona(restore);
-      }
-    },
-    [state.agent, state.caseId, cases, setAgent, handleSelectPersona, flowSupported],
+    [cases, setAgent, handleSelectPersona],
   );
 
-  // While Flow is active the picker only offers flow-supported companies —
-  // prevents re-introducing the silent fallback by picking an unsupported one.
-  const pickerCases =
-    state.agent === "flow"
-      ? cases.filter((c) => flowCompanies.includes(c.company))
-      : cases;
+  const backToMenu = useCallback(() => {
+    setStarted(false);
+    setScreen(company ? "mode" : "company");
+  }, [company]);
 
-  // After the Builder creates a company: refresh companies + personas, switch to
-  // Flow, and jump into the new demo persona so it's immediately playable.
+  // After the Builder creates a company: refresh, then drop into its Playground.
   const handleFlowCreated = useCallback(
-    async (caseId: string, _company: string) => {
+    async (caseId: string, newCompany: string) => {
       setBuilderOpen(false);
       await Promise.all([
         fetchFlowCompanies().then((c) => c.length && setFlowCompanies(c)).catch(() => {}),
         fetchCases().then(setCases).catch(() => {}),
       ]);
+      setCompany(newCompany);
       setAgent("flow");
-      preFlowCaseIdRef.current = null; // don't restore a prior persona
+      setStarted(false);
+      setScreen("play");
       await handleSelectPersona(caseId);
     },
     [setAgent, handleSelectPersona],
   );
 
-  // The flow company currently in context (drives the "Edit flow" target).
-  const currentFlowCompany =
-    state.agent === "flow" && state.caseId ? state.caseId.split("-")[1] : null;
-
-  // After the structure editor saves: rebuild the session so the new spec loads
-  // (FlowLiveSession reads the spec fresh on init).
+  // After the structure editor saves: close it; a fresh session (next Start /
+  // re-select) picks up the new spec automatically.
   const handleFlowSaved = useCallback(async () => {
     setEditorOpen(false);
-    if (state.caseId) await handleSelectPersona(state.caseId);
-  }, [state.caseId, handleSelectPersona]);
+    if (started && state.caseId) await handleSelectPersona(state.caseId);
+  }, [started, state.caseId, handleSelectPersona]);
 
   const canSave = started && state.bubbles.length > 0 && !state.busy;
 
@@ -346,128 +328,141 @@ export default function App() {
   });
 
   return (
-    <div className="app">
-      <CustomerPanel
-        caseId={state.caseId}
-        mode={state.mode}
-        agent={started ? state.serverAgent : null}
-        customer={state.customer}
-        collapsed={panelCollapsed}
-        onToggleCollapse={() => setPanelCollapsed((c) => !c)}
-        headerClickable={!started}
-        onHeaderClick={() => setPersonaModalOpen(true)}
-      />
-      <main className="chat-main">
-        {started && (
-          <ChatStream
-            entries={state.bubbles}
-            interim={mic.interim}
-            started={started}
-            done={state.done}
-            busy={state.busy}
+    <>
+      {screen === "company" && (
+        <CompanySelect
+          companies={flowCompanies}
+          cases={cases}
+          onPick={(co) => { setCompany(co); setScreen("mode"); }}
+          onNew={() => setBuilderOpen(true)}
+        />
+      )}
+
+      {screen === "mode" && company && (
+        <ModeSelect
+          company={company}
+          onPlay={() => void enterPlayground(company)}
+          onEdit={() => setEditorOpen(true)}
+          onBack={() => setScreen("company")}
+        />
+      )}
+
+      {screen === "play" && (
+        <div className="app">
+          <button className="pg-back" onClick={backToMenu} title="กลับเมนู">← เมนู</button>
+          <CustomerPanel
+            caseId={state.caseId}
+            mode={state.mode}
+            agent={started ? state.serverAgent : null}
+            customer={state.customer}
+            collapsed={panelCollapsed}
+            onToggleCollapse={() => setPanelCollapsed((c) => !c)}
+            headerClickable={!started}
+            onHeaderClick={() => setPersonaModalOpen(true)}
           />
-        )}
-      </main>
-      <ControlBar
-        started={started}
-        ready={state.ready}
-        starting={starting}
-        startError={startError}
-        onStart={handleStart}
-        agent={state.agent}
-        onAgentChange={handleEngineChange}
-        onBuildFlow={() => setBuilderOpen(true)}
-        onEditFlow={currentFlowCompany ? () => setEditorOpen(true) : undefined}
-        voiceGender={state.voiceGender}
-        onVoiceGenderChange={setVoiceGender}
-        micState={micState}
-        micSupported={mic.supported}
-        micError={mic.error}
-        micErrorCode={mic.errorCode}
-        onClearMicError={mic.clearError}
-        paused={state.paused}
-        busy={state.busy}
-        done={state.done}
-        onToggleMic={mic.toggleMute}
-        onPause={togglePause}
-        onRequestReset={() => setResetModalOpen(true)}
-        onTypedSubmit={handleTyped}
-        onSave={() => setSaveOpen(true)}
-        canSave={canSave}
-        saving={saveState.phase === "saving"}
-      />
+          <main className="chat-main">
+            {started && (
+              <ChatStream
+                entries={state.bubbles}
+                interim={mic.interim}
+                started={started}
+                done={state.done}
+                busy={state.busy}
+              />
+            )}
+          </main>
+          <ControlBar
+            started={started}
+            ready={state.ready}
+            starting={starting}
+            startError={startError}
+            onStart={handleStart}
+            agent={state.agent}
+            onAgentChange={handleEngineChange}
+            onEditFlow={() => setEditorOpen(true)}
+            voiceGender={state.voiceGender}
+            onVoiceGenderChange={setVoiceGender}
+            micState={micState}
+            micSupported={mic.supported}
+            micError={mic.error}
+            micErrorCode={mic.errorCode}
+            onClearMicError={mic.clearError}
+            paused={state.paused}
+            busy={state.busy}
+            done={state.done}
+            onToggleMic={mic.toggleMute}
+            onPause={togglePause}
+            onRequestReset={() => setResetModalOpen(true)}
+            onTypedSubmit={handleTyped}
+            onSave={() => setSaveOpen(true)}
+            canSave={canSave}
+            saving={saveState.phase === "saving"}
+          />
+          {state.streamError && (
+            <div className="stream-error-banner" role="alert">
+              <span>{state.streamError.message}</span>
+              <button type="button" onClick={() => state.streamError?.retry()} aria-label="Try again">
+                <RefreshCw size={12} aria-hidden="true" /> Try again
+              </button>
+              <button type="button" onClick={clearStreamError} aria-label="Dismiss">
+                <X size={12} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          {state.done && (
+            <EndOfCallCard
+              onRestart={() => { void reset().then(() => fireOpening()); }}
+              onSave={() => setSaveOpen(true)}
+              saving={saveState.phase === "saving"}
+            />
+          )}
+          {saveState.phase !== "idle" && (
+            <div className={`save-toast ${saveState.phase}`} role="status">
+              {saveState.message}
+            </div>
+          )}
+          {!mic.supported && (
+            <div className="info-banner" role="status">
+              This browser doesn't support voice input — use the message box below.
+            </div>
+          )}
+          {started && <ShortcutsHint />}
+        </div>
+      )}
+
       <ResetConfirmModal
         open={resetModalOpen}
         onCancel={() => setResetModalOpen(false)}
         onConfirm={() => {
           setResetModalOpen(false);
-          void reset().then(() => fireOpening());  // fresh call → bot greets first
+          void reset().then(() => fireOpening());
         }}
       />
       <PersonaPickerModal
         open={personaModalOpen}
         cases={pickerCases}
         currentCaseId={state.caseId}
-        note={state.agent === "flow" ? "Flow mode runs the outbound-remind flow — all companies (experimental)." : undefined}
+        note={company ? `personas ของ ${company}` : undefined}
         onClose={() => setPersonaModalOpen(false)}
         onSelect={(id) => void handleSelectPersona(id)}
       />
       <FlowBuilderModal
         open={builderOpen}
         onClose={() => setBuilderOpen(false)}
-        onCreated={(caseId, company) => void handleFlowCreated(caseId, company)}
+        onCreated={(caseId, co) => void handleFlowCreated(caseId, co)}
       />
       <FlowEditorModal
         open={editorOpen}
-        company={currentFlowCompany}
+        company={company}
         onClose={() => setEditorOpen(false)}
         onSaved={() => void handleFlowSaved()}
       />
-      {state.streamError && (
-        <div className="stream-error-banner" role="alert">
-          <span>{state.streamError.message}</span>
-          <button
-            type="button"
-            onClick={() => state.streamError?.retry()}
-            aria-label="Try again"
-          >
-            <RefreshCw size={12} aria-hidden="true" /> Try again
-          </button>
-          <button
-            type="button"
-            onClick={clearStreamError}
-            aria-label="Dismiss"
-          >
-            <X size={12} aria-hidden="true" />
-          </button>
-        </div>
-      )}
-      {state.done && (
-        <EndOfCallCard
-          onRestart={() => {
-            void reset().then(() => fireOpening());  // fresh call → bot greets first
-          }}
-          onSave={() => setSaveOpen(true)}
-          saving={saveState.phase === "saving"}
-        />
-      )}
       <SaveDialog
         open={saveOpen}
         saving={saveState.phase === "saving"}
         onConfirm={(c) => void handleSave(c)}
         onCancel={() => setSaveOpen(false)}
       />
-      {saveState.phase !== "idle" && (
-        <div className={`save-toast ${saveState.phase}`} role="status">
-          {saveState.message}
-        </div>
-      )}
-      {!mic.supported && (
-        <div className="info-banner" role="status">
-          This browser doesn't support voice input — use the message box below.
-        </div>
-      )}
-      {started && <ShortcutsHint />}
-    </div>
+    </>
   );
 }

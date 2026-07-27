@@ -22,7 +22,7 @@ type Props = {
   onStart: () => void;
   agent: Engine;
   onAgentChange: (a: Engine) => void;
-  onBuildFlow: () => void;
+  onBuildFlow?: () => void;
   onEditFlow?: () => void;
   voiceGender: VoiceGender;
   onVoiceGenderChange: (g: VoiceGender) => void;
@@ -144,7 +144,7 @@ export function ControlBar({
             Male
           </button>
         </div>
-        {agent === "flow" && (
+        {agent === "flow" && onBuildFlow && (
           <button
             type="button"
             className="btn"
