@@ -1,0 +1,825 @@
+{
+ "spec_version": 2,
+ "flow_id": "ABC-inbound-service",
+ "company": "ABC",
+ "description": "Flow แตกต่าง — เอบีซี inbound customer-service triage (hub-and-spoke), ไม่ใช่ outbound.",
+ "role": "รับสายลูกค้าโทรเข้า ศูนย์บริการ — ยืนยันตัวตน แล้วช่วยตามเรื่องที่ลูกค้าต้องการ (จ่าย/เช็คยอด/ผ่อน/ช่วยเหลือ/ต่อเจ้าหน้าที่)",
+ "catalog": "data/pre-scripts/abc_inbound_catalog.json",
+ "goal": "รับสายเข้า → ยืนยันตัวตน → ถามว่าให้ช่วยเรื่องใด → แตกไปช่วยตามเรื่อง → วนกลับถามต่อจนจบ",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "amount",
+  "due_date",
+  "due_status",
+  "company_phone"
+ ],
+ "events": {
+  "name_confirmed": {
+   "desc": "ยืนยันตัวตน/บอกชื่อ",
+   "cues": [
+    "ใช่",
+    "ครับ",
+    "ค่ะ",
+    "ผมเอง",
+    "ดิฉันเอง",
+    "ผมสมชายเอง",
+    "ยืนยัน",
+    "ใช่ครับ",
+    "ใช่ค่ะ",
+    "Yes",
+    "Correct",
+    "Speaking",
+    "This is him/her",
+    "พูดสายอยู่",
+    "...กำลังเรียนสาย",
+    "Okay",
+    "Right",
+    "ได้ครับ",
+    "โอเคค่ะ",
+    "รับทราบครับ"
+   ]
+  },
+  "wants_pay": {
+   "desc": "ต้องการชำระเงิน",
+   "cues": [
+    "จะจ่าย",
+    "มาจ่าย",
+    "จ่ายเงิน",
+    "ขอชำระ",
+    "โอนเงิน",
+    "จะชำระหนี้",
+    "อยากจ่าย",
+    "สะดวกเดี๋ยวไปจ่ายเอง",
+    "จ่ายให้ค่ะ",
+    "เดี๋ยวจัดการให้",
+    "รู้แล้วเดี๋ยวไปจ่าย",
+    "I'll pay it when I'm ready",
+    "เดี๋ยวดูให้อีกที"
+   ]
+  },
+  "asks_balance": {
+   "desc": "ถามยอดคงค้าง",
+   "cues": [
+    "ยอดเท่าไหร่",
+    "เช็คยอด",
+    "ค้างเท่าไหร่",
+    "ขอเช็คยอด",
+    "ยอดคงเหลือ",
+    "สอบถามยอด",
+    "ต้องจ่ายเท่าไหร่",
+    "เหลือเท่าไหร่"
+   ]
+  },
+  "wants_installment": {
+   "desc": "ขอผ่อน/แบ่งจ่าย",
+   "cues": [
+    "ขอผ่อน",
+    "แบ่งจ่าย",
+    "ผ่อนได้ไหม",
+    "ขอผ่อนชำระ",
+    "แบ่งงวด",
+    "ผ่อนเป็นงวด",
+    "ขอแบ่งชำระ",
+    "จ่ายเป็นงวดได้ไหม"
+   ]
+  },
+  "reports_hardship": {
+   "desc": "แจ้งว่าจ่ายลำบาก",
+   "cues": [
+    "ไม่มีเงิน",
+    "จ่ายไม่ไหว",
+    "ตกงาน",
+    "เงินไม่พอ",
+    "ลำบาก",
+    "ยังไม่มีจ่าย",
+    "tight",
+    "หมุนเงินไม่ทัน",
+    "ช่วงนี้ช็อต",
+    "ไม่มีเงินก้อน"
+   ]
+  },
+  "wants_agent": {
+   "desc": "ขอคุยเจ้าหน้าที่",
+   "cues": [
+    "ขอคุยเจ้าหน้าที่",
+    "ต่อคน",
+    "ขอสายเจ้าหน้าที่",
+    "คุยกับคน",
+    "ขอพนักงาน",
+    "ต่อเจ้าหน้าที่หน่อย",
+    "อยากคุยกับคน"
+   ]
+  },
+  "done_no": {
+   "desc": "ไม่มีอะไรเพิ่ม/จบสาย",
+   "cues": [
+    "ไม่มีแล้ว",
+    "พอแล้ว",
+    "แค่นี้",
+    "ไม่แล้วขอบคุณ",
+    "หมดแล้ว",
+    "เท่านี้",
+    "ไม่มีอะไรแล้ว",
+    "จบเลย"
+   ]
+  },
+  "ack": {
+   "desc": "รับทราบ (กลับไปถามต่อ)",
+   "cues": [
+    "รับทราบ",
+    "โอเค",
+    "อืม",
+    "เข้าใจแล้ว",
+    "ได้",
+    "อ๋อ",
+    "ครับผม",
+    "ค่ะรับทราบ"
+   ]
+  },
+  "agrees_to_pay": {
+   "desc": "รับปากจะชำระ",
+   "cues": [
+    "สะดวกเดี๋ยวไปจ่ายเอง",
+    "จ่ายให้ค่ะ",
+    "เดี๋ยวจัดการให้",
+    "รู้แล้วเดี๋ยวไปจ่าย",
+    "I'll pay it when I'm ready",
+    "เดี๋ยวดูให้อีกที",
+    "จ่ายวันนี้",
+    "โอนให้เย็นนี้",
+    "เดี๋ยวไปจ่ายตอนนี้เลย",
+    "Paying now",
+    "Within this evening",
+    "จ่ายวันที่ 25"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "ขอให้ติดต่อกลับทีหลัง",
+   "cues": [
+    "Call back later",
+    "Busy, try again tomorrow",
+    "สะดวกช่วงบ่าย",
+    "พรุ่งนี้ค่อยโทรมาใหม่",
+    "เดี๋ยวโทรกลับเอง",
+    "I'm busy",
+    "ไม่สะดวกคุยตอนนี้",
+    "ขับรถอยู่",
+    "ติดประชุมอยู่ครับ",
+    "I'm in a meeting",
+    "ยุ่งอยู่ครับ"
+   ]
+  },
+  "refuses": {
+   "desc": "ปฏิเสธ",
+   "cues": [
+    "I'm not paying",
+    "Sue me if you want",
+    "No money, no talk",
+    "Stop calling, I won't pay",
+    "ไม่จ่าย",
+    "อยากฟ้องก็ฟ้องเลย",
+    "ไม่มี ไม่หนี ไม่จ่าย",
+    "อยากได้ไปฟ้องเอา",
+    "ไม่ต้องโทรมาแล้ว ยังไงก็ไม่จ่าย"
+   ]
+  },
+  "stop_signal": {
+   "desc": "ขอไม่ให้ติดต่ออีก",
+   "cues": [
+    "หยุดโทร",
+    "เลิกโทรมาสักที",
+    "จะฟ้อง กทน.",
+    "ลบชื่อออกไปเลย",
+    "Do not call me again",
+    "Relationship Denial.",
+    "I'm not your customer",
+    "I don't have an account with you",
+    "Stop calling, I've never used your service",
+    "ไม่เคยใช้บริการ",
+    "ไม่ใช่ลูกค้า",
+    "ไม่เคยมีบัญชี"
+   ]
+  },
+  "no_input": {
+   "desc": "เงียบ/ไม่ตอบ",
+   "cues": [
+    "asdfghjkl",
+    "อ้าว",
+    "เอ๊ะ",
+    "อ้าวทำไม",
+    "โห",
+    "หือ",
+    "Leave a message",
+    "ฝากข้อความหลังเสียงสัญญาณ",
+    "ฝาก หมายเลข นี้ กด 1 ฝาก หมายเลข โทร กลับ หมายเลข อื่น กด 2"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "ไม่มี KYC ถามเลข 4 หลัก และไม่มีการโอนสายไปเจ้าหน้าที่จริง (ตามบอทจริง)"
+  ],
+  "declarations": [
+   {
+    "name": "check_account_status",
+    "impl": "check_account_status",
+    "desc": "อ่านข้อมูลบัญชี (ยอด/วันครบกำหนด/สถานะ)",
+    "args": {},
+    "gating": {
+     "after_event": "name_confirmed",
+     "required_before_state": "hub",
+     "max_calls_per_conversation": 1
+    }
+   },
+   {
+    "name": "record_verbal_commitment",
+    "impl": "record_verbal_commitment",
+    "desc": "บันทึกคำมั่นด้วยวาจา (amount, date, channel)",
+    "args": {
+     "amount": {
+      "type": "string"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ]
+     }
+    },
+    "gating": {
+     "must_precede": "payment_date"
+    }
+   },
+   {
+    "name": "payment_date",
+    "impl": "payment_date",
+    "desc": "บันทึกนัดชำระลง CRM",
+    "args": {
+     "last_4_digits": {
+      "type": "string",
+      "optional": true
+     },
+     "amount": {
+      "type": "number"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ]
+     }
+    },
+    "gating": {
+     "requires_prior": "record_verbal_commitment",
+     "args_must_match_commitment": true
+    }
+   },
+   {
+    "name": "callback_datetime",
+    "impl": "callback_datetime",
+    "desc": "บันทึกนัดโทรกลับ",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     }
+    }
+   },
+   {
+    "name": "get_current_datetime",
+    "impl": "get_current_datetime",
+    "desc": "ขอวันที่มาตรฐาน",
+    "args": {},
+    "gating": {
+     "required_before": "non_today_date_in_args_or_reply"
+    }
+   },
+   {
+    "name": "record_outcome",
+    "impl": "record_outcome",
+    "desc": "บันทึกผลสาย (result, reason, remark)",
+    "args": {
+     "result": {
+      "type": "string",
+      "enum": [
+       "ptp",
+       "refused",
+       "unreachable",
+       "reached",
+       "tcb",
+       "tin"
+      ]
+     },
+     "reason": {
+      "type": "string",
+      "optional": true
+     },
+     "remark": {
+      "type": "string",
+      "optional": true
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    }
+   },
+   {
+    "name": "update_phone",
+    "impl": "update_phone",
+    "desc": "บันทึกเบอร์ติดต่อใหม่",
+    "args": {
+     "number": {
+      "type": "string"
+     }
+    }
+   }
+  ],
+  "validation": {
+   "date_format": "YYYY-MM-DD (Weekday)",
+   "payment_channels": [
+    "atm",
+    "bank_transfer",
+    "branch",
+    "counter_service",
+    "mobile_app",
+    "other"
+   ],
+   "case_status_gates": {
+    "pending_review": "account_under_review",
+    "closed": "account_closed"
+   },
+   "result_codes": [
+    "ptp",
+    "refused",
+    "unreachable",
+    "reached",
+    "tcb",
+    "tin"
+   ]
+  }
+ },
+ "states": [
+  {
+   "id": "greet_inbound",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "greet_inbound"
+    }
+   ],
+   "initial": true,
+   "note": "รับสายเข้า + ยืนยันตัวตนก่อนเปิดเผยข้อมูลบัญชี",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "to": "hub"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_optout"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "hub",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_help"
+    }
+   ],
+   "entry_tools": [
+    "check_account_status"
+   ],
+   "note": "ศูนย์กลาง (hub) — ถามว่าให้ช่วยเรื่องใด แล้วแตกไป spoke; กลับมาที่นี่หลังจบแต่ละเรื่อง",
+   "on": [
+    {
+     "event": "wants_pay",
+     "to": "take_payment"
+    },
+    {
+     "event": "asks_balance",
+     "to": "balance_info"
+    },
+    {
+     "event": "wants_installment",
+     "to": "installment"
+    },
+    {
+     "event": "reports_hardship",
+     "to": "hardship_help"
+    },
+    {
+     "event": "wants_agent",
+     "to": "handoff"
+    },
+    {
+     "event": "done_no",
+     "to": "close_thanks"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_optout"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "take_payment",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_pay_detail"
+    }
+   ],
+   "note": "spoke: รับชำระ",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "ack",
+     "to": "hub"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "balance_info",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "disclose_balance_inbound"
+    }
+   ],
+   "note": "spoke: แจ้งยอด แล้วกลับ hub",
+   "on": [
+    {
+     "event": "ack",
+     "to": "hub"
+    },
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "wants_installment",
+     "to": "installment"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "installment",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "offer_installment"
+    }
+   ],
+   "note": "spoke: เสนอผ่อนชำระ",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "refuses",
+     "to": "hub"
+    },
+    {
+     "event": "wants_agent",
+     "to": "handoff"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "hardship_help",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ack_hardship"
+    },
+    {
+     "fine_state": "offer_options"
+    }
+   ],
+   "note": "spoke: ช่วยเหลือกรณีจ่ายลำบาก",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "wants_installment",
+     "to": "installment"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "refuses",
+     "to": "hub"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "ptp_capture",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    },
+    {
+     "fine_state": "close_thanks"
+    }
+   ],
+   "terminal": true,
+   "entry_tools": [
+    "record_verbal_commitment",
+    "payment_date"
+   ],
+   "on": [],
+   "outcome": {
+    "result": "ptp",
+    "reasons": [
+     "ptp",
+     "minimum"
+    ]
+   }
+  },
+  {
+   "id": "handoff",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "handoff_line"
+    }
+   ],
+   "terminal": true,
+   "on": [],
+   "outcome": {
+    "result": "tcb",
+    "reasons": [
+     "agent"
+    ]
+   }
+  },
+  {
+   "id": "callback_close",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "offer_callback"
+    }
+   ],
+   "terminal": true,
+   "entry_tools": [
+    "callback_datetime"
+   ],
+   "on": [],
+   "outcome": {
+    "result": "tcb",
+    "reasons": [
+     "callback"
+    ]
+   }
+  },
+  {
+   "id": "close_thanks",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close_thanks"
+    }
+   ],
+   "terminal": true,
+   "on": [],
+   "outcome": {
+    "result": "reached",
+    "reasons": [
+     "done"
+    ]
+   }
+  },
+  {
+   "id": "close_confirm_info",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    }
+   ],
+   "terminal": true,
+   "on": [],
+   "outcome": {
+    "result": "reached",
+    "reasons": [
+     "no_input"
+    ]
+   }
+  },
+  {
+   "id": "close_optout",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close_thanks"
+    }
+   ],
+   "terminal": true,
+   "on": [],
+   "outcome": {
+    "result": "refused",
+    "reasons": [
+     "dnc"
+    ]
+   }
+  }
+ ],
+ "faq_routing": {
+  "note": "FAQ ระหว่างสาย: ตอบแล้ว resume; agent → ปิดโอนคน",
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "ที่นี่ที่ไหน",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "bot",
+    "desc": "เป็นบอทไหม",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "amount",
+    "desc": "ถามยอด",
+    "templates": [
+     {
+      "fine_state": "faq_amount"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "channel",
+    "desc": "ช่องทางชำระ",
+    "templates": [
+     {
+      "fine_state": "offer_channel"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "agent",
+    "desc": "ขอเจ้าหน้าที่",
+    "templates": [
+     {
+      "fine_state": "handoff_line"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "tcb",
+      "reasons": [
+       "agent"
+      ]
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "out_of_scope",
+    "desc": "นอกขอบเขต",
+    "templates": [
+     {
+      "fine_state": "other"
+     }
+    ],
+    "then": "resume"
+   }
+  ]
+ },
+ "auxiliary_templates": {
+  "note": "template ตามบริบท",
+  "allowed": [
+   {
+    "fine_state": "offer_channel",
+    "desc": "ช่องทางชำระ"
+   },
+   {
+    "fine_state": "other",
+    "desc": "ทั่วไป"
+   },
+   {
+    "fine_state": "apology",
+    "desc": "ขออภัย"
+   },
+   {
+    "fine_state": "ai_disclosure",
+    "desc": "แจ้งว่าเป็นระบบอัตโนมัติ"
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "พูดซ้ำได้เฉพาะตอนลูกค้าเงียบ"
+  }
+ ],
+ "outcomes": {
+  "required_at_close": true,
+  "results": {
+   "ptp": {
+    "reasons": [
+     "ptp",
+     "minimum"
+    ],
+    "desc": "รับปากชำระ/ตกลงผ่อน"
+   },
+   "tcb": {
+    "reasons": [
+     "agent",
+     "callback"
+    ],
+    "desc": "โอนเจ้าหน้าที่/นัดโทรกลับ"
+   },
+   "refused": {
+    "reasons": [
+     "dnc"
+    ],
+    "desc": "ขอไม่ให้ติดต่ออีก"
+   },
+   "reached": {
+    "reasons": [
+     "done",
+     "no_input"
+    ],
+    "desc": "ให้บริการเสร็จ/ได้ข้อมูลแล้ว"
+   }
+  }
+ }
+}
