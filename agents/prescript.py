@@ -313,8 +313,21 @@ def fill_template(
                     return f"{int(value):,}"
                 return f"{value:,.2f}"
             value_str = str(value)
-            if placeholder in SYSTEM_DATE_PLACEHOLDERS and datetime_utils.is_valid_date(value_str):
-                return datetime_utils.render_date_thai(value_str)
+            if placeholder in SYSTEM_DATE_PLACEHOLDERS:
+                if datetime_utils.is_valid_date(value_str):
+                    return datetime_utils.render_date_thai(value_str)
+                # Tolerant fallback: a valid ISO date carrying a WRONG weekday
+                # (bad source data) must still render as natural Thai, never leak
+                # the raw "YYYY-MM-DD (Weekday)" string to the customer.
+                import datetime as _dt
+                m = re.match(r"(\d{4}-\d{2}-\d{2})", value_str)
+                if m:
+                    try:
+                        d = _dt.date.fromisoformat(m.group(1))
+                        return datetime_utils.render_date_thai(
+                            f"{m.group(1)} ({d.strftime('%A')})")
+                    except ValueError:
+                        pass
             return value_str
         if placeholder in DYNAMIC_PLACEHOLDERS:
             value = dynamic_vars.get(placeholder)

@@ -252,7 +252,7 @@
   "intent_name": "closing_confirm_info",
   "category": "A",
   "state": "closing",
-  "template": "คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะคะ",
+  "template": "รับทราบ{suffix} น้องใจสรุปยอด {amount} บาท กำหนดชำระ {due_date} นะ{q_suffix}",
   "is_closer": true,
   "is_demand": false,
   "is_acknowledgment": true,
