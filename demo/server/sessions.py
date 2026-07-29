@@ -276,6 +276,8 @@ class LiveSession:
         cd.setdefault("agent_name", COMPANY_AGENT_NAMES.get(self._company))
         if V6_ACTIVE:
             cd.setdefault("today", datetime_utils.today_iso())
+        if cd.get("due_offset_days") is not None:  # resolve to a live date (now+N)
+            cd["due_date"] = datetime_utils.future_date(cd["due_offset_days"])
         self.customer_data = cd
 
         # Load v6 catalog (filtered to this company)
@@ -1028,6 +1030,8 @@ class FlowLiveSession:
         cd.setdefault("company_name", COMPANY_NAMES.get(self._company))
         cd.setdefault("agent_name", COMPANY_AGENT_NAMES.get(self._company))
         cd.setdefault("today", datetime_utils.today_iso())
+        if cd.get("due_offset_days") is not None:  # resolve to a live date (now+N)
+            cd["due_date"] = datetime_utils.future_date(cd["due_offset_days"])
         self.customer_data = cd
 
         entry = load_flow_registry()[self._company]

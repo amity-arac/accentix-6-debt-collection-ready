@@ -144,6 +144,29 @@ def today_iso() -> str:
     return _format_date(_today())
 
 
+def future_date(days: int) -> str:
+    """A real date `days` from today (Asia/Bangkok), as `YYYY-MM-DD (Weekday)`.
+    Used to resolve a persona's `due_offset_days` into a live due_date so a
+    pre-due (Remind) case is always genuinely in the future."""
+    return _format_date(_today() + _dt.timedelta(days=int(days)))
+
+
+def simulation_date() -> _dt.date:
+    """Reference 'today' as a date object — real Asia/Bangkok date here. Used by
+    the v11 overdue-ptp-date guard in backend.record_outcome."""
+    return _today()
+
+
+def parse_date_prefix(s: str) -> _dt.date | None:
+    """Parse the `YYYY-MM-DD` prefix of a canonical date string; None if unparsable."""
+    if not isinstance(s, str) or len(s) < 10:
+        return None
+    try:
+        return _dt.date.fromisoformat(s[:10])
+    except ValueError:
+        return None
+
+
 def relative_iso(offset_days: int) -> str:
     """today + offset_days, formatted as `YYYY-MM-DD (Weekday)`."""
     return _format_date(_today() + _dt.timedelta(days=offset_days))
