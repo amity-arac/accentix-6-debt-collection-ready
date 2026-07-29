@@ -7,7 +7,7 @@ import type { SpeechErrorCode } from "../speech";
 import { fetchModels, type Engine, type VoiceGender } from "../api";
 
 // Preferred default checkpoint for the qwen picker (all local models live here).
-const QWEN_DEFAULT = ["sft_flow_v5", "sft_v11", "sft_flow_v3", "sft_v10"];
+const QWEN_DEFAULT = ["sft_v11", "sft_flow_v5", "sft_flow_v3", "sft_v10"];
 const pickDefault = (list: string[], prefer: string[]) =>
   prefer.find((p) => list.includes(p)) ?? list[list.length - 1] ?? "";
 
