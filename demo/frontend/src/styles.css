@@ -1765,10 +1765,21 @@ button.bubble.tool-result {
 .fx-mode-lbl { font-size: 11px; font-weight: 700; color: var(--fx-muted); }
 .fx-mode-opt { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--fx-ink); border: 1px solid var(--fx-line2); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
 .fx-mode-opt.on { border-color: var(--fx-accent); background: color-mix(in srgb, var(--fx-accent) 12%, transparent); color: var(--fx-accent); font-weight: 700; }
-.fx-scripts { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.fx-script { border-left: 2px solid var(--fx-accent); padding: 2px 0 2px 9px; }
-.fx-script-fs { display: inline-flex; align-items: center; gap: 5px; font-family: var(--fx-mono); font-size: 10px; font-weight: 700; color: var(--fx-muted); }
-.fx-script-line { margin: 2px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--fx-ink); }
+.fx-beatflow { display: flex; flex-direction: column; margin-top: 8px; }
+.fx-bf-item { display: flex; flex-direction: column; }
+.fx-bf-conn { align-self: center; font-size: 10px; font-weight: 700; letter-spacing: .03em; color: var(--fx-muted); padding: 3px 0; }
+.fx-bf-conn.or { color: var(--fx-accent); }
+.fx-bf-node { border: 1px solid var(--fx-line); border-radius: 9px; padding: 7px 9px; }
+.fx-beatflow.and .fx-bf-node { border-left: 3px solid var(--fx-accent); }
+.fx-beatflow.or .fx-bf-node { border-style: dashed; }
+.fx-bf-head { display: flex; align-items: center; gap: 6px; }
+.fx-bf-head code { font-family: var(--fx-mono); font-size: 11px; font-weight: 700; color: var(--fx-ink); }
+.fx-bf-when { font-size: 9px; font-weight: 700; color: var(--fx-accent); background: color-mix(in srgb, var(--fx-accent) 12%, transparent); padding: 1px 6px; border-radius: 999px; }
+.fx-bf-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.fx-bf-actions button { background: none; border: none; color: var(--fx-muted); cursor: pointer; font-size: 11px; padding: 1px 3px; line-height: 1; }
+.fx-bf-actions button:hover { color: var(--fx-accent); }
+.fx-bf-line { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--fx-ink); }
+.fx-beatflow .fx-add-select { margin-top: 8px; }
 .fx-script-empty { color: var(--fx-muted); font-style: italic; }
 .fx-events-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .fx-event-row { border: 1px solid var(--fx-line); border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }

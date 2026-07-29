@@ -372,23 +372,9 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                 </div>
                 <div className="fx-field">
                   <label>พูด (beats)</label>
-                  <div className="fx-chips">
-                    {selectedNode.data.beats.map((fs, i) => (
-                      <span className="fx-chip" key={i}>{fs}
-                        {fs in newTemplates && <span className="fx-new">ใหม่</span>}
-                        <button className="fx-rm" onClick={() => patchNode(selectedNode.id, (d) => ({ ...d, beats: d.beats.filter((_, j) => j !== i) }))}><X size={11} /></button>
-                      </span>
-                    ))}
-                    <select className="fx-add-select" value=""
-                      onChange={(e) => { if (e.target.value === "__new__") setBeatMode(true); else if (e.target.value) addExistingBeat(selectedNode.id, e.target.value); }}>
-                      <option value="">＋ เพิ่มบท…</option>
-                      <option value="__new__">＋ สร้างบทใหม่…</option>
-                      {avail.map((fs) => <option key={fs} value={fs}>{fs}</option>)}
-                    </select>
-                  </div>
                   {selectedNode.data.beats.length > 1 && (
                     <div className="fx-mode">
-                      <span className="fx-mode-lbl">หลายบทนี้:</span>
+                      <span className="fx-mode-lbl">เส้นบท:</span>
                       <label className={`fx-mode-opt${(selectedNode.data.templateMode ?? "and") === "and" ? " on" : ""}`}>
                         <input type="radio" name={`tm-${selectedNode.id}`}
                           checked={(selectedNode.data.templateMode ?? "and") === "and"}
@@ -403,20 +389,48 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                       </label>
                     </div>
                   )}
-                  {selectedNode.data.beats.length > 0 && (
-                    <div className="fx-scripts">
-                      {selectedNode.data.beats.map((fs) => {
-                        const lines = (newTemplates[fs] != null ? [newTemplates[fs]] : (beatText[fs] ?? []));
-                        return (
-                          <div className="fx-script" key={fs}>
-                            <code className="fx-script-fs">{fs}{fs in newTemplates && <span className="fx-new">ใหม่</span>}</code>
-                            {lines.length ? lines.map((t, i) => <p className="fx-script-line" key={i}>“{t}”</p>)
-                              : <p className="fx-script-line fx-script-empty">(ยังไม่มีข้อความ)</p>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {(() => {
+                    const beats = selectedNode.data.beats;
+                    const mode = beats.length > 1 ? (selectedNode.data.templateMode ?? "and") : "and";
+                    const origT: any[] = selectedNode.data.orig?.templates ?? [];
+                    const rm = (i: number) => patchNode(selectedNode.id, (d) => ({ ...d, beats: d.beats.filter((_, j) => j !== i) }));
+                    const move = (i: number, dir: number) => patchNode(selectedNode.id, (d) => {
+                      const b = [...d.beats]; const [x] = b.splice(i, 1); b.splice(i + dir, 0, x); return { ...d, beats: b };
+                    });
+                    return (
+                      <div className={`fx-beatflow ${mode}`}>
+                        {beats.map((fs, i) => {
+                          const lines = newTemplates[fs] != null ? [newTemplates[fs]] : (beatText[fs] ?? []);
+                          const whenEv = origT.find((t) => t.fine_state === fs)?.when_event;
+                          return (
+                            <div className="fx-bf-item" key={i}>
+                              {i > 0 && <div className={`fx-bf-conn ${mode}`}>{mode === "and" ? "↓ แล้วพูดต่อ" : "— หรือ —"}</div>}
+                              <div className="fx-bf-node">
+                                <div className="fx-bf-head">
+                                  <code>{fs}</code>
+                                  {fs in newTemplates && <span className="fx-new">ใหม่</span>}
+                                  {mode === "or" && whenEv && <span className="fx-bf-when">เมื่อ {whenEv}</span>}
+                                  <span className="fx-bf-actions">
+                                    {i > 0 && <button title="เลื่อนขึ้น" onClick={() => move(i, -1)}>▲</button>}
+                                    {i < beats.length - 1 && <button title="เลื่อนลง" onClick={() => move(i, 1)}>▼</button>}
+                                    <button className="fx-rm" onClick={() => rm(i)}><X size={11} /></button>
+                                  </span>
+                                </div>
+                                {lines.length ? lines.map((t, j) => <p className="fx-bf-line" key={j}>“{t}”</p>)
+                                  : <p className="fx-bf-line fx-script-empty">(ยังไม่มีข้อความ)</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <select className="fx-add-select" value=""
+                          onChange={(e) => { if (e.target.value === "__new__") setBeatMode(true); else if (e.target.value) addExistingBeat(selectedNode.id, e.target.value); }}>
+                          <option value="">＋ เพิ่มบท…</option>
+                          <option value="__new__">＋ สร้างบทใหม่…</option>
+                          {avail.map((fs) => <option key={fs} value={fs}>{fs}</option>)}
+                        </select>
+                      </div>
+                    );
+                  })()}
                   {beatMode && (
                     <div className="fx-composer" style={{ marginTop: 6 }}>
                       <input placeholder="ชื่อ beat (เช่น offer_promo)" value={bFs} onChange={(e) => setBFs(e.target.value)} />
