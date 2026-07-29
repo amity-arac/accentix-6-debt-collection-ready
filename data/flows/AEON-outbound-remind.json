@@ -874,6 +874,10 @@
     "desc": "บอกช่องทางชำระประกอบการตกลงจ่าย"
    },
    {
+    "fine_state": "ask_channel",
+    "desc": "ถามเฉพาะช่องทาง เมื่อทราบวัน/วันนี้แล้ว (ไม่ถามวันซ้ำ)"
+   },
+   {
     "fine_state": "other",
     "desc": "negotiation general-purpose"
    },

@@ -827,5 +827,18 @@
   "_fine_state": "faq_caller",
   "_flow_id": "faq_caller",
   "_real_count": 0
+ },
+ {
+  "company": "AEON",
+  "text_id": 1115,
+  "intent_name": "ask_channel",
+  "category": "A",
+  "state": "ask",
+  "template": "ไม่ทราบว่าคุณลูกค้าจะชำระผ่านช่องทางไหน{q_suffix}",
+  "is_closer": false,
+  "is_demand": true,
+  "is_acknowledgment": false,
+  "expects_response": true,
+  "_fine_state": "ask_channel"
  }
 ]
