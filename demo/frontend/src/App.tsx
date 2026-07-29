@@ -38,6 +38,7 @@ export default function App() {
     state,
     start,
     setAgent,
+    setModel,
     setVoiceGender,
     selectCase,
     fireOpening,
@@ -382,6 +383,8 @@ export default function App() {
             onStart={handleStart}
             agent={state.agent}
             onAgentChange={handleEngineChange}
+            model={state.model}
+            onModelChange={setModel}
             onEditFlow={() => setEditorOpen(true)}
             voiceGender={state.voiceGender}
             onVoiceGenderChange={setVoiceGender}

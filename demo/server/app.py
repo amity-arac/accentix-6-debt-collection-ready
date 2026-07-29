@@ -199,6 +199,12 @@ async def flow_beats() -> JSONResponse:
     return JSONResponse(sessions.flow_beats())
 
 
+@app.get("/api/models")
+async def list_models() -> JSONResponse:
+    """Qwen checkpoints vLLM currently serves, split flow vs pre-flow (base)."""
+    return JSONResponse(sessions.served_models())
+
+
 @app.get("/api/flow/cue-library")
 async def flow_cue_library() -> JSONResponse:
     """event name -> suggested cue phrases (from the intent taxonomy) for the editor."""
@@ -254,6 +260,7 @@ async def create_session(
     case_id: str | None = Query(default=None),
     gender: str | None = Query(default=None),
     flow: bool = Query(default=False),
+    model: str | None = Query(default=None),
 ) -> StreamingResponse:
     mode, default_case_id, default_agent = _config()
     chosen_case = (case_id or default_case_id).strip()
@@ -268,7 +275,8 @@ async def create_session(
         mode = "live"
     try:
         session = sessions.build(
-            chosen_case, mode, agent=chosen_agent, voice_gender=chosen_gender, flow=flow
+            chosen_case, mode, agent=chosen_agent, voice_gender=chosen_gender, flow=flow,
+            model=(model or None),
         )
     except KeyError as e:
         raise HTTPException(404, detail=str(e))

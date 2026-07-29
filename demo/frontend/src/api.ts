@@ -263,9 +263,15 @@ export async function createFlowCompany(body: {
   return (await resp.json()) as CreateFlowResult;
 }
 
+export async function fetchModels(): Promise<{ base: string[]; flow: string[] }> {
+  const resp = await fetch("/api/models");
+  if (!resp.ok) throw new Error(`/api/models ${resp.status}`);
+  return (await resp.json()) as { base: string[]; flow: string[] };
+}
+
 export async function streamSession(
   handlers: StreamHandlers,
-  opts: { engine?: Engine; caseId?: string; voiceGender?: VoiceGender } = {},
+  opts: { engine?: Engine; caseId?: string; voiceGender?: VoiceGender; model?: string } = {},
 ): Promise<void> {
   const qs = new URLSearchParams();
   // "flow" routes to the flow-interpreter session; qwen/gemini pick the agent.
@@ -273,6 +279,7 @@ export async function streamSession(
   else if (opts.engine) qs.set("agent", opts.engine);
   if (opts.caseId) qs.set("case_id", opts.caseId);
   if (opts.voiceGender) qs.set("gender", opts.voiceGender);
+  if (opts.model) qs.set("model", opts.model);
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const resp = await fetch(`/api/session${suffix}`);
   await consumeNdjson(resp, handlers);

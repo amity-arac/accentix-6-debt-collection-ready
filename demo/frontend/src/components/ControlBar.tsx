@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, Volume2, X } from "lucide-react";
 import { ThinkingDot } from "./ThinkingDot";
 import { LatencyMetrics } from "./LatencyMetrics";
 import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
-import type { Engine, VoiceGender } from "../api";
+import { fetchModels, type Engine, type VoiceGender } from "../api";
+
+// Preferred defaults per engine: qwen → the last pre-flow SFT; flow → newest flow.
+const QWEN_DEFAULT = ["sft_v11", "sft_v10"];
+const FLOW_DEFAULT = ["sft_flow_v5", "sft_flow_v3", "sft_flow_v2"];
+const pickDefault = (list: string[], prefer: string[]) =>
+  prefer.find((p) => list.includes(p)) ?? list[list.length - 1] ?? "";
 
 // Pre-start, the caller picks which agent drives the call: the fine-tuned Qwen
 // (sft_v2, served via vLLM) or Gemini (API). Choosing re-creates the live
@@ -22,6 +28,8 @@ type Props = {
   onStart: () => void;
   agent: Engine;
   onAgentChange: (a: Engine) => void;
+  model: string;
+  onModelChange: (m: string) => void;
   onBuildFlow?: () => void;
   onEditFlow?: () => void;
   voiceGender: VoiceGender;
@@ -51,6 +59,8 @@ export function ControlBar({
   onStart,
   agent,
   onAgentChange,
+  model,
+  onModelChange,
   onBuildFlow,
   onEditFlow,
   voiceGender,
@@ -72,6 +82,18 @@ export function ControlBar({
   saving,
 }: Props) {
   const [typed, setTyped] = useState("");
+  const [models, setModels] = useState<{ base: string[]; flow: string[] }>({ base: [], flow: [] });
+
+  useEffect(() => { void fetchModels().then(setModels).catch(() => {}); }, []);
+
+  // The list valid for the current engine, and a default pick if none is chosen yet.
+  const modelList = agent === "flow" ? models.flow : agent === "qwen" ? models.base : [];
+  useEffect(() => {
+    if (started || agent === "gemini" || modelList.length === 0) return;
+    if (!modelList.includes(model)) {
+      onModelChange(pickDefault(modelList, agent === "flow" ? FLOW_DEFAULT : QWEN_DEFAULT));
+    }
+  }, [agent, models, started]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!started) {
     return (
@@ -115,6 +137,19 @@ export function ControlBar({
             Flow
           </button>
         </div>
+        {agent !== "gemini" && modelList.length > 0 && (
+          <label className="agent-model" title="เลือก checkpoint ที่ vLLM เสิร์ฟ">
+            <span className="agent-segmented-label">version</span>
+            <select
+              className="agent-model-select"
+              value={modelList.includes(model) ? model : ""}
+              disabled={started || starting}
+              onChange={(e) => onModelChange(e.target.value)}
+            >
+              {modelList.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+        )}
         <div
           className="agent-segmented"
           role="group"

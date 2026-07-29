@@ -34,6 +34,7 @@ export type SessionState = {
   caseId: string | null;
   agent: Engine;
   serverAgent: Engine | null;
+  model: string;                   // "" = backend default (env)
   voiceGender: VoiceGender;        // user's current pick
   serverVoiceGender: VoiceGender | null;  // what the live session was actually built with
   customer: CustomerData;
@@ -55,6 +56,7 @@ export function useSession() {
     caseId: null,
     agent: "qwen",
     serverAgent: null,
+    model: "",
     voiceGender: "F",
     serverVoiceGender: null,
     customer: {},
@@ -76,10 +78,16 @@ export function useSession() {
   // the reply text's own grammatical gender — this only picks which Chirp 3 HD
   // voice speaks it (see audio.ts's setVoiceGender).
   const voiceGenderRef = useRef<VoiceGender>("F");
+  const modelRef = useRef<string>("");
 
   const setAgent = useCallback((agent: Engine) => {
     agentRef.current = agent;
     setState((s) => ({ ...s, agent }));
+  }, []);
+
+  const setModel = useCallback((model: string) => {
+    modelRef.current = model;
+    setState((s) => ({ ...s, model }));
   }, []);
 
   const setVoiceGender = useCallback((voiceGender: VoiceGender) => {
@@ -270,6 +278,7 @@ export function useSession() {
           engine: agentRef.current,
           caseId: caseIdRef.current ?? undefined,
           voiceGender: voiceGenderRef.current,
+          model: modelRef.current || undefined,
         },
       );
     } catch (e: any) {
@@ -445,6 +454,7 @@ export function useSession() {
     state,
     start,
     setAgent,
+    setModel,
     setVoiceGender,
     selectCase,
     fireOpening,

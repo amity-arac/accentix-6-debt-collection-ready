@@ -846,6 +846,14 @@ button.bubble.tool-result {
   text-transform: uppercase;
   color: var(--ink-soft);
 }
+.agent-model { display: inline-flex; align-items: center; gap: 4px; }
+.agent-model-select {
+  font: inherit; font-size: 12px; font-weight: 600;
+  padding: 5px 9px; border-radius: 9px;
+  border: 1px solid var(--border-strong); background: var(--card-strong); color: var(--ink);
+  cursor: pointer; max-width: 180px;
+}
+.agent-model-select:disabled { opacity: 0.55; cursor: default; }
 .agent-segmented-label svg { color: var(--ink-soft); }
 .agent-segmented-btn {
   flex: 1;

@@ -233,9 +233,11 @@ def normalize_live_hops(reply_result: dict[str, Any]) -> list[dict[str, Any]]:
 class LiveSession:
     mode = "live"
 
-    def __init__(self, case_id: str, agent: str = DEFAULT_AGENT, voice_gender: str = "F") -> None:
+    def __init__(self, case_id: str, agent: str = DEFAULT_AGENT, voice_gender: str = "F",
+                 model: str | None = None) -> None:
         if agent not in VALID_AGENTS:
             raise ValueError(f"agent must be one of {VALID_AGENTS!r}, got {agent!r}")
+        self._model_override = model
         self.voice_gender = voice_gender if voice_gender in ("M", "F") else "F"
 
         # Import lazily so replay-mode users don't pay the cost of pulling in
@@ -337,7 +339,7 @@ class LiveSession:
         }
         if self.agent_name == "qwen":
             base_url = os.environ.get("AAX6_VLLM_BASE_URL")
-            model = os.environ.get("AAX6_VLLM_MODEL")
+            model = self._model_override or os.environ.get("AAX6_VLLM_MODEL")
             if base_url:
                 kwargs["base_url"] = base_url
             if model:
@@ -962,7 +964,8 @@ class FlowLiveSession:
     mode = "live"
     agent_name = "flow"
 
-    def __init__(self, case_id: str, voice_gender: str = "F") -> None:
+    def __init__(self, case_id: str, voice_gender: str = "F", model: str | None = None) -> None:
+        self._model_override = model
         # Lazy imports — flow logic + its heavier deps load only when flow mode
         # is actually used, keeping the default replay/live paths cheap.
         from demo.server.flow.flowspec import build_tool_schemas
@@ -1005,7 +1008,7 @@ class FlowLiveSession:
         ]
 
         self._base_url = os.environ.get("AAX6_VLLM_BASE_URL", "http://localhost:8000/v1")
-        self._model = FLOW_MODEL
+        self._model = self._model_override or FLOW_MODEL
         self._turn_count = 0
         self.done = False
         self._last_turn_timing: dict[str, Any] | None = None
@@ -1270,9 +1273,25 @@ def build(
     agent: str = DEFAULT_AGENT,
     voice_gender: str = "F",
     flow: bool = False,
+    model: str | None = None,
 ) -> Session:
     if flow:  # flow-interpreter is always live — it can't replay
-        return FlowLiveSession(case_id, voice_gender=voice_gender)
+        return FlowLiveSession(case_id, voice_gender=voice_gender, model=model)
     if mode == "live":
-        return LiveSession(case_id, agent=agent, voice_gender=voice_gender)
+        return LiveSession(case_id, agent=agent, voice_gender=voice_gender, model=model)
     return ReplaySession(case_id, voice_gender=voice_gender)
+
+
+def served_models() -> dict[str, list[str]]:
+    """Qwen checkpoints currently served by vLLM, split into flow vs pre-flow
+    (base). Powers the demo's model-version picker. Empty on any error."""
+    base_url = os.environ.get("AAX6_VLLM_BASE_URL", "http://localhost:8000/v1")
+    try:
+        import urllib.request
+        with urllib.request.urlopen(base_url.rstrip("/") + "/models", timeout=5) as r:
+            ids = [m["id"] for m in json.load(r).get("data", [])]
+    except Exception:
+        return {"base": [], "flow": []}
+    flow = sorted(i for i in ids if "flow" in i.lower())
+    base = [i for i in ids if "flow" not in i.lower()]
+    return {"base": base, "flow": flow}
