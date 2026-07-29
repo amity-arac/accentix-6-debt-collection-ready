@@ -790,7 +790,7 @@
   "intent_name": "closing_confirm_info",
   "category": "A",
   "state": "closing",
-  "template": "รับทราบ{suffix} สรุปยอด {amount} บาท กำหนดชำระ {due_date} นะ{q_suffix}",
+  "template": "คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะ{q_suffix}",
   "is_closer": true,
   "is_demand": false,
   "is_acknowledgment": true,
