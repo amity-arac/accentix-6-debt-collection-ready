@@ -91,6 +91,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   // Beat composer (per selected node). MUST be declared before any early return
   // so the hook order stays stable.
   const [beatMode, setBeatMode] = useState(false);
+  const [beatGroup, setBeatGroup] = useState<number | "new">("new"); // group the beat composer adds into
   const [bFs, setBFs] = useState("");
   const [bText, setBText] = useState("");
   // Tool declarations (the set of tools + impl the flow exposes).
@@ -243,7 +244,6 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
       const g = group === "new" ? (d.groups.length ? Math.max(...d.groups) + 1 : 0) : group;
       return { ...d, beats: [...d.beats, fs], groups: [...d.groups, g] };
     });
-  const [beatGroup, setBeatGroup] = useState<number | "new">("new"); // group the composer adds into
   const createBeat = (id: string) => {
     const fs = bFs.trim();
     if (!/^[a-z][a-z0-9_]*$/.test(fs)) { setErrors(["fine_state ใช้ a-z/0-9/_"]); return; }
