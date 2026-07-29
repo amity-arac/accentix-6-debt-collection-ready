@@ -3,7 +3,7 @@ AEON,S1 จ่ายวันนี้,1,AGENT (เปิดสาย),,,greet,g
 AEON,S1 จ่ายวันนี้,2,CUSTOMER,ใช่ครับ ผมสมชายเอง,name_confirmed,greet,,,,
 AEON,S1 จ่ายวันนี้,3,AGENT,,name_confirmed,greet→disclose_ask,"disclose_balance,ask_pay_today",บริษัทขอแจ้งยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ซึ่งขณะนี้ ได้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหมคะ ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ขณะนี้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหมคะ,check_account_status,
 AEON,S1 จ่ายวันนี้,4,CUSTOMER,สะดวกครับ จ่ายวันนี้เลย,agrees_to_pay,disclose_ask,,,,
-AEON,S1 จ่ายวันนี้,5,AGENT,,agrees_to_pay,disclose_ask→ptp_capture,"confirm_info,close",รับทราบค่ะ สรุปยอด 45000 บาท กำหนดชำระ วันศุกร์ที่ 8 พฤษภาคม 2026 นะคะ ขอขอบคุณที่ใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดีค่ะ,"record_verbal_commitment,payment_date","ptp:ptp,minimum"
+AEON,S1 จ่ายวันนี้,5,AGENT,,agrees_to_pay,disclose_ask→ptp_capture,"confirm_info,close",คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะคะ ขอขอบคุณที่ใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดีค่ะ,"record_verbal_commitment,payment_date","ptp:ptp,minimum"
 AEON,S2 จ่ายแล้ว,1,AGENT (เปิดสาย),,,greet,greet_verify,สวัสดีค่ะ ติดต่อจากบริษัทอิอ้อน กำลังเรียนสายอยู่กับคุณ สมชาย วงศ์ตระกูล ถูกต้องหรือไม่คะ,,
 AEON,S2 จ่ายแล้ว,2,CUSTOMER,ครับ,name_confirmed,greet,,,,
 AEON,S2 จ่ายแล้ว,3,AGENT,,name_confirmed,greet→disclose_ask,"disclose_balance,ask_pay_today",บริษัทขอแจ้งยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ซึ่งขณะนี้ ได้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหมคะ ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ขณะนี้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหมคะ,check_account_status,
@@ -15,14 +15,14 @@ AEON,S3 ตกงาน→โน้มน้าว→จ่าย,3,AGENT,,name_
 AEON,S3 ตกงาน→โน้มน้าว→จ่าย,4,CUSTOMER,ตกงานอยู่ครับ ยังไม่มีเงิน,hardship_lost_job,disclose_ask,,,,
 AEON,S3 ตกงาน→โน้มน้าว→จ่าย,5,AGENT,,hardship_lost_job,disclose_ask→convince,convince_lost_job,ดิฉันเข้าใจในสถานการณ์ในสภาวะเช่นนี้ค่ะ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะคะ,,
 AEON,S3 ตกงาน→โน้มน้าว→จ่าย,6,CUSTOMER,งั้นเดี๋ยวหาจ่ายขั้นต่ำให้,agrees_to_pay,convince,,,,
-AEON,S3 ตกงาน→โน้มน้าว→จ่าย,7,AGENT,,agrees_to_pay,convince→ptp_capture,"confirm_info,close",รับทราบค่ะ สรุปยอด 45000 บาท กำหนดชำระ วันศุกร์ที่ 8 พฤษภาคม 2026 นะคะ ขอขอบคุณที่ใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดีค่ะ,"record_verbal_commitment,payment_date","ptp:ptp,minimum"
+AEON,S3 ตกงาน→โน้มน้าว→จ่าย,7,AGENT,,agrees_to_pay,convince→ptp_capture,"confirm_info,close",คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะคะ ขอขอบคุณที่ใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดีค่ะ,"record_verbal_commitment,payment_date","ptp:ptp,minimum"
 AEON,S4 ป่วย→โน้มน้าว→จ่าย,1,AGENT (เปิดสาย),,,greet,greet_verify,สวัสดีค่ะ ติดต่อจากบริษัทอิอ้อน กำลังเรียนสายอยู่กับคุณ สมชาย วงศ์ตระกูล ถูกต้องหรือไม่คะ,,
 AEON,S4 ป่วย→โน้มน้าว→จ่าย,2,CUSTOMER,ครับ,name_confirmed,greet,,,,
 AEON,S4 ป่วย→โน้มน้าว→จ่าย,3,AGENT,,name_confirmed,greet→disclose_ask,"disclose_balance,ask_pay_today",บริษัทขอแจ้งยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ซึ่งขณะนี้ ได้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหมคะ ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ขณะนี้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหมคะ,check_account_status,
 AEON,S4 ป่วย→โน้มน้าว→จ่าย,4,CUSTOMER,ป่วยเข้าโรงพยาบาลอยู่,hardship_sick,disclose_ask,,,,
 AEON,S4 ป่วย→โน้มน้าว→จ่าย,5,AGENT,,hardship_sick,disclose_ask→convince,convince_sick,ดิฉันเข้าใจในสถานการณ์และขอให้คุณลูกค้ามีสุขภาพดีขึ้นโดยเร็วนะคะ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะคะ,,
 AEON,S4 ป่วย→โน้มน้าว→จ่าย,6,CUSTOMER,โอเค เดี๋ยวจ่ายให้,agrees_to_pay,convince,,,,
-AEON,S4 ป่วย→โน้มน้าว→จ่าย,7,AGENT,,agrees_to_pay,convince→ptp_capture,"confirm_info,close",รับทราบค่ะ สรุปยอด 45000 บาท กำหนดชำระ วันศุกร์ที่ 8 พฤษภาคม 2026 นะคะ ขอขอบคุณที่ใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดีค่ะ,"record_verbal_commitment,payment_date","ptp:ptp,minimum"
+AEON,S4 ป่วย→โน้มน้าว→จ่าย,7,AGENT,,agrees_to_pay,convince→ptp_capture,"confirm_info,close",คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะคะ ขอขอบคุณที่ใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดีค่ะ,"record_verbal_commitment,payment_date","ptp:ptp,minimum"
 AEON,S5 เหตุอื่น→โน้มน้าว→ปฏิเสธ,1,AGENT (เปิดสาย),,,greet,greet_verify,สวัสดีค่ะ ติดต่อจากบริษัทอิอ้อน กำลังเรียนสายอยู่กับคุณ สมชาย วงศ์ตระกูล ถูกต้องหรือไม่คะ,,
 AEON,S5 เหตุอื่น→โน้มน้าว→ปฏิเสธ,2,CUSTOMER,ครับ,name_confirmed,greet,,,,
 AEON,S5 เหตุอื่น→โน้มน้าว→ปฏิเสธ,3,AGENT,,name_confirmed,greet→disclose_ask,"disclose_balance,ask_pay_today",บริษัทขอแจ้งยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ซึ่งขณะนี้ ได้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหมคะ ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ขณะนี้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหมคะ,check_account_status,
@@ -54,7 +54,7 @@ AEON,S10 ยืนยันแล้วเงียบ,1,AGENT (เปิดส�
 AEON,S10 ยืนยันแล้วเงียบ,2,CUSTOMER,ครับ,name_confirmed,greet,,,,
 AEON,S10 ยืนยันแล้วเงียบ,3,AGENT,,name_confirmed,greet→disclose_ask,"disclose_balance,ask_pay_today",บริษัทขอแจ้งยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ซึ่งขณะนี้ ได้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหมคะ ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด 45000 บาท สามารถชำระขั้นต่ำได้ 4500 บาท ขณะนี้เกินกำหนดชำระแล้วค่ะ ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหมคะ,check_account_status,
 AEON,S10 ยืนยันแล้วเงียบ,4,CUSTOMER,อืม...,no_input,disclose_ask,,,,
-AEON,S10 ยืนยันแล้วเงียบ,5,AGENT,,no_input,disclose_ask→close_confirm_info,confirm_info,รับทราบค่ะ สรุปยอด 45000 บาท กำหนดชำระ วันศุกร์ที่ 8 พฤษภาคม 2026 นะคะ,,reached:no_input
+AEON,S10 ยืนยันแล้วเงียบ,5,AGENT,,no_input,disclose_ask→close_confirm_info,confirm_info,คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะคะ,,reached:no_input
 AEON,FAQ ถามยอดกลางสาย (resume),1,CUSTOMER,ยอดเท่าไหร่นะ,faq:amount,(ระหว่าง disclose_ask),,,,
 AEON,FAQ ถามยอดกลางสาย (resume),2,AGENT,,faq:amount,resume,faq_amount,ยอดค้างชำระทั้งหมด 45000 บาท ยอดชำระขั้นต่ำ 4500 บาทค่ะ,,then=resume
 AEON,FAQ ขอเจ้าหน้าที่ (ปิด tcb),1,CUSTOMER,ขอคุยเจ้าหน้าที่จริงๆ,faq:agent,(ทุก state),,,,
