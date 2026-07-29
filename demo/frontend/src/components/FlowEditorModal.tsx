@@ -35,6 +35,7 @@ type NodeData = {
   initial?: boolean;
   terminal?: boolean;
   beats: string[];
+  templateMode?: "and" | "or";
   entryTools: string[];
   orig: any;
 };
@@ -132,6 +133,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
             data: {
               name: s.id, phase, initial: !!s.initial, terminal: !!s.terminal,
               beats: (s.templates ?? []).map((t: any) => t.fine_state),
+              templateMode: (s.template_mode === "and" || s.template_mode === "or") ? s.template_mode : undefined,
               entryTools: s.entry_tools ?? [], orig: s,
             },
           };
@@ -259,7 +261,13 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
         s.phase = n.data.phase;
         if (n.data.initial) s.initial = true; else delete s.initial;
         if (n.data.terminal) s.terminal = true; else delete s.terminal;
-        s.templates = n.data.beats.map((fs) => ({ fine_state: fs }));
+        const origTmpls: any[] = n.data.orig?.templates ?? [];
+        s.templates = n.data.beats.map((fs) => {
+          const prev = origTmpls.find((t: any) => t.fine_state === fs);
+          return prev ? { ...prev } : { fine_state: fs };
+        });
+        if (n.data.beats.length > 1 && (n.data.templateMode === "and" || n.data.templateMode === "or"))
+          s.template_mode = n.data.templateMode; else delete s.template_mode;
         if (n.data.entryTools.length) s.entry_tools = n.data.entryTools; else delete s.entry_tools;
         s.on = [];
         return s;
@@ -378,6 +386,23 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                       {avail.map((fs) => <option key={fs} value={fs}>{fs}</option>)}
                     </select>
                   </div>
+                  {selectedNode.data.beats.length > 1 && (
+                    <div className="fx-mode">
+                      <span className="fx-mode-lbl">หลายบทนี้:</span>
+                      <label className={`fx-mode-opt${(selectedNode.data.templateMode ?? "and") === "and" ? " on" : ""}`}>
+                        <input type="radio" name={`tm-${selectedNode.id}`}
+                          checked={(selectedNode.data.templateMode ?? "and") === "and"}
+                          onChange={() => patchNode(selectedNode.id, (d) => ({ ...d, templateMode: "and" }))} />
+                        พูดต่อกัน (AND)
+                      </label>
+                      <label className={`fx-mode-opt${selectedNode.data.templateMode === "or" ? " on" : ""}`}>
+                        <input type="radio" name={`tm-${selectedNode.id}`}
+                          checked={selectedNode.data.templateMode === "or"}
+                          onChange={() => patchNode(selectedNode.id, (d) => ({ ...d, templateMode: "or" }))} />
+                        เลือกอันเดียว (OR)
+                      </label>
+                    </div>
+                  )}
                   {selectedNode.data.beats.length > 0 && (
                     <div className="fx-scripts">
                       {selectedNode.data.beats.map((fs) => {

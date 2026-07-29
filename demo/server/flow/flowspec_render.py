@@ -38,10 +38,10 @@ _CRM_LABELS = {
 _PHASE_TITLES = {"opening": "OPENING DIALOG", "main": "MAIN DIALOG", "close": "CLOSING"}
 
 
-def _fmt_templates(templates: list[dict]) -> str:
-    # Templates carrying when_event/optional are CHOICES (pick the one that fits);
-    # multiple plain templates are a CHAIN the agent must say together in one turn.
-    conditional = any(t.get("when_event") or t.get("optional") for t in templates)
+def _fmt_templates(templates: list[dict], mode: str | None = None) -> str:
+    # `mode` is the state's explicit template_mode: "and" = say all in one turn
+    # (chain), "or" = pick the one that fits (choice). If unset, infer from markers
+    # for back-compat (when_event/optional => choice, else chain).
     parts = []
     for t in templates:
         s = f"`{t['fine_state']}`"
@@ -50,9 +50,14 @@ def _fmt_templates(templates: list[dict]) -> str:
         if t.get("optional"):
             s += " (ถ้าจำเป็น)"
         parts.append(s)
-    if len(parts) > 1 and not conditional:
-        return " → ".join(parts) + "  ‹พูดต่อกันทั้งหมดในเทิร์นเดียว›"
-    return " / ".join(parts)
+    if mode not in ("and", "or"):
+        conditional = any(t.get("when_event") or t.get("optional") for t in templates)
+        mode = "or" if conditional else "and"
+    if len(parts) <= 1:
+        return " / ".join(parts)
+    if mode == "and":
+        return " → ".join(parts) + "  ‹พูดต่อกันทั้งหมดในเทิร์นเดียว (AND)›"
+    return " / ".join(parts) + "  ‹เลือกพูดอันเดียว (OR)›"
 
 
 def _fmt_event(spec: dict, event: str) -> str:
@@ -66,7 +71,7 @@ def _fmt_event(spec: dict, event: str) -> str:
 def _render_state(spec: dict, st: dict) -> list[str]:
     lines = [f"**{st['id']}**" + (" ← เริ่มที่นี่" if st.get("initial") else "")]
     if st.get("templates"):
-        lines.append(f"- template: {_fmt_templates(st['templates'])}")
+        lines.append(f"- template: {_fmt_templates(st['templates'], st.get('template_mode'))}")
     if st.get("entry_tools"):
         chain = " → ".join(f"`{t}`" for t in st["entry_tools"])
         lines.append(f"- เมื่อเข้า state นี้ เรียก (silent): {chain}")

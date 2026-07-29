@@ -516,7 +516,8 @@
      "event": "no_input",
      "to": "close_confirm_info"
     }
-   ]
+   ],
+   "template_mode": "and"
   },
   {
    "id": "convince",
@@ -564,7 +565,8 @@
      "event": "no_input",
      "to": "close_confirm_info"
     }
-   ]
+   ],
+   "template_mode": "or"
   },
   {
    "id": "ptp_capture",
@@ -589,7 +591,8 @@
     ]
    },
    "note": "จับ PTP: record_verbal_commitment→payment_date (ค่าตรงกัน) → record_outcome(ptp) → สรุปนัด+ปิดสาย; ใช้ get_current_datetime ก่อนถ้าวันที่ไม่ใช่วันนี้",
-   "terminal": true
+   "terminal": true,
+   "template_mode": "and"
   },
   {
    "id": "close_paid",
@@ -664,7 +667,8 @@
      "no_input"
     ]
    },
-   "terminal": true
+   "terminal": true,
+   "template_mode": "and"
   },
   {
    "id": "close_confirm_info",

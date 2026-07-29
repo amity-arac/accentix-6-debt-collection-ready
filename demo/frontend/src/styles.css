@@ -1761,6 +1761,10 @@ button.bubble.tool-result {
 .fx-side-checks label { display: inline-flex; align-items: center; gap: 5px; }
 .fx-divider { height: 1px; background: var(--fx-line); }
 .fx-ev-input { flex: 1; font: inherit; font-size: 13px; color: var(--fx-ink); background: var(--fx-surface); border: 1px solid var(--fx-line2); border-radius: 7px; padding: 6px 9px; }
+.fx-mode { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.fx-mode-lbl { font-size: 11px; font-weight: 700; color: var(--fx-muted); }
+.fx-mode-opt { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--fx-ink); border: 1px solid var(--fx-line2); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+.fx-mode-opt.on { border-color: var(--fx-accent); background: color-mix(in srgb, var(--fx-accent) 12%, transparent); color: var(--fx-accent); font-weight: 700; }
 .fx-scripts { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .fx-script { border-left: 2px solid var(--fx-accent); padding: 2px 0 2px 9px; }
 .fx-script-fs { display: inline-flex; align-items: center; gap: 5px; font-family: var(--fx-mono); font-size: 10px; font-weight: 700; color: var(--fx-muted); }
