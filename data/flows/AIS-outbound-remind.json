@@ -862,7 +862,7 @@
      }
     ],
     "then": "resume",
-    "note": "แนะนำติดต่อ [company_phone] แล้วกลับเข้า flow"
+    "note": "แนะนำติดต่อ {company_phone} แล้วกลับเข้า flow"
    }
   ]
  },
