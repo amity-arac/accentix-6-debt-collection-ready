@@ -1292,10 +1292,10 @@ def served_models() -> dict[str, list[str]]:
             ids = [m["id"] for m in json.load(r).get("data", [])]
     except Exception:
         return {"base": [], "flow": []}
-    # Every fine-tuned adapter served here reads the FlowSpec instruction (sft_v10/
-    # v11 are flow-pipeline models too, despite the name) — only the raw base
-    # model belongs to the prescript (qwen) engine. Running a flow adapter through
-    # the prescript prompt just makes it loop on the greeting.
-    flow = sorted(i for i in ids if i.lower().startswith("sft"))
+    # Only the `sft_flow_*` adapters are aligned with the current FlowSpec/editor.
+    # sft_v10/v11 are older flow-pipeline models that predate it — exclude them
+    # from the picker (they don't fit the current specs). The raw base is the
+    # prescript (qwen) engine's model.
+    flow = sorted(i for i in ids if i.lower().startswith("sft_flow"))
     base = [i for i in ids if not i.lower().startswith("sft")]
     return {"base": base, "flow": flow}
