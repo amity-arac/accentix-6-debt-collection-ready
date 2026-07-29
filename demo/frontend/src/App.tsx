@@ -144,7 +144,7 @@ export default function App() {
   const enterPlayground = useCallback(
     async (co: string) => {
       setCompany(co);
-      setAgent("flow");
+      setAgent("qwen");
       setStarted(false);
       setScreen("play");
       const first = cases.find((c) => c.company === co);
@@ -167,7 +167,7 @@ export default function App() {
         fetchCases().then(setCases).catch(() => {}),
       ]);
       setCompany(newCompany);
-      setAgent("flow");
+      setAgent("qwen");
       setStarted(false);
       setScreen("play");
       await handleSelectPersona(caseId);

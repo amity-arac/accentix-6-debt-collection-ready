@@ -6,9 +6,8 @@ import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
 import { fetchModels, type Engine, type VoiceGender } from "../api";
 
-// Preferred defaults per engine: qwen → the last pre-flow SFT; flow → newest flow.
-const QWEN_DEFAULT = ["sft_v11", "sft_v10"];
-const FLOW_DEFAULT = ["sft_flow_v5", "sft_flow_v3", "sft_flow_v2"];
+// Preferred default checkpoint for the qwen picker (all local models live here).
+const QWEN_DEFAULT = ["sft_flow_v5", "sft_v11", "sft_flow_v3", "sft_v10"];
 const pickDefault = (list: string[], prefer: string[]) =>
   prefer.find((p) => list.includes(p)) ?? list[list.length - 1] ?? "";
 
@@ -87,11 +86,11 @@ export function ControlBar({
   useEffect(() => { void fetchModels().then(setModels).catch(() => {}); }, []);
 
   // The list valid for the current engine, and a default pick if none is chosen yet.
-  const modelList = agent === "flow" ? models.flow : agent === "qwen" ? models.base : [];
+  const modelList = agent === "qwen" ? models.base : [];
   useEffect(() => {
     if (started || agent === "gemini" || modelList.length === 0) return;
     if (!modelList.includes(model)) {
-      onModelChange(pickDefault(modelList, agent === "flow" ? FLOW_DEFAULT : QWEN_DEFAULT));
+      onModelChange(pickDefault(modelList, QWEN_DEFAULT));
     }
   }, [agent, models, started]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -125,16 +124,6 @@ export function ControlBar({
             title="Gemini (cloud API) running the same pre-script playbook + tools"
           >
             Gemini
-          </button>
-          <button
-            type="button"
-            className={`agent-segmented-btn ${agent === "flow" ? "on" : ""}`}
-            onClick={() => onAgentChange("flow")}
-            disabled={starting}
-            aria-pressed={agent === "flow"}
-            title="Flow-interpreter (sft_flow_v1 reads a FlowSpec) — outbound-remind, all companies. Experimental."
-          >
-            Flow
           </button>
         </div>
         {agent !== "gemini" && modelList.length > 0 && (
@@ -179,7 +168,7 @@ export function ControlBar({
             Male
           </button>
         </div>
-        {agent === "flow" && onBuildFlow && (
+        {agent === "qwen" && onBuildFlow && (
           <button
             type="button"
             className="btn"
@@ -190,7 +179,7 @@ export function ControlBar({
             ＋ New company
           </button>
         )}
-        {agent === "flow" && onEditFlow && (
+        {agent === "qwen" && onEditFlow && (
           <button
             type="button"
             className="btn"

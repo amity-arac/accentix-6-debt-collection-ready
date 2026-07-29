@@ -954,6 +954,33 @@ def _flow_reply_schema(valid_text_ids: list[int]) -> dict:
     }
 
 
+_TOOLCALL_JSON_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL)
+_TOOLCALL_TAG_RE = re.compile(r"</?tool_call>")
+
+
+def _recover_toolcalls(content: str) -> list[dict]:
+    """Some adapters emit tool calls as literal <tool_call>{...}</tool_call> text
+    that vLLM's parser misses. Recover them into the OpenAI tool_calls shape."""
+    out = []
+    for m in _TOOLCALL_JSON_RE.finditer(content or ""):
+        try:
+            obj = json.loads(m.group(1))
+        except json.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        args = obj.get("arguments", obj.get("parameters", {}))
+        if name:
+            out.append({"id": "call_rec", "type": "function", "function": {
+                "name": name,
+                "arguments": args if isinstance(args, str) else json.dumps(args, ensure_ascii=False)}})
+    return out
+
+
+def _strip_toolcall_markup(content: str) -> str:
+    """Drop any leaked tool-call XML so it never reaches the customer/TTS."""
+    return _TOOLCALL_TAG_RE.sub("", _TOOLCALL_JSON_RE.sub("", content or "")).strip()
+
+
 def _flow_vllm_chat(base_url: str, payload: dict, timeout: int = 180) -> dict:
     req = urllib.request.Request(
         base_url.rstrip("/") + "/chat/completions",
@@ -1162,10 +1189,14 @@ class FlowLiveSession:
                     llm_hops += 1
                     tcs = msg.get("tool_calls") or []
                     if not tcs:
-                        agent_text = (msg.get("content") or "").strip()
-                        if agent_text:
-                            push({"kind": "reply", "text": agent_text, "text_ids": [], "dynamic_vars": {}})
-                        break
+                        content = (msg.get("content") or "").strip()
+                        # Recover tool calls the parser missed (leaked as <tool_call> text).
+                        tcs = _recover_toolcalls(content) if "<tool_call>" in content else []
+                        if not tcs:
+                            agent_text = _strip_toolcall_markup(content)
+                            if agent_text:
+                                push({"kind": "reply", "text": agent_text, "text_ids": [], "dynamic_vars": {}})
+                            break
                     tc = tcs[0]
                     fn = tc["function"]
                     raw_args = fn.get("arguments")
