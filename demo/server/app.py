@@ -270,6 +270,11 @@ async def create_session(
     chosen_gender = (gender or "F").strip().upper()
     if chosen_gender not in ("M", "F"):
         chosen_gender = "F"
+    # qwen with no explicit model (e.g. the picker default hadn't loaded when Start
+    # was clicked) → fall back to the flow model so it still runs the flow session
+    # + reads the flow catalog, not the prescript path.
+    if chosen_agent == "qwen" and not model:
+        model = sessions.FLOW_MODEL
     # An SFT adapter always reads the FlowSpec instruction → route it to the flow
     # session regardless of which engine button was used (a flow model under the
     # prescript prompt just loops on the greeting).
