@@ -1168,6 +1168,21 @@ class FlowLiveSession:
                 e["template"], self.customer_data, dynamic_vars=dyn, gender=self.voice_gender))
         return good, " ".join(texts), dyn if isinstance(dyn, dict) else {}
 
+    def _fallback_reply(self) -> "tuple[list[int], str]":
+        """A safe on-catalog line for when the model returns an empty/garbage reply
+        (no valid text_ids, or free text with no Thai) — so the bot never speaks a
+        blank bubble or a leaked token like 'parameter'."""
+        e = next((x for x in self._catalog if x.get("_fine_state") == "faq_repeat"), None)
+        if e:
+            return [e["text_id"]], self._fill_template(e["template"], self.customer_data, gender=self.voice_gender)
+        return [], self._fill_template(
+            "ขออภัย{suffix} รบกวนคุณลูกค้าแจ้งอีกครั้งได้ไหม{q_suffix}",
+            self.customer_data, gender=self.voice_gender)
+
+    @staticmethod
+    def _looks_sayable(text: str) -> bool:
+        return bool(text.strip()) and any("฀" <= c <= "๿" for c in text)
+
     async def _aiter_run(self, user_msg: str) -> AsyncIterator[dict[str, Any]]:
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue[Any] = asyncio.Queue()
@@ -1198,8 +1213,11 @@ class FlowLiveSession:
                         tcs = _recover_toolcalls(content) if "<tool_call>" in content else []
                         if not tcs:
                             agent_text = _strip_toolcall_markup(content)
-                            if agent_text:
+                            if self._looks_sayable(agent_text):
                                 push({"kind": "reply", "text": agent_text, "text_ids": [], "dynamic_vars": {}})
+                            else:  # empty / non-Thai garbage (e.g. leaked "parameter") → safe fallback
+                                fb_ids, agent_text = self._fallback_reply()
+                                push({"kind": "reply", "text": agent_text, "text_ids": fb_ids, "dynamic_vars": {}})
                             break
                     tc = tcs[0]
                     fn = tc["function"]
@@ -1207,6 +1225,8 @@ class FlowLiveSession:
                     args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                     if fn["name"] == "reply":
                         ids, text, dyn = self._render_reply(args)
+                        if not ids and not self._looks_sayable(text):  # reply [] → safe fallback
+                            ids, text = self._fallback_reply()
                         clean_args = {"text_ids": ids, "dynamic_vars": args.get("dynamic_vars") or []}
                         self._messages.append({
                             "role": "assistant", "content": text,
