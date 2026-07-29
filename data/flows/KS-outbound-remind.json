@@ -391,7 +391,8 @@
    "initial": true,
    "templates": [
     {
-     "fine_state": "greet_verify"
+     "fine_state": "greet_verify",
+     "group": 0
     }
    ],
    "note": "reply ทักทาย+ยืนยันชื่อก่อน ยังไม่เรียก tool ใดๆ",
@@ -418,7 +419,8 @@
    "phase": "opening",
    "templates": [
     {
-     "fine_state": "verify_name"
+     "fine_state": "verify_name",
+     "group": 0
     }
    ],
    "note": "ถามยืนยันชื่อซ้ำ — อนุญาตเฉพาะกรณี NO-INPUT เท่านั้น",
@@ -448,7 +450,8 @@
    "phase": "opening",
    "templates": [
     {
-     "fine_state": "third_party"
+     "fine_state": "third_party",
+     "group": 0
     }
    ],
    "note": "คนอื่นรับสาย — ขอเบอร์/ฝากติดต่อ ห้ามเปิดเผยยอดหนี้",
@@ -475,10 +478,12 @@
    "phase": "main",
    "templates": [
     {
-     "fine_state": "disclose_balance"
+     "fine_state": "disclose_balance",
+     "group": 0
     },
     {
-     "fine_state": "ask_pay_today"
+     "fine_state": "ask_pay_today",
+     "group": 0
     }
    ],
    "note": "แจ้งยอด+ขั้นต่ำ+วันครบกำหนด (ครั้งเดียวต่อสาย) แล้วถามสะดวกชำระวันนี้ไหม — นับเป็นการขอให้จ่ายครั้งที่ 1",
@@ -516,8 +521,7 @@
      "event": "no_input",
      "to": "close_confirm_info"
     }
-   ],
-   "template_mode": "and"
+   ]
   },
   {
    "id": "convince",
@@ -525,12 +529,14 @@
    "templates": [
     {
      "fine_state": "convince_other",
-     "when_event": "hardship_other"
+     "when_event": "hardship_other",
+     "group": 0
     },
     {
      "fine_state": "probe_hardship",
      "optional": true,
-     "note": "ใช้ถามอุปสรรคเมื่อเหตุไม่ชัด ก่อนเลือก convince variant"
+     "note": "ใช้ถามอุปสรรคเมื่อเหตุไม่ชัด ก่อนเลือก convince variant",
+     "group": 1
     }
    ],
    "note": "โน้มน้าวตามเหตุ ทำได้ครั้งเดียว — นับเป็นการขอให้จ่ายครั้งที่ 2 (ครั้งสุดท้าย)",
@@ -557,18 +563,19 @@
      "event": "no_input",
      "to": "close_confirm_info"
     }
-   ],
-   "template_mode": "or"
+   ]
   },
   {
    "id": "ptp_capture",
    "phase": "close",
    "templates": [
     {
-     "fine_state": "confirm_info"
+     "fine_state": "confirm_info",
+     "group": 0
     },
     {
-     "fine_state": "close"
+     "fine_state": "close",
+     "group": 0
     }
    ],
    "entry_tools": [
@@ -583,15 +590,15 @@
     ]
    },
    "note": "จับ PTP: record_verbal_commitment→payment_date (ค่าตรงกัน) → record_outcome(ptp) → สรุปนัด+ปิดสาย; ใช้ get_current_datetime ก่อนถ้าวันที่ไม่ใช่วันนี้",
-   "terminal": true,
-   "template_mode": "and"
+   "terminal": true
   },
   {
    "id": "close_paid",
    "phase": "close",
    "templates": [
     {
-     "fine_state": "close"
+     "fine_state": "close",
+     "group": 0
     }
    ],
    "outcome": {
@@ -609,7 +616,8 @@
    "phase": "close",
    "templates": [
     {
-     "fine_state": "close"
+     "fine_state": "close",
+     "group": 0
     }
    ],
    "outcome": {
@@ -624,7 +632,8 @@
    "phase": "close",
    "templates": [
     {
-     "fine_state": "offer_callback"
+     "fine_state": "offer_callback",
+     "group": 0
     }
    ],
    "entry_tools": [
@@ -645,10 +654,12 @@
    "phase": "close",
    "templates": [
     {
-     "fine_state": "close"
+     "fine_state": "close",
+     "group": 0
     },
     {
-     "fine_state": "apology"
+     "fine_state": "apology",
+     "group": 0
     }
    ],
    "outcome": {
@@ -659,15 +670,15 @@
      "no_input"
     ]
    },
-   "terminal": true,
-   "template_mode": "and"
+   "terminal": true
   },
   {
    "id": "close_confirm_info",
    "phase": "close",
    "templates": [
     {
-     "fine_state": "confirm_info"
+     "fine_state": "confirm_info",
+     "group": 0
     }
    ],
    "outcome": {

@@ -35,7 +35,7 @@ type NodeData = {
   initial?: boolean;
   terminal?: boolean;
   beats: string[];
-  templateMode?: "and" | "or";
+  groups: number[]; // parallel to beats: same group id = AND (chain), different = OR
   entryTools: string[];
   orig: any;
 };
@@ -133,7 +133,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
             data: {
               name: s.id, phase, initial: !!s.initial, terminal: !!s.terminal,
               beats: (s.templates ?? []).map((t: any) => t.fine_state),
-              templateMode: (s.template_mode === "and" || s.template_mode === "or") ? s.template_mode : undefined,
+              groups: (s.templates ?? []).map((t: any, k: number) => (typeof t.group === "number" ? t.group : k)),
               entryTools: s.entry_tools ?? [], orig: s,
             },
           };
@@ -185,7 +185,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
     const id = nid();
     setNodes((ns) => [...ns, {
       id, type: "flowState", position: { x: 340, y: 40 + ns.length * 20 },
-      data: { name: `state${i}`, phase: "main", beats: [], entryTools: [], orig: {} },
+      data: { name: `state${i}`, phase: "main", beats: [], groups: [], entryTools: [], orig: {} },
     }]);
     setSelNode(id); setSelEdge(null);
   };
@@ -236,8 +236,14 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
     setEdges((es) => es.map((e) => (e.id === id ? { ...e, data: { ...e.data, tools: fn(e.data?.tools ?? []) } } : e)));
 
   // beats composer helpers (state declared above, before the early return)
-  const addExistingBeat = (id: string, fs: string) =>
-    patchNode(id, (d) => (d.beats.includes(fs) ? d : { ...d, beats: [...d.beats, fs] }));
+  // group === "new" → put the beat in a brand-new OR group; a number → that group
+  const addExistingBeat = (id: string, fs: string, group: number | "new" = "new") =>
+    patchNode(id, (d) => {
+      if (d.beats.includes(fs)) return d;
+      const g = group === "new" ? (d.groups.length ? Math.max(...d.groups) + 1 : 0) : group;
+      return { ...d, beats: [...d.beats, fs], groups: [...d.groups, g] };
+    });
+  const [beatGroup, setBeatGroup] = useState<number | "new">("new"); // group the composer adds into
   const createBeat = (id: string) => {
     const fs = bFs.trim();
     if (!/^[a-z][a-z0-9_]*$/.test(fs)) { setErrors(["fine_state ใช้ a-z/0-9/_"]); return; }
@@ -245,7 +251,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
     if (avail.includes(fs)) { setErrors([`มี ${fs} อยู่แล้ว`]); return; }
     setNewTemplates((m) => ({ ...m, [fs]: bText.trim() }));
     setAvail((a) => [...a, fs]);
-    addExistingBeat(id, fs);
+    addExistingBeat(id, fs, beatGroup);
     setBeatMode(false); setBFs(""); setBText(""); setErrors([]);
   };
 
@@ -262,12 +268,11 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
         if (n.data.initial) s.initial = true; else delete s.initial;
         if (n.data.terminal) s.terminal = true; else delete s.terminal;
         const origTmpls: any[] = n.data.orig?.templates ?? [];
-        s.templates = n.data.beats.map((fs) => {
+        s.templates = n.data.beats.map((fs, k) => {
           const prev = origTmpls.find((t: any) => t.fine_state === fs);
-          return prev ? { ...prev } : { fine_state: fs };
+          return { ...(prev ?? { fine_state: fs }), group: n.data.groups[k] ?? 0 };
         });
-        if (n.data.beats.length > 1 && (n.data.templateMode === "and" || n.data.templateMode === "or"))
-          s.template_mode = n.data.templateMode; else delete s.template_mode;
+        delete s.template_mode; // superseded by per-template group
         if (n.data.entryTools.length) s.entry_tools = n.data.entryTools; else delete s.entry_tools;
         s.on = [];
         return s;
@@ -372,61 +377,70 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                 </div>
                 <div className="fx-field">
                   <label>พูด (beats)</label>
-                  {selectedNode.data.beats.length > 1 && (
-                    <div className="fx-mode">
-                      <span className="fx-mode-lbl">เส้นบท:</span>
-                      <label className={`fx-mode-opt${(selectedNode.data.templateMode ?? "and") === "and" ? " on" : ""}`}>
-                        <input type="radio" name={`tm-${selectedNode.id}`}
-                          checked={(selectedNode.data.templateMode ?? "and") === "and"}
-                          onChange={() => patchNode(selectedNode.id, (d) => ({ ...d, templateMode: "and" }))} />
-                        พูดต่อกัน (AND)
-                      </label>
-                      <label className={`fx-mode-opt${selectedNode.data.templateMode === "or" ? " on" : ""}`}>
-                        <input type="radio" name={`tm-${selectedNode.id}`}
-                          checked={selectedNode.data.templateMode === "or"}
-                          onChange={() => patchNode(selectedNode.id, (d) => ({ ...d, templateMode: "or" }))} />
-                        เลือกอันเดียว (OR)
-                      </label>
-                    </div>
-                  )}
+                  <p className="fx-note" style={{ margin: "2px 0 0" }}>
+                    กลุ่มเดียวกัน = <b>พูดต่อกัน (AND)</b> · คนละกลุ่ม = <b>เลือกกลุ่มเดียว (OR)</b>
+                  </p>
                   {(() => {
-                    const beats = selectedNode.data.beats;
-                    const mode = beats.length > 1 ? (selectedNode.data.templateMode ?? "and") : "and";
-                    const origT: any[] = selectedNode.data.orig?.templates ?? [];
-                    const rm = (i: number) => patchNode(selectedNode.id, (d) => ({ ...d, beats: d.beats.filter((_, j) => j !== i) }));
-                    const move = (i: number, dir: number) => patchNode(selectedNode.id, (d) => {
-                      const b = [...d.beats]; const [x] = b.splice(i, 1); b.splice(i + dir, 0, x); return { ...d, beats: b };
+                    const d = selectedNode.data;
+                    const beats = d.beats, groups = d.groups;
+                    const origT: any[] = d.orig?.templates ?? [];
+                    const gids: number[] = [];
+                    groups.forEach((g) => { if (!gids.includes(g)) gids.push(g); });
+                    const rm = (i: number) => patchNode(selectedNode.id, (x) => ({
+                      ...x, beats: x.beats.filter((_, j) => j !== i), groups: x.groups.filter((_, j) => j !== i),
+                    }));
+                    const swap = (i: number, k: number) => patchNode(selectedNode.id, (x) => {
+                      const b = [...x.beats], g = [...x.groups];
+                      [b[i], b[k]] = [b[k], b[i]]; return { ...x, beats: b, groups: g };
                     });
+                    const avOpts = avail.filter((fs) => !beats.includes(fs));
                     return (
-                      <div className={`fx-beatflow ${mode}`}>
-                        {beats.map((fs, i) => {
-                          const lines = newTemplates[fs] != null ? [newTemplates[fs]] : (beatText[fs] ?? []);
-                          const whenEv = origT.find((t) => t.fine_state === fs)?.when_event;
+                      <div className="fx-groups">
+                        {gids.map((gid, gi) => {
+                          const idxs = beats.map((_, i) => i).filter((i) => groups[i] === gid);
                           return (
-                            <div className="fx-bf-item" key={i}>
-                              {i > 0 && <div className={`fx-bf-conn ${mode}`}>{mode === "and" ? "↓ แล้วพูดต่อ" : "— หรือ —"}</div>}
-                              <div className="fx-bf-node">
-                                <div className="fx-bf-head">
-                                  <code>{fs}</code>
-                                  {fs in newTemplates && <span className="fx-new">ใหม่</span>}
-                                  {mode === "or" && whenEv && <span className="fx-bf-when">เมื่อ {whenEv}</span>}
-                                  <span className="fx-bf-actions">
-                                    {i > 0 && <button title="เลื่อนขึ้น" onClick={() => move(i, -1)}>▲</button>}
-                                    {i < beats.length - 1 && <button title="เลื่อนลง" onClick={() => move(i, 1)}>▼</button>}
-                                    <button className="fx-rm" onClick={() => rm(i)}><X size={11} /></button>
-                                  </span>
-                                </div>
-                                {lines.length ? lines.map((t, j) => <p className="fx-bf-line" key={j}>“{t}”</p>)
-                                  : <p className="fx-bf-line fx-script-empty">(ยังไม่มีข้อความ)</p>}
+                            <div key={gid}>
+                              {gi > 0 && <div className="fx-grp-or">— หรือ —</div>}
+                              <div className="fx-grp-box">
+                                {idxs.map((i, pos) => {
+                                  const fs = beats[i];
+                                  const lines = newTemplates[fs] != null ? [newTemplates[fs]] : (beatText[fs] ?? []);
+                                  const whenEv = origT.find((t) => t.fine_state === fs)?.when_event;
+                                  return (
+                                    <div className="fx-bf-item" key={i}>
+                                      {pos > 0 && <div className="fx-bf-conn and">↓ แล้วพูดต่อ</div>}
+                                      <div className="fx-bf-node">
+                                        <div className="fx-bf-head">
+                                          <code>{fs}</code>
+                                          {fs in newTemplates && <span className="fx-new">ใหม่</span>}
+                                          {whenEv && <span className="fx-bf-when">เมื่อ {whenEv}</span>}
+                                          <span className="fx-bf-actions">
+                                            {pos > 0 && <button title="ขึ้น" onClick={() => swap(i, idxs[pos - 1])}>▲</button>}
+                                            {pos < idxs.length - 1 && <button title="ลง" onClick={() => swap(i, idxs[pos + 1])}>▼</button>}
+                                            <button className="fx-rm" onClick={() => rm(i)}><X size={11} /></button>
+                                          </span>
+                                        </div>
+                                        {lines.length ? lines.map((t, j) => <p className="fx-bf-line" key={j}>“{t}”</p>)
+                                          : <p className="fx-bf-line fx-script-empty">(ยังไม่มีข้อความ)</p>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                <select className="fx-add-select fx-grp-add" value=""
+                                  onChange={(e) => { if (e.target.value) addExistingBeat(selectedNode.id, e.target.value, gid); }}>
+                                  <option value="">＋ ต่อบทในกลุ่มนี้ (AND)…</option>
+                                  {avOpts.map((fs) => <option key={fs} value={fs}>{fs}</option>)}
+                                </select>
                               </div>
                             </div>
                           );
                         })}
+                        {beats.length > 0 && <div className="fx-grp-or">— หรือ —</div>}
                         <select className="fx-add-select" value=""
-                          onChange={(e) => { if (e.target.value === "__new__") setBeatMode(true); else if (e.target.value) addExistingBeat(selectedNode.id, e.target.value); }}>
-                          <option value="">＋ เพิ่มบท…</option>
-                          <option value="__new__">＋ สร้างบทใหม่…</option>
-                          {avail.map((fs) => <option key={fs} value={fs}>{fs}</option>)}
+                          onChange={(e) => { if (e.target.value === "__new__") { setBeatGroup("new"); setBeatMode(true); } else if (e.target.value) addExistingBeat(selectedNode.id, e.target.value, "new"); }}>
+                          <option value="">＋ กลุ่มใหม่ (OR)…</option>
+                          <option value="__new__">＋ สร้างบทใหม่ (กลุ่มใหม่)…</option>
+                          {avOpts.map((fs) => <option key={fs} value={fs}>{fs}</option>)}
                         </select>
                       </div>
                     );

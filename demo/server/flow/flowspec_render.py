@@ -38,18 +38,36 @@ _CRM_LABELS = {
 _PHASE_TITLES = {"opening": "OPENING DIALOG", "main": "MAIN DIALOG", "close": "CLOSING"}
 
 
+def _label_template(t: dict) -> str:
+    s = f"`{t['fine_state']}`"
+    if t.get("when_event"):
+        s += f" (เมื่อ {t['when_event']})"
+    if t.get("optional"):
+        s += " (ถ้าจำเป็น)"
+    return s
+
+
 def _fmt_templates(templates: list[dict], mode: str | None = None) -> str:
-    # `mode` is the state's explicit template_mode: "and" = say all in one turn
-    # (chain), "or" = pick the one that fits (choice). If unset, infer from markers
-    # for back-compat (when_event/optional => choice, else chain).
-    parts = []
-    for t in templates:
-        s = f"`{t['fine_state']}`"
-        if t.get("when_event"):
-            s += f" (เมื่อ {t['when_event']})"
-        if t.get("optional"):
-            s += " (ถ้าจำเป็น)"
-        parts.append(s)
+    # Templates are organised into GROUPS (field `group`): pick ONE group (OR),
+    # and within that group say every beat in order (AND). No `group` field →
+    # fall back to the legacy flat mode ("and"=one chain / "or"=one choice each).
+    if any("group" in t for t in templates):
+        order: list = []
+        groups: dict = {}
+        for t in templates:
+            g = t.get("group", 0)
+            if g not in groups:
+                groups[g] = []
+                order.append(g)
+            groups[g].append(t)
+        chains = [" → ".join(_label_template(t) for t in groups[g]) for g in order]
+        if len(order) == 1:
+            tail = "  ‹พูดต่อกัน (AND)›" if len(groups[order[0]]) > 1 else ""
+            return chains[0] + tail
+        joined = "  — หรือ —  ".join(f"[ {c} ]" if " → " in c else c for c in chains)
+        return joined + "  ‹เลือก 1 กลุ่ม (OR); ในกลุ่มพูดต่อกัน (AND)›"
+
+    parts = [_label_template(t) for t in templates]
     if mode not in ("and", "or"):
         conditional = any(t.get("when_event") or t.get("optional") for t in templates)
         mode = "or" if conditional else "and"
