@@ -464,20 +464,6 @@
  },
  {
   "company": "AEON",
-  "text_id": 1049,
-  "intent_name": "closing_close",
-  "category": "A",
-  "state": "closing",
-  "template": "บริษัทเข้าใจ{suffix} เพื่อหลีกเลี่ยงค่าใช้จ่ายอื่นๆที่อาจเกิดขึ้นในอนาคต เช่น ค่าติดตามทวงถาม คุณลูกค้าลองพยายามหา สำรองจ่ายภายในวันนี้ดูก่อนนะ{q_suffix} หากต้องการสอบถาม หรือ ต้อง การความช่วยเหลือเพิ่มเติม ติดต่อได้ที่ {company_phone}{suffix} ขอขอบคุณที่ใช้บริการอิอ้อน สวัสดี{suffix}",
-  "is_closer": true,
-  "is_demand": false,
-  "is_acknowledgment": true,
-  "expects_response": false,
-  "_fine_state": "close",
-  "_real_count": 2589
- },
- {
-  "company": "AEON",
   "text_id": 1051,
   "intent_name": "closing_offer_callback",
   "category": "A",
@@ -548,20 +534,6 @@
  },
  {
   "company": "AEON",
-  "text_id": 1058,
-  "intent_name": "closing_close",
-  "category": "A",
-  "state": "closing",
-  "template": "{pronoun}เข้าใจในสถานการณ์{suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่าย เมื่อถึงกำหนดก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ {minimum_payment}ผ่านทาง อิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App storeนะ{q_suffix} ขอขอบคุณที่ใช้บริการอิอ้อน สวัสดี{suffix}",
-  "is_closer": true,
-  "is_demand": false,
-  "is_acknowledgment": true,
-  "expects_response": false,
-  "_fine_state": "close",
-  "_real_count": 42
- },
- {
-  "company": "AEON",
   "text_id": 1059,
   "intent_name": "closing_apology",
   "category": "A",
@@ -573,20 +545,6 @@
   "expects_response": false,
   "_fine_state": "apology",
   "_real_count": 39
- },
- {
-  "company": "AEON",
-  "text_id": 1060,
-  "intent_name": "closing_close",
-  "category": "A",
-  "state": "closing",
-  "template": "บริษัทเข้าใจ{suffix} เพื่อหลีกเลี่ยงค่าใช้จ่ายอื่นๆที่อาจเกิดขึ้นในอนาคต เช่น ค่าติดตามทวงถาม คุณลูกค้าลองพยายามหาสำรองจ่ายภายในวันนี้ดูก่อนนะ{q_suffix} หากต้องการสอบถามหรือต้องการความช่วยเหลือเพิ่มเติม ติดต่อได้ที่ {company_phone}{suffix} ขอขอบคุณที่ใช้บริการอิอ้อน สวัสดี{suffix}",
-  "is_closer": true,
-  "is_demand": false,
-  "is_acknowledgment": true,
-  "expects_response": false,
-  "_fine_state": "close",
-  "_real_count": 37
  },
  {
   "company": "AEON",
