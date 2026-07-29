@@ -662,22 +662,32 @@ def save_flow_spec(
     spec_path, cat_path = _flow_paths(company)
     catalog = json.loads(cat_path.read_text(encoding="utf-8")) if cat_path.exists() else []
 
-    # Append new templates (new fine_states only) authored in the editor.
-    existing_fs = {e.get("_fine_state") for e in catalog}
+    # Templates authored/edited in the editor. A new fine_state is appended; an
+    # existing one UPDATES its (first) catalog entry's text — so the editor can
+    # both add beats and rewrite existing lines.
+    by_fs: dict[str, dict] = {}
+    for e in catalog:
+        by_fs.setdefault(e.get("_fine_state"), e)
     next_tid = (max((e.get("text_id", 999) for e in catalog), default=999) + 1)
-    added = 0
+    added = updated = 0
     for nt in (new_templates or []):
         fs = (nt.get("fine_state") or "").strip()
         text = (nt.get("template") or "").strip()
-        if not fs or not text or fs in existing_fs:
+        if not fs or not text:
             continue
-        catalog.append({
+        if fs in by_fs:
+            if by_fs[fs].get("template") != text:
+                by_fs[fs]["template"] = text
+                updated += 1
+            continue
+        entry = {
             "company": company, "text_id": next_tid, "template": text,
             "_fine_state": fs, "intent_name": fs, "category": "A",
             "state": fs.split("_")[0], "is_closer": False, "is_demand": False,
             "is_acknowledgment": False, "expects_response": True,
-        })
-        existing_fs.add(fs)
+        }
+        catalog.append(entry)
+        by_fs[fs] = entry
         next_tid += 1
         added += 1
 
@@ -688,10 +698,10 @@ def save_flow_spec(
     errs, _ = validate_flow_spec(spec, catalog)
     if errs:
         return {"ok": False, "errors": errs[:10]}
-    if added:
+    if added or updated:
         cat_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=1), encoding="utf-8")
     spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
-    return {"ok": True, "company": company, "added_templates": added}
+    return {"ok": True, "company": company, "added_templates": added, "updated_templates": updated}
 
 
 # --- Flow Builder: author a new company's flow from the UI -------------------

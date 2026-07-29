@@ -14,7 +14,7 @@ import ReactFlow, {
   type Connection,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Pencil } from "lucide-react";
 import { fetchFlowSpec, fetchCueLibrary, saveFlowSpec, type FlowSpecData } from "../api";
 import { useMountTransition } from "../hooks/useMountTransition";
 
@@ -92,6 +92,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   // so the hook order stays stable.
   const [beatMode, setBeatMode] = useState(false);
   const [beatGroup, setBeatGroup] = useState<number | "new">("new"); // group the beat composer adds into
+  const [editBeat, setEditBeat] = useState<string | null>(null); // fine_state whose line is being edited inline
   const [bFs, setBFs] = useState("");
   const [bText, setBText] = useState("");
   // Tool declarations (the set of tools + impl the flow exposes).
@@ -412,16 +413,27 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                                       <div className="fx-bf-node">
                                         <div className="fx-bf-head">
                                           <code>{fs}</code>
-                                          {fs in newTemplates && <span className="fx-new">ใหม่</span>}
+                                          {fs in newTemplates && <span className="fx-new">{(beatText[fs]?.length ?? 0) ? "แก้แล้ว" : "ใหม่"}</span>}
                                           {whenEv && <span className="fx-bf-when">เมื่อ {whenEv}</span>}
                                           <span className="fx-bf-actions">
+                                            <button title="แก้บทพูด" onClick={() => setEditBeat(editBeat === fs ? null : fs)}><Pencil size={11} /></button>
                                             {pos > 0 && <button title="ขึ้น" onClick={() => swap(i, idxs[pos - 1])}>▲</button>}
                                             {pos < idxs.length - 1 && <button title="ลง" onClick={() => swap(i, idxs[pos + 1])}>▼</button>}
                                             <button className="fx-rm" onClick={() => rm(i)}><X size={11} /></button>
                                           </span>
                                         </div>
-                                        {lines.length ? lines.map((t, j) => <p className="fx-bf-line" key={j}>“{t}”</p>)
-                                          : <p className="fx-bf-line fx-script-empty">(ยังไม่มีข้อความ)</p>}
+                                        {editBeat === fs ? (
+                                          <textarea
+                                            className="fx-bf-edit" rows={2} autoFocus
+                                            value={newTemplates[fs] ?? lines[0] ?? ""}
+                                            placeholder="ข้อความ ({customer_name} {amount} {suffix})"
+                                            onChange={(e) => setNewTemplates((m) => ({ ...m, [fs]: e.target.value }))}
+                                            onBlur={() => setEditBeat(null)}
+                                          />
+                                        ) : (
+                                          lines.length ? lines.map((t, j) => <p className="fx-bf-line" key={j}>“{t}”</p>)
+                                            : <p className="fx-bf-line fx-script-empty">(ยังไม่มีข้อความ)</p>
+                                        )}
                                       </div>
                                     </div>
                                   );

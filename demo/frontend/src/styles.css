@@ -2082,3 +2082,4 @@ button.bubble.tool-result {
   .customer-panel .panel-content { opacity: 0; pointer-events: none; }
   .customer-panel .panel-mini-icon { opacity: 1; pointer-events: auto; }
 }
+.fx-bf-edit { width: 100%; margin-top: 4px; font: inherit; font-size: 12.5px; line-height: 1.5; color: var(--fx-ink); background: var(--fx-surface); border: 1px solid var(--fx-accent); border-radius: 7px; padding: 5px 8px; resize: vertical; box-sizing: border-box; }
