@@ -270,6 +270,11 @@ async def create_session(
     chosen_gender = (gender or "F").strip().upper()
     if chosen_gender not in ("M", "F"):
         chosen_gender = "F"
+    # An SFT adapter always reads the FlowSpec instruction → route it to the flow
+    # session regardless of which engine button was used (a flow model under the
+    # prescript prompt just loops on the greeting).
+    if model and model.lower().startswith("sft"):
+        flow = True
     # Flow-interpreter mode is always a live session (it can't replay).
     if flow and mode != "live":
         mode = "live"

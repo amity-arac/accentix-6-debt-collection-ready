@@ -1302,10 +1302,11 @@ def served_models() -> dict[str, list[str]]:
             ids = [m["id"] for m in json.load(r).get("data", [])]
     except Exception:
         return {"base": [], "flow": []}
-    # Only the `sft_flow_*` adapters are aligned with the current FlowSpec/editor.
-    # sft_v10/v11 are older flow-pipeline models that predate it — exclude them
-    # from the picker (they don't fit the current specs). The raw base is the
-    # prescript (qwen) engine's model.
-    flow = sorted(i for i in ids if i.lower().startswith("sft_flow"))
-    base = [i for i in ids if not i.lower().startswith("sft")]
-    return {"base": base, "flow": flow}
+    # All local Qwen checkpoints live under the "qwen" picker (base list): the raw
+    # base + every SFT adapter (sft_v10/v11 + sft_flow_*). The engine is routed by
+    # the model itself (any sft_* reads the FlowSpec → FlowLiveSession), so the
+    # picker doesn't have to match an engine button. `flow` = the flow-editor
+    # subset (sft_flow_*), kept for that button's default.
+    sft = sorted(i for i in ids if i.lower().startswith("sft"))
+    base_only = [i for i in ids if not i.lower().startswith("sft")]
+    return {"base": base_only + sft, "flow": [i for i in sft if "flow" in i.lower()]}
