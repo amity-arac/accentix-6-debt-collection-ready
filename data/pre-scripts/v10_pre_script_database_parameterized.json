@@ -258,7 +258,7 @@
   "intent_name": "negotiation_offer_channel",
   "category": "B",
   "state": "negotiation",
-  "template": "ไม่ทราบว่า คุณลูกค้าชำระวันที่เท่าไหร่ ผ่านช่องทางไหน{suffix}",
+  "template": "ไม่ทราบว่า คุณลูกค้าชำระวันที่เท่าไหร่ ผ่านช่องทางไหน{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
