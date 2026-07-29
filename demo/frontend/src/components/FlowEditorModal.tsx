@@ -80,6 +80,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
   const [cues, setCues] = useState<Record<string, string[]>>({});
   const [library, setLibrary] = useState<Record<string, string[]>>({});
   const [avail, setAvail] = useState<string[]>([]);
+  const [beatText, setBeatText] = useState<Record<string, string[]>>({});
   const [newTemplates, setNewTemplates] = useState<Record<string, string>>({});
   const [selNode, setSelNode] = useState<string | null>(null);
   const [selEdge, setSelEdge] = useState<string | null>(null);
@@ -112,6 +113,7 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
       .then((d) => {
         setData(d);
         setAvail(d.fine_states);
+        setBeatText(d.templates ?? {});
         const evs = (d.spec.events ?? {}) as Record<string, { cues?: string[] }>;
         setEvents(Object.keys(evs));
         setCues(Object.fromEntries(Object.entries(evs).map(([k, v]) => [k, v.cues ?? []])));
@@ -376,6 +378,20 @@ export function FlowEditorModal({ open, company, onClose, onSaved }: Props) {
                       {avail.map((fs) => <option key={fs} value={fs}>{fs}</option>)}
                     </select>
                   </div>
+                  {selectedNode.data.beats.length > 0 && (
+                    <div className="fx-scripts">
+                      {selectedNode.data.beats.map((fs) => {
+                        const lines = (newTemplates[fs] != null ? [newTemplates[fs]] : (beatText[fs] ?? []));
+                        return (
+                          <div className="fx-script" key={fs}>
+                            <code className="fx-script-fs">{fs}{fs in newTemplates && <span className="fx-new">ใหม่</span>}</code>
+                            {lines.length ? lines.map((t, i) => <p className="fx-script-line" key={i}>“{t}”</p>)
+                              : <p className="fx-script-line fx-script-empty">(ยังไม่มีข้อความ)</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   {beatMode && (
                     <div className="fx-composer" style={{ marginTop: 6 }}>
                       <input placeholder="ชื่อ beat (เช่น offer_promo)" value={bFs} onChange={(e) => setBFs(e.target.value)} />

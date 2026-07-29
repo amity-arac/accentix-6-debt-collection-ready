@@ -218,6 +218,7 @@ export type FlowSpecData = {
   company: string;
   spec: FlowSpec;
   fine_states: string[];
+  templates?: Record<string, string[]>;
   tools: string[];
 };
 

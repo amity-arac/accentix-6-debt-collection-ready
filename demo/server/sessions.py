@@ -594,11 +594,17 @@ def get_flow_spec(company: str) -> dict[str, Any]:
         return {}
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
     fine_states: list[str] = []
+    templates: dict[str, list[str]] = {}
     if cat_path.exists():
         cat = json.loads(cat_path.read_text(encoding="utf-8"))
         fine_states = sorted({e.get("_fine_state", "") for e in cat if e.get("_fine_state")})
+        for e in cat:
+            fs = e.get("_fine_state")
+            if fs and e.get("template"):
+                templates.setdefault(fs, []).append(e["template"])
     tools = [d.get("name") for d in spec.get("tools", {}).get("declarations", [])]
-    return {"company": company, "spec": spec, "fine_states": fine_states, "tools": tools}
+    return {"company": company, "spec": spec, "fine_states": fine_states,
+            "templates": templates, "tools": tools}
 
 
 def _sanitize_spec(spec: dict) -> None:
