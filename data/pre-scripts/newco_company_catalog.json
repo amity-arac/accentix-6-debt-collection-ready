@@ -1,0 +1,52 @@
+[
+  {
+    "company": "NEWCO",
+    "text_id": 1000,
+    "_fine_state": "greeting_verify",
+    "template": "สวัสดี{suffix} ติดต่อจากบริษัท นิวโค กำลังเรียนสายกับคุณ​ {customer_name} ใช่มั้ย {q_suffix}",
+    "intent_name": "opening_greet_verify",
+    "_hint_where": "state:greet (phase opening)",
+    "_example_AEON": "สวัสดี{suffix} ติดต่อจากบริษัทอิอ้อน กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+    "category": "A",
+    "state": "opening",
+    "is_closer": false,
+    "is_demand": false,
+    "is_acknowledgment": false,
+    "expects_response": true
+  },
+  {
+  "company": "NEWCO",
+  "text_id": 1001,
+  "_fine_state": "disclose_balance",
+  "template": "คุณมียอดค้างชำระ {amount} สตางค์ สามารถชำระขั้นต่ำได้ {minimum_payment} สตางค์ กรุณาชำระขั้นต่ำ ภายในวันนี้นะ{q_suffix}",
+  "intent_name": "negotiation_ask_pay_today",
+  "_hint_where": "state:greet (phase opening)",
+  "category": "A",
+  "state": "negotiation",
+  "is_closer": false,
+  "is_demand": false,
+  "is_acknowledgment": false,
+  "expects_response": true
+  },
+  {
+    "company": "NEWCO",
+    "text_id": 1047,
+    "_fine_state": "close",
+    "_hint_where": "state:ptp_capture (phase close)",
+    "template": "ขอขอบคุณที่ใช้บริการนิวโคด้วยดีเสมอมา สวัสดี{suffix}",
+    "intent_name": "closing_close",
+    "category": "A",
+    "state": "closing",
+    "is_closer": true,
+    "is_demand": false,
+    "is_acknowledgment": true,
+    "expects_response": false
+  },
+  {
+    "company": "NEWCO",
+    "text_id": 1050,
+    "_fine_state": "skip",
+    "template": "{pronoun}เป็นเพียงผู้ช่วยทวงหนี้ของบริษัทนิวโค ไม่สามารถตอบคำถามเรื่องอื่นได้{suffix}",
+    "intent_name": "out of scope"
+  }
+]
