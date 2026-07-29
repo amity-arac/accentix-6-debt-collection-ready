@@ -39,6 +39,9 @@ _PHASE_TITLES = {"opening": "OPENING DIALOG", "main": "MAIN DIALOG", "close": "C
 
 
 def _fmt_templates(templates: list[dict]) -> str:
+    # Templates carrying when_event/optional are CHOICES (pick the one that fits);
+    # multiple plain templates are a CHAIN the agent must say together in one turn.
+    conditional = any(t.get("when_event") or t.get("optional") for t in templates)
     parts = []
     for t in templates:
         s = f"`{t['fine_state']}`"
@@ -47,6 +50,8 @@ def _fmt_templates(templates: list[dict]) -> str:
         if t.get("optional"):
             s += " (ถ้าจำเป็น)"
         parts.append(s)
+    if len(parts) > 1 and not conditional:
+        return " → ".join(parts) + "  ‹พูดต่อกันทั้งหมดในเทิร์นเดียว›"
     return " / ".join(parts)
 
 
