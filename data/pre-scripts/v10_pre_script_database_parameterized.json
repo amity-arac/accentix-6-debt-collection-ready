@@ -131,7 +131,7 @@
   "intent_name": "opening_ai_disclosure",
   "category": "A",
   "state": "opening",
-  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} ไม่ทราบว่า ถ้าเป็นยอดขั้นต่ำ ลูกค้าสะดวกชำระภายในวันนี้เลยมั้ย{q_suffix}",
+  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
