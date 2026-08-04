@@ -221,11 +221,17 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
     seen_cids: set[str] = set()
     for c in spec["constraints"]:
         cid = c.get("id", "?")
-        if cid in seen_cids:
-            errors.append(f"constraint duplicate id: {cid}")
-        seen_cids.add(cid)
+        if "id" in c:
+            if cid in seen_cids:
+                errors.append(f"constraint duplicate id: {cid}")
+            seen_cids.add(cid)
         ctype = c.get("type")
-        if ctype not in CONSTRAINT_TYPES:
+        # A constraint without `type` is a prose rule (guidance rendered into the
+        # instruction, no mechanical enforcement); it must still carry a desc.
+        if ctype is None:
+            if not c.get("desc"):
+                errors.append(f"constraint {cid}: prose constraint missing desc")
+        elif ctype not in CONSTRAINT_TYPES:
             errors.append(f"constraint {cid}: unknown type: {ctype}")
         layers = set(c.get("enforce", []))
         if not layers:

@@ -523,7 +523,7 @@ class LiveSession:
 # defaults seed it / act as a fallback if the file is missing.
 FLOW_REGISTRY_FILE = REPO_ROOT / "data" / "flows" / "flow_registry.json"
 _FLOW_REGISTRY_DEFAULT: dict[str, dict[str, str]] = {
-    "AEON": {"spec": "AEON-outbound-remind.json", "catalog": "v10_pre_script_database_parameterized.json"},
+    "AEON": {"spec": "AEON-outbound-remind.json", "catalog": "v11_aeon_probe_catalog.json"},
     "JAI": {"spec": "JAI-outbound-remind.json", "catalog": "v11_jai_probe_catalog.json"},
     "KS": {"spec": "KS-outbound-remind.json", "catalog": "v11_ks_probe_catalog.json"},
     "AIS": {"spec": "AIS-outbound-remind.json", "catalog": "v11_ais_probe_catalog.json"},
@@ -563,10 +563,50 @@ def cue_library() -> dict[str, list[str]]:
     return {}
 
 
+def _flow_spec_path(company: str, instruction_version: str | None = None) -> "Any":
+    """Resolve the FlowSpec file for a company, optionally pinning an
+    instruction version. The registry `spec` is the canonical/latest; a versioned
+    override lives beside it as `{stem}__{version}.json`. Unknown/empty version →
+    the canonical file (so old sessions and non-versioned companies still work)."""
+    entry = load_flow_registry()[company]
+    base = REPO_ROOT / "data" / "flows" / entry["spec"]
+    if instruction_version:
+        cand = base.with_name(base.stem + f"__{instruction_version}.json")
+        if cand.exists():
+            return cand
+    return base
+
+
 def _flow_paths(company: str) -> "tuple[Any, Any]":
     entry = load_flow_registry()[company]
     return (REPO_ROOT / "data" / "flows" / entry["spec"],
             REPO_ROOT / "data" / "pre-scripts" / entry["catalog"])
+
+
+def flow_versions(company: str) -> "dict[str, Any]":
+    """Available instruction versions for a company's flow + the default.
+
+    The canonical spec (registry) supplies the default (its `instruction_version`
+    field, else 'latest'); each `{stem}__{ver}.json` override adds a selectable
+    version. Powers the demo's instruction-version picker (A/B v11 vs v11.1)."""
+    company = (company or "").strip().upper()
+    reg = load_flow_registry()
+    if company not in reg:
+        return {"versions": [], "default": ""}
+    base = REPO_ROOT / "data" / "flows" / reg[company]["spec"]
+    default = "latest"
+    if base.exists():
+        try:
+            default = json.loads(base.read_text(encoding="utf-8")).get("instruction_version") or "latest"
+        except (json.JSONDecodeError, OSError):
+            pass
+    versions = {default}
+    for p in base.parent.glob(base.stem + "__*.json"):
+        ver = p.stem[len(base.stem) + 2:]  # strip "{stem}__"
+        if ver:
+            versions.add(ver)
+    # newest-looking last→first: plain sort is fine for v11 < v11.1
+    return {"versions": sorted(versions), "default": default}
 
 
 def flow_instruction(company: str) -> str:
@@ -1003,13 +1043,35 @@ class FlowLiveSession:
     mode = "live"
     agent_name = "flow"
 
-    def __init__(self, case_id: str, voice_gender: str = "F", model: str | None = None) -> None:
+    def __init__(self, case_id: str, voice_gender: str = "F", model: str | None = None,
+                 instruction_version: str | None = None) -> None:
         self._model_override = model
+        # sft_v12 is a different lineage: trained on the FULL-TEXT catalog
+        # (render_catalog), a «สถานะ:…» state-summary suffix on every customer
+        # turn, a session reply-gate, and auto_outcome. Serving it with the
+        # compact prompt would be a train/serve mismatch — so the v12 path uses
+        # the vendored *_v12 modules end to end, while every other model
+        # (default sft_v11 / v11.2) keeps the original code path untouched.
+        self._is_v12 = "v12" in ((model or FLOW_MODEL) or "")
+        if self._is_v12:
+            # v12 model is only train/serve-compatible with the v12 spec —
+            # force it even if the UI pins an older version.
+            instruction_version = "v12"
+        elif not instruction_version or instruction_version == "v12":
+            # non-v12 models must never get the v12 spec (new constraint
+            # schema, full-text expectations) — pin them to the v11.2 spec.
+            instruction_version = "v11.2"
+        self._instruction_version = instruction_version
         # Lazy imports — flow logic + its heavier deps load only when flow mode
         # is actually used, keeping the default replay/live paths cheap.
-        from demo.server.flow.flowspec import build_tool_schemas
-        from demo.server.flow.flowspec_render import render_instruction
-        from demo.server.flow.spec_backend import SpecBackend
+        if self._is_v12:
+            from demo.server.flow.flowspec_v12 import build_tool_schemas
+            from demo.server.flow.flowspec_render_v12 import render_instruction, render_catalog
+            from demo.server.flow.spec_backend_v12 import SpecBackend
+        else:
+            from demo.server.flow.flowspec import build_tool_schemas
+            from demo.server.flow.flowspec_render import render_instruction
+            from demo.server.flow.spec_backend import SpecBackend
         from agents.prescript import build_script_catalog, fill_template
         from simulator.config import COMPANY_NAMES, COMPANY_AGENT_NAMES, COMPANY_PHONES
         from simulator import datetime_utils
@@ -1032,17 +1094,73 @@ class FlowLiveSession:
         cd.setdefault("today", datetime_utils.today_iso())
         if cd.get("due_offset_days") is not None:  # resolve to a live date (now+N)
             cd["due_date"] = datetime_utils.future_date(cd["due_offset_days"])
+        # Derive the {{if due_upcoming}} template flag from the actual dates so
+        # disclose templates say "จะครบกำหนด [due_date]" pre-due and only say
+        # "เกินกำหนดแล้ว" when truly past due (issue: pre-due customer told the
+        # debt was overdue). ISO YYYY-MM-DD prefixes compare correctly as text.
+        if cd.get("due_upcoming") is None:
+            dd = str(cd.get("due_date") or "")[:10]
+            td = str(cd.get("today") or "")[:10]
+            if (dd and td and dd > td) or cd.get("due_status") == "upcoming":
+                cd["due_upcoming"] = True
         self.customer_data = cd
 
         entry = load_flow_registry()[self._company]
-        self._spec = json.loads(
-            (REPO_ROOT / "data" / "flows" / entry["spec"]).read_text(encoding="utf-8"))
-        self._catalog = json.loads(
-            (REPO_ROOT / "data" / "pre-scripts" / entry["catalog"]).read_text(encoding="utf-8"))
+        spec_path = _flow_spec_path(self._company, self._instruction_version)
+        self._spec = json.loads(spec_path.read_text(encoding="utf-8"))
+        if self._is_v12:
+            # v12 spec names its own catalog (v12_aeon_catalog.json, 67 entries)
+            catalog_path = REPO_ROOT / self._spec["catalog"]
+        else:
+            catalog_path = REPO_ROOT / "data" / "pre-scripts" / entry["catalog"]
+        self._catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
         self._by_id = {e["text_id"]: e for e in self._catalog}
 
+        # --- flow-company text_id remap guard (memorizer models only) ---
+        # A builder-created company renumbers its catalog (1000+). A *memorizer*
+        # model (sft_v11/sft_v2_2, trained on AEON's FIXED ids) only speaks the
+        # canonical AEON text_id vocabulary, so a raw lookup on a builder company
+        # collides (its 1018=disclose_balance resolves to the local 1018=
+        # handoff_refuse) and it speaks the wrong line. Remap through the stable
+        # fine_state namespace: canonical id → fine_state → local entry, dropping
+        # any canonical id whose fine_state the company lacks.
+        #
+        # The flow-interpreter models (sft_flow_*) are trained on per-flow RANDOM
+        # ids + a shuffled in-prompt catalog (prepare_flow_data), so they READ the
+        # catalog and already emit this company's own ids — remapping their output
+        # through AEON would corrupt it. Guard OFF for them: direct lookup.
+        self._canon_id_to_fs: dict[int, str] = {}
+        self._fs_to_local: dict[str, dict] = {}
+        _is_interpreter = "flow" in (self._model_override or FLOW_MODEL).lower()
+        if entry.get("catalog", "").endswith("_builder_catalog.json") and not _is_interpreter:
+            # memorizer models (sft_v11/v2_2) emit canonical AEON ids → remap their
+            # reply output through fine_state (see _render_reply). Interpreters
+            # (sft_flow_*) read the in-prompt catalog and emit this company's own
+            # ids, so they get direct lookup (guard off).
+            canon_name = load_flow_registry()["AEON"]["catalog"]
+            canon = json.loads(
+                (REPO_ROOT / "data" / "pre-scripts" / canon_name).read_text(encoding="utf-8"))
+            self._canon_id_to_fs = {
+                e["text_id"]: e.get("_fine_state") for e in canon if e.get("_fine_state")}
+            self._fs_to_local = {
+                e.get("_fine_state"): e for e in self._catalog if e.get("_fine_state")}
+
         system = self._fill_template(render_instruction(self._spec), cd, gender=self.voice_gender)
-        system += "\n\n" + build_script_catalog(self._catalog, compact=True)
+        if self._is_v12:
+            # train==serve byte-identity: full-text catalog, exactly as flow_sim
+            system += "\n\n" + render_catalog(self._catalog)
+            # latency: pre-resolve get_current_datetime at session start and hand
+            # the model the same table in-prompt, so record chains skip that
+            # round-trip (the tool stays declared; the spec tells it not to call).
+            try:
+                dt_table = self._SpecBackend._extended_datetime_table()
+                system += ("\n\n## วันที่ปัจจุบัน (ผล get_current_datetime — เรียกไว้ให้แล้ว "
+                           "ใช้ค่าจากตารางนี้ได้เลย ไม่ต้องเรียกซ้ำ)\n"
+                           + json.dumps(dt_table, ensure_ascii=False))
+            except Exception:
+                pass  # table is an optimization — never block session start
+        else:
+            system += "\n\n" + build_script_catalog(self._catalog, compact=True)
         self._system = system
         self._tools = build_tool_schemas(self._spec) + [
             _flow_reply_schema([e["text_id"] for e in self._catalog])
@@ -1131,6 +1249,8 @@ class FlowLiveSession:
                             "function": {"name": "reply",
                                          "arguments": json.dumps(args, ensure_ascii=False)}}],
         })
+        if self._is_v12:  # state tracker counts the seeded greeting (as in flow_sim)
+            self._backend.note_reply({entry["_fine_state"]})
         return [
             {"kind": "tool_call", "name": "reply", "args": args},
             {"kind": "reply", "text": text, "text_ids": [entry["text_id"]], "dynamic_vars": {}},
@@ -1159,11 +1279,22 @@ class FlowLiveSession:
         seen: set[int] = set()
         good, texts = [], []
         for tid in ids:
-            e = self._by_id.get(int(tid)) if str(tid).lstrip("-").isdigit() else None
-            if e is None or int(tid) in seen:
+            if not str(tid).lstrip("-").isdigit():
                 continue
-            seen.add(int(tid))
-            good.append(int(tid))
+            tid_i = int(tid)
+            if self._canon_id_to_fs:
+                # Builder company: the model's id is canonical (AEON) — resolve it
+                # through fine_state to this company's template. No raw fallback:
+                # a direct hit would be a renumber collision, and a canonical id
+                # whose fine_state the company lacks is intentionally dropped.
+                fs = self._canon_id_to_fs.get(tid_i)
+                e = self._fs_to_local.get(fs) if fs else None
+            else:
+                e = self._by_id.get(tid_i)
+            if e is None or e["text_id"] in seen:
+                continue
+            seen.add(e["text_id"])
+            good.append(e["text_id"])
             texts.append(self._fill_template(
                 e["template"], self.customer_data, dynamic_vars=dyn, gender=self.voice_gender))
         return good, " ".join(texts), dyn if isinstance(dyn, dict) else {}
@@ -1172,6 +1303,15 @@ class FlowLiveSession:
         """A safe on-catalog line for when the model returns an empty/garbage reply
         (no valid text_ids, or free text with no Thai) — so the bot never speaks a
         blank bubble or a leaked token like 'parameter'."""
+        # v12: once the call outcome is stamped, a blank/garbage reply means the
+        # model stumbled on the CLOSING line — recover with a close, not a
+        # "ขอแจ้งอีกครั้ง" (faq_repeat), which reads wrong after a completed PTP.
+        outcome_done = getattr(self._backend, "outcome_stamped", None)
+        if self._is_v12 and callable(outcome_done) and outcome_done():
+            c = next((x for x in self._catalog if x.get("_fine_state") == "close"), None)
+            if c:
+                return [c["text_id"]], self._fill_template(
+                    c["template"], self.customer_data, gender=self.voice_gender)
         e = next((x for x in self._catalog if x.get("_fine_state") == "faq_repeat"), None)
         if e:
             return [e["text_id"]], self._fill_template(e["template"], self.customer_data, gender=self.voice_gender)
@@ -1193,11 +1333,41 @@ class FlowLiveSession:
             turn_hops.append(hop)
             loop.call_soon_threadsafe(queue.put_nowait, hop)
 
+        # UX filler for the silent data-record chain only. "Data record" = the
+        # tools that actually persist customer info to CRM (a PTP commitment, a
+        # callback, a phone update) — NOT get_current_datetime (a read) and NOT
+        # record_outcome alone (a call-result stamp; a plain refusal/close must
+        # never say "เรียบร้อย"). On the first such tool: one "ขออนุญาตบันทึก…"
+        # bubble; the closing reply is prefixed "เรียบร้อยค่ะ " ONLY IF a write
+        # actually SUCCEEDED (recorded, no error). Client-stream only — never
+        # into self._messages (byte-identity). Disable AAX6_FLOW_FILLER=0.
+        _WRITE_TOOLS = {"record_verbal_commitment", "payment_date",
+                        "callback_datetime", "update_phone"}
+        _filler_on = os.environ.get("AAX6_FLOW_FILLER", "1").strip().lower() not in ("0", "false", "")
+        _filler_state = {"bubble": False, "saved": False}
+
+        def _emit_filler(tool_name: str) -> None:
+            if not _filler_on or tool_name not in _WRITE_TOOLS or _filler_state["bubble"]:
+                return
+            _filler_state["bubble"] = True
+            text = self._fill_template("ขออนุญาตบันทึกข้อมูลสักครู่นะ{q_suffix}",
+                                       self.customer_data, gender=self.voice_gender)
+            push({"kind": "reply", "text": text, "text_ids": [], "dynamic_vars": {},
+                  "filler": True})
+
         def blocking() -> tuple[str, float, int]:
             llm_ms, llm_hops = 0.0, 0
             agent_text = ""
             try:
-                self._messages.append({"role": "user", "content": user_msg})
+                content = user_msg
+                if self._is_v12:
+                    # byte-identical to training: «สถานะ: …» tracker suffix on
+                    # every customer turn (see flow_sim / flow_trajgen)
+                    # (pre-due "โอเค"=PTP needs no injection: the pre-due disclose
+                    # template ends with a question, so a bare ack IS an answer and
+                    # the model runs the PTP chain natively — verified A/B.)
+                    content = user_msg + " " + self._backend.state_summary()
+                self._messages.append({"role": "user", "content": content})
                 for _loop in range(FLOW_MAX_TOOL_LOOPS):
                     t0 = time.perf_counter()
                     msg = _flow_vllm_chat(self._base_url, {
@@ -1224,9 +1394,40 @@ class FlowLiveSession:
                     raw_args = fn.get("arguments")
                     args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                     if fn["name"] == "reply":
+                        if self._is_v12:
+                            # reply-gate (privacy guarantee): sensitive templates
+                            # pre-verification → reject the whole reply, let the
+                            # model pick again inside the same tool loop
+                            pre_raw = args.get("text_ids", [])
+                            try:
+                                pre_ids = [int(t) for t in (pre_raw if isinstance(pre_raw, list) else [])]
+                            except (TypeError, ValueError):
+                                pre_ids = []
+                            blocked = self._backend.blocked_reply_ids(self._catalog)
+                            hit = [t for t in pre_ids if t in blocked]
+                            if hit:
+                                self._messages.append({"role": "assistant", "tool_calls": [{
+                                    "id": tc.get("id", "call_x"), "type": "function",
+                                    "function": {"name": "reply",
+                                                 "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                                self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                       "content": json.dumps({
+                                                           "sent": False, "reason": "verify_required",
+                                                           "blocked_text_ids": hit,
+                                                           "hint": "ยังไม่ได้ยืนยันตัวตนลูกค้า — ห้ามเปิดเผยยอด/วันครบกำหนด "
+                                                                   "ให้ตอบด้วย template ยืนยันตัวตน (verify_first) เท่านั้น"},
+                                                           ensure_ascii=False)})
+                                push({"kind": "tool_call", "name": "reply", "args": args})
+                                push({"kind": "tool_result", "name": "reply",
+                                      "result": {"sent": False, "reason": "verify_required",
+                                                 "blocked_text_ids": hit}})
+                                continue  # model picks again in the same tool loop
                         ids, text, dyn = self._render_reply(args)
                         if not ids and not self._looks_sayable(text):  # reply [] → safe fallback
                             ids, text = self._fallback_reply()
+                        if self._is_v12 and ids:
+                            self._backend.note_reply(
+                                {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id})
                         clean_args = {"text_ids": ids, "dynamic_vars": args.get("dynamic_vars") or []}
                         self._messages.append({
                             "role": "assistant", "content": text,
@@ -1235,10 +1436,29 @@ class FlowLiveSession:
                                                          "arguments": json.dumps(clean_args, ensure_ascii=False)}}],
                         })
                         push({"kind": "tool_call", "name": "reply", "args": clean_args})
-                        push({"kind": "reply", "text": text, "text_ids": ids, "dynamic_vars": dyn})
+                        # after a record chain, prefix the closing reply with a
+                        # "เรียบร้อยค่ะ" acknowledgement (client display only —
+                        # keep self._messages content raw for byte-identity)
+                        display_text = text
+                        # prefix "เรียบร้อยค่ะ" only on a genuine CLOSING reply
+                        # after a save — never on a repeat/fallback/other reply
+                        # (e.g. the model closing with 1076 faq_repeat by mistake)
+                        _reply_fs = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
+                        _CLOSE_FS = {"close", "offer_callback"}
+                        if (self._is_v12 and _filler_state.get("saved") and text
+                                and (_reply_fs & _CLOSE_FS)):
+                            display_text = self._fill_template(
+                                "เรียบร้อย{suffix}", self.customer_data,
+                                gender=self.voice_gender) + " " + text
+                            _filler_state["saved"] = False
+                        push({"kind": "reply", "text": display_text, "text_ids": ids, "dynamic_vars": dyn})
                         agent_text = text
                         break
+                    _emit_filler(fn["name"])
                     result = self._backend.dispatch(fn["name"], args)
+                    if (fn["name"] in _WRITE_TOOLS and not result.get("error")
+                            and result.get("recorded") is not False):
+                        _filler_state["saved"] = True   # a real write succeeded
                     self._messages.append({
                         "role": "assistant",
                         "tool_calls": [{"id": tc.get("id", "call_x"), "type": "function",
@@ -1264,12 +1484,30 @@ class FlowLiveSession:
             agent_text, llm_ms, llm_hops = await task
 
         self._transcript.append({"user": user_msg, "hops": turn_hops})
+        # DEBUG: per-turn trace (user msg → ordered tools/replies) to spot ordering
+        # bugs like disclose-before-verify. Remove when done debugging.
+        _seq = []
+        for _h in turn_hops:
+            if _h.get("kind") == "tool_call" and _h.get("name") != "reply":
+                _seq.append(_h["name"])
+            elif _h.get("kind") == "reply":
+                _seq.append("reply" + str(_h.get("text_ids")))
+        print(f"[flow-turn] user={user_msg!r} -> {' | '.join(_seq)}", flush=True)
         self._last_turn_timing = {"llm_ms": round(llm_ms, 1), "llm_hops": llm_hops}
         self._turn_count += 1
         if "[TASK_COMPLETED]" in (agent_text or ""):
             self.done = True
         if self._turn_count >= MAX_LIVE_TURNS:
             self.done = True
+        if self.done and self._is_v12:
+            # CRM completeness guarantee: if the model never stamped the call
+            # outcome, derive + stamp it from the call log (None = already done).
+            try:
+                stamped = self._backend.auto_outcome()
+                if stamped is not None:
+                    print(f"[flow-v12] auto_outcome stamped: {stamped}", flush=True)
+            except Exception as exc:  # never let wrap-up kill the stream
+                print(f"[flow-v12] auto_outcome failed: {exc}", flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1339,9 +1577,11 @@ def build(
     voice_gender: str = "F",
     flow: bool = False,
     model: str | None = None,
+    instruction_version: str | None = None,
 ) -> Session:
     if flow:  # flow-interpreter is always live — it can't replay
-        return FlowLiveSession(case_id, voice_gender=voice_gender, model=model)
+        return FlowLiveSession(case_id, voice_gender=voice_gender, model=model,
+                               instruction_version=instruction_version)
     if mode == "live":
         return LiveSession(case_id, agent=agent, voice_gender=voice_gender, model=model)
     return ReplaySession(case_id, voice_gender=voice_gender)

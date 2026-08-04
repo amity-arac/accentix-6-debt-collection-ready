@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT))
 from agents.prescript import fill_template
 
 spec = json.loads((ROOT/"data/flows/AEON-outbound-remind.json").read_text(encoding="utf-8"))
-cat = json.loads((ROOT/"data/pre-scripts/v10_pre_script_database_parameterized.json").read_text(encoding="utf-8"))
+cat = json.loads((ROOT/"data/pre-scripts/v11_aeon_probe_catalog.json").read_text(encoding="utf-8"))
 cases = json.loads((ROOT/"data/test-cases/personas_data.json").read_text(encoding="utf-8"))
 base = dict(next(c["customer_data"] for c in cases if c["id"].split("-")[1] == "AEON"))
 for k, v in {"company_phone": "02-035-6666", "company_name": "อิอ้อน", "agent_name": "น้องอิ", "today": "2026-05-22 (Thursday)"}.items():

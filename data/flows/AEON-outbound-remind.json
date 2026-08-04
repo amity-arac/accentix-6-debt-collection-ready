@@ -9,7 +9,7 @@
   "documentation/v10-teacher-flow-map.md",
   "src/aax6/core/backend.py"
  ],
- "catalog": "data/pre-scripts/v10_pre_script_database_parameterized.json",
+ "catalog": "data/pre-scripts/v11_aeon_probe_catalog.json",
  "goal": "ทักทาย/ยืนยันชื่อ → แจ้งยอด → ชวนชำระวันนี้ → (ลังเล) โน้มน้าวตามเหตุ → ปิดสาย/นัด — สั้น กระชับ เหมือนคนคุยโทรศัพท์",
  "crm_fields": [
   "today",
