@@ -901,7 +901,7 @@
    ],
    "enforce": [
     "prompt",
-    "session"
+    "reward"
    ],
    "desc": "ก่อนลูกค้ายืนยันตัวตน (name_confirmed) ห้ามเปิดเผยยอด/วันครบกำหนด/ประเภทหนี้ — session layer BLOCK template กลุ่มนี้จนกว่า verification สำเร็จ (blocked_reply_ids)"
   },

@@ -591,9 +591,14 @@ def _write_tenant(company: str, spec: dict, catalog: list[dict],
     inside the spec because it describes the tenant, and the platform keeps no
     per-tenant record of its own.
     """
-    body = {**spec, "catalog": "__inline__", "catalog_inline": catalog}
+    body = {k: v for k, v in spec.items() if k not in ("catalog", "catalog_inline",
+                                                      "company", "spec_version")}
     if display_name:
         body["display_name"] = display_name
+    # `catalog` IS the list, and `company` is not repeated — the filename carries it.
+    # Writing the older two-key shape here meant a file this app produced did not match
+    # the one it documents, and round-tripping an export through upload changed it.
+    body["catalog"] = catalog
     f = FLOW_DIR / f"{company}{TENANT_SUFFIX}"
     f.write_text(json.dumps(body, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     return f
@@ -1164,9 +1169,16 @@ def create_flow_company_raw(
     if not isinstance(catalog, list):
         return {"ok": False, "errors": ["catalog ต้องเป็น JSON array"]}
 
-    company = str(spec.get("company", "")).strip().upper()
+    # A tenant file no longer has to repeat its own code — the filename carries it, and
+    # the files this app writes leave it out. An upload may still name it (the blank
+    # template does), and `display_name` is the fallback so an export of a shipped
+    # company can be sent straight back without hand-editing.
+    company = str(spec.get("company") or spec.get("flow_id", "").split("-")[0]
+                  or display_name).strip().upper()
     if not re.fullmatch(r"[A-Z][A-Z0-9]{1,11}", company):
-        return {"ok": False, "errors": ["spec.company ต้องเป็น A-Z/0-9 (ขึ้นต้นด้วยตัวอักษร) 2–12 ตัว"]}
+        return {"ok": False, "errors": [
+            "ระบุรหัสบริษัทไม่ได้ — ใส่ `company` หรือ `flow_id` ใน spec "
+            "(A-Z/0-9 ขึ้นต้นด้วยตัวอักษร 2–12 ตัว)"]}
     if company in load_flow_registry():
         return {"ok": False, "errors": [f"บริษัท {company} มีอยู่แล้ว"]}
 
@@ -1805,34 +1817,15 @@ class FlowLiveSession:
                     raw_args = fn.get("arguments")
                     args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                     if fn["name"] == "reply":
-                        if self._is_v12:
-                            # reply-gate (privacy guarantee): sensitive templates
-                            # pre-verification → reject the whole reply, let the
-                            # model pick again inside the same tool loop
-                            pre_raw = args.get("text_ids", [])
-                            try:
-                                pre_ids = [int(t) for t in (pre_raw if isinstance(pre_raw, list) else [])]
-                            except (TypeError, ValueError):
-                                pre_ids = []
-                            blocked = self._backend.blocked_reply_ids(self._catalog)
-                            hit = [t for t in pre_ids if t in blocked]
-                            if hit:
-                                self._messages.append({"role": "assistant", "tool_calls": [{
-                                    "id": tc.get("id", "call_x"), "type": "function",
-                                    "function": {"name": "reply",
-                                                 "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
-                                self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
-                                                       "content": json.dumps({
-                                                           "sent": False, "reason": "verify_required",
-                                                           "blocked_text_ids": hit,
-                                                           "hint": "ยังไม่ได้ยืนยันตัวตนลูกค้า — ห้ามเปิดเผยยอด/วันครบกำหนด "
-                                                                   "ให้ตอบด้วย template ยืนยันตัวตน (verify_first) เท่านั้น"},
-                                                           ensure_ascii=False)})
-                                push({"kind": "tool_call", "name": "reply", "args": args})
-                                push({"kind": "tool_result", "name": "reply",
-                                      "result": {"sent": False, "reason": "verify_required",
-                                                 "blocked_text_ids": hit}})
-                                continue  # model picks again in the same tool loop
+                        # A reply-gate that blocked "sensitive" lines until the app
+                        # judged the customer verified used to sit here. It was the app
+                        # enforcing one domain's compliance rule: the list of sensitive
+                        # slots was a debt collector's, and "verified" was a guess the
+                        # app made from whichever tool happened to declare an
+                        # `after_event`. A tenant that needs the rule states it in its
+                        # own `constraints` (enforce: prompt/reward); a tenant that does
+                        # not should not be carrying the machinery.
+ # model picks again in the same tool loop
                         try:
                             ids, text, dyn = self._render_reply(args)
                         except self._DateFormatError as e:

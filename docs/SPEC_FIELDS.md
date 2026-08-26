@@ -38,7 +38,7 @@ reference ของทุก key ที่ spec รับได้ พร้อ�
 
 ## ระดับบนสุด — 22 key
 
-### บังคับ 6
+### บังคับ 5
 
 | key | ค่า | ใครอ่าน |
 |---|---|---|
@@ -47,7 +47,6 @@ reference ของทุก key ที่ spec รับได้ พร้อ�
 | `states` | `[...]` | flow ทั้งหมด |
 | `faq_routing` | `{note, routes[]}` | คำถามแทรก |
 | `constraints` | `[...]` | กฎ |
-| `outcomes` | `{required_at_close, results{}}` | vocabulary ของผลสาย |
 
 ### ตัวตน
 
@@ -78,9 +77,13 @@ reference ของทุก key ที่ spec รับได้ พร้อ�
 | `fallback_fine_state` | ประโยคที่ใช้เมื่อไม่รู้จะพูดอะไร · ไม่ใส่ = `faq_repeat` |
 | `compliance` | `{verify_fine_states, disclose_fine_states, close_fine_states}` — **ฝั่งเทรนบังคับต้องมี `close_fine_states`** |
 
+**ไม่มี `outcomes` แล้ว** — ผลสายที่ flow ทำได้ มาจาก `states[].outcome` และ FAQ route ที่ terminal
+flow ที่ไม่มี state ไหนประกาศ = ไม่มีผลสาย ไม่ต้องประดิษฐ์ · และ **tool ปิดสายก็ไม่บังคับ**
+(`required_at: end_of_call` มีได้ไม่เกิน 1 ตัว จะไม่มีเลยก็ได้)
+
 ### รับไว้เพื่อความเข้ากันได้ย้อนหลัง
 
-`spec_version` · `catalog_inline` — ไฟล์รูปเก่ายังโหลดได้ แต่ไม่ต้องเขียนใหม่
+`spec_version` · `company` · `catalog_inline` · `outcomes` — ไฟล์รูปเก่ายังโหลดได้ แต่ไม่ต้องเขียนใหม่
 
 ---
 
@@ -253,11 +256,14 @@ key: `fine_state` · `any_of` · `when_event` · `optional` · `note` · `inferr
 { "enforce":["prompt","reward"], "desc":"ความเงียบไม่ใช่การตกลง …" }      ← ไม่มี type = เขียนลง prompt
 ```
 
-`type` 11 ตัว: `max_occurrences` · `once_per_call` · `repeat_only_on` · `forbid_after_event` ·
+`type` 10 ตัว: `max_occurrences` · `once_per_call` · `repeat_only_on` · `forbid_after_event` ·
 `no_repeat_answered_request` · `immediate_transition_on` · `max_templates_per_reply` ·
-`resume_after_interrupt` · `require_tool_before_end` · `outcome_precondition` · `tool_pair`
+`resume_after_interrupt` · `require_tool_before_end` · `tool_pair`
 
-`enforce` ∈ `prompt` · `reward` · `backend` · `session` — **เป็นการประกาศเจตนา ไม่ใช่สวิตช์**
+> `outcome_precondition` **เลิกใช้แล้ว** — ผูกกับแนวคิด "ผลสาย" ที่ไม่บังคับอีกต่อไป และไม่เคยมีโค้ดอ่าน
+
+`enforce` ∈ `prompt` · `reward` · `backend` — **เป็นการประกาศเจตนา ไม่ใช่สวิตช์**
+(`session` ถูกเลิกใช้: แอปให้กลไก ไม่บังคับนโยบายของบริษัทใดบริษัทหนึ่ง)
 ใส่ `reward` ไม่ได้ทำให้ reward บังคับเอง
 
 key เสริม: `counts` · `max` · `on_exceed{to}` · `event` · `to` · `when` · `tool` · `first` ·

@@ -163,46 +163,10 @@ class SpecBackend:
 
     # --- reply-gate (constraint enforce layer "session") -------------------
 
-    SENSITIVE_SLOTS = ("[amount]", "[total_amount_due]", "[minimum_payment]",
-                       "[minimum_payment_due]", "[due_date]", "[vehicle_registration]",
-                       "[vehicle_brand]", "[installment_amount]")
-
-    def verification_reached(self) -> bool:
-        """milestone "ยืนยันตัวแล้ว" แบบ deterministic: tool ที่ spec gate ไว้
-        after_event ของ constraint (เช่น check_account_status ที่เรียกได้หลัง
-        name_confirmed / verify_identity ที่ verified=true) สำเร็จแล้วอย่างน้อย 1 ครั้ง"""
-        for d in self.spec["tools"]["declarations"]:
-            if d.get("gating", {}).get("after_event"):
-                if self.successful_calls(d["name"]) > 0:
-                    return True
-            if d.get("impl") == "verify_identity":
-                for c in self.call_log:
-                    if c["tool"] == d["name"] and c["result"].get("verified") is True:
-                        return True
-        return False
-
-    def blocked_reply_ids(self, catalog: list[dict]) -> set[int]:
-        """text_ids ที่ session ต้อง BLOCK ณ ตอนนี้ ตาม constraint enforce=session.
-
-        blocklist = fine_states ที่ constraint ระบุ ∪ ทุก template ที่มี slot
-        อ่อนไหว (auto-derive — เพิ่ม template ใหม่ในอนาคตถูกคุ้มครองเอง)
-        เปิดเมื่อ verification_reached() เท่านั้น — นี่คือชั้นการันตี privacy
-        เหนือการเทรน: agent พูดได้เฉพาะ template ⇒ คุมการเลือก = คุมทุกคำ"""
-        gates = [c for c in self.spec.get("constraints", [])
-                 if "session" in c.get("enforce", []) and c.get("type") == "forbid_after_event"
-                 and c.get("inverted")]
-        if not gates or self.verification_reached():
-            return set()
-        blocked_fs = set()
-        for g in gates:
-            blocked_fs |= set(g.get("template_fine_states", []))
-        out = set()
-        for e in catalog:
-            if e.get("_fine_state") in blocked_fs:
-                out.add(e["text_id"])
-            elif any(s in e.get("template", "") for s in self.SENSITIVE_SLOTS):
-                out.add(e["text_id"])
-        return out
+    # `SENSITIVE_SLOTS`, `verification_reached()` and `blocked_reply_ids()` were
+    # removed with the reply-gate that called them: a hardcoded list of one domain's
+    # slots, and an inference about what "verified" means, are policy — and the app
+    # supplies mechanisms, not policy.
 
     def auto_outcome(self) -> dict | None:
         """Deterministic wrap-up: ถ้าจบสายแล้ว model ยังไม่ stamp ผลสาย
