@@ -21,6 +21,7 @@ import asyncio
 import datetime
 import functools
 import json
+import logging
 import os
 import re
 import time
@@ -141,6 +142,12 @@ def _load_test_case(case_id: str) -> dict[str, Any]:
         if case.get("id") == case_id:
             return case
     raise KeyError(f"case_id {case_id!r} not found")
+
+
+def case_customer_data(case_id: str) -> dict[str, Any]:
+    """A case's raw `customer_data`. Public so the demo's mock-CRM route can serve
+    the shipped fixtures without reaching into a private loader."""
+    return dict(_load_test_case(case_id).get("customer_data") or {})
 
 
 # Display fields lifted verbatim from each case's `customer_data` for the picker.
@@ -521,32 +528,90 @@ class LiveSession:
 # The registry is file-backed so the Flow Builder can add companies at runtime
 # (write files + append here) without a code change or redeploy. The built-in
 # defaults seed it / act as a fallback if the file is missing.
-FLOW_REGISTRY_FILE = REPO_ROOT / "data" / "flows" / "flow_registry.json"
-_FLOW_REGISTRY_DEFAULT: dict[str, dict[str, str]] = {
-    "AEON": {"spec": "AEON-outbound-remind.json", "catalog": "v11_aeon_probe_catalog.json"},
-    "JAI": {"spec": "JAI-outbound-remind.json", "catalog": "v11_jai_probe_catalog.json"},
-    "KS": {"spec": "KS-outbound-remind.json", "catalog": "v11_ks_probe_catalog.json"},
-    "AIS": {"spec": "AIS-outbound-remind.json", "catalog": "v11_ais_probe_catalog.json"},
-}
-FLOW_FALLBACK_COMPANY = "AEON"
-FLOW_MODEL = os.environ.get("AAX6_FLOW_MODEL", "sft_flow_v1")
+FLOW_DIR = REPO_ROOT / "data" / "flows"
+# The one artifact a tenant supplies. The suffix IS the contract: a file named this
+# way, holding a spec this app can validate, is a working outbound agent.
+TENANT_SUFFIX = ".company.json"
+# flow_registry.json is the only source of companies. There is no seeded default:
+# a shipped fallback company means an app that still half-works with no data, and
+# what it half-works as is whoever was hardcoded here.
+_FLOW_REGISTRY_DEFAULT: dict[str, dict[str, str]] = {}
+FLOW_FALLBACK_COMPANY = os.environ.get("AAX6_FLOW_COMPANY", "")
+# Static fallback name (env override), used only if NOTHING is being served (error path).
+FLOW_MODEL = os.environ.get("AAX6_FLOW_MODEL", "grpo540")
 FLOW_MAX_TOOL_LOOPS = 8
 
 
+def _default_served_model() -> str:
+    """The model to use when the caller didn't pick one (frontend hasn't loaded the
+    picker yet, or sent ""). MUST be one actually served — a stale hardcoded name here
+    (e.g. an old checkpoint id) 404s at vLLM and the turn silently fails with no reply.
+    Prefers AAX6_FLOW_MODEL if it's actually being served; else the first served model;
+    else AAX6_FLOW_MODEL as a last resort (will surface a clear 404 upstream)."""
+    served = list(_model_endpoints().keys())
+    if FLOW_MODEL in served:
+        return FLOW_MODEL
+    return served[0] if served else FLOW_MODEL
+
+
 def load_flow_registry() -> dict[str, dict[str, str]]:
-    """company -> {spec, catalog, [display_name]}. File-backed; falls back to the
-    built-in defaults (and merges them in so shipped companies always resolve)."""
-    reg = dict(_FLOW_REGISTRY_DEFAULT)
-    if FLOW_REGISTRY_FILE.exists():
+    """company code -> {spec, display_name}, DERIVED from the tenant files present.
+
+    One tenant = one `<CODE>.company.json` in data/flows. Onboarding is dropping that
+    file in; off-boarding is deleting it. There is no index to keep in step, which is
+    the failure this replaces: a spec could be present and invisible, or listed and
+    missing, and the app would start either way. The tenant's own `company` field and
+    `display_name` come from inside its file, so the platform stores nothing about it.
+    """
+    out: dict[str, dict[str, str]] = {}
+    for f in sorted(FLOW_DIR.glob("*" + TENANT_SUFFIX)):
+        if f.name.startswith("_"):
+            continue                     # `_TEMPLATE.company.json` is the blank, not a tenant
         try:
-            reg.update(json.loads(FLOW_REGISTRY_FILE.read_text(encoding="utf-8")))
+            spec = json.loads(f.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            pass
-    return reg
+            log.warning("flow registry: skipping unreadable tenant file %s", f.name)
+            continue
+        code = str(spec.get("company") or f.name[: -len(TENANT_SUFFIX)]).strip()
+        if not code:
+            continue
+        out[code] = {"spec": f.name,
+                     "display_name": spec.get("display_name") or spec.get("company") or code}
+    return out
+
+
+def _write_tenant(company: str, spec: dict, catalog: list[dict],
+                  display_name: str = "") -> Path:
+    """Persist one tenant as one file: `<CODE>.company.json`, catalog inlined.
+
+    Both authoring paths end here, so there is exactly one on-disk shape to validate,
+    read, back up, hand to a tenant, or accept back from one. `display_name` travels
+    inside the spec because it describes the tenant, and the platform keeps no
+    per-tenant record of its own.
+    """
+    body = {**spec, "catalog": "__inline__", "catalog_inline": catalog}
+    if display_name:
+        body["display_name"] = display_name
+    f = FLOW_DIR / f"{company}{TENANT_SUFFIX}"
+    f.write_text(json.dumps(body, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return f
 
 
 def flow_companies() -> list[str]:
     return list(load_flow_registry())
+
+
+def flow_companies_meta() -> list[dict[str, Any]]:
+    """Company code + label + whether it may be deleted. Deletability is decided
+    HERE, next to `delete_flow_company`, so the UI never has to keep its own copy
+    of the rule (and never offers a delete the server will refuse)."""
+    return [
+        {"company": code,
+         "display_name": entry.get("display_name") or code,
+         # every tenant owns its own file, so every tenant can be removed
+         "deletable": True}
+        for code, entry in load_flow_registry().items()
+    ]
 
 
 _CUE_LIBRARY_FILE = REPO_ROOT / "data" / "flows" / "intent_cues.json"
@@ -570,17 +635,39 @@ def _flow_spec_path(company: str, instruction_version: str | None = None) -> "An
     the canonical file (so old sessions and non-versioned companies still work)."""
     entry = load_flow_registry()[company]
     base = REPO_ROOT / "data" / "flows" / entry["spec"]
+    # A company is ONE file now. The version-override lookup used to redirect here to
+    # `{stem}__{version}.json` whenever the canonical file named an
+    # `instruction_version` — AEON's did, so every edit to the canonical AEON spec was
+    # read by nobody while `__v11.2` was served. The parameter is kept so old callers
+    # still work, and honoured only if such a file is actually present.
     if instruction_version:
-        cand = base.with_name(base.stem + f"__{instruction_version}.json")
+        cand = base.with_name(base.name.replace(".company.json", "") + f"__{instruction_version}.json")
         if cand.exists():
             return cand
     return base
 
 
+def _read_catalog(spec: "dict | None", cat_path) -> list[dict]:
+    """Templates for a company, from wherever that company keeps them: inside the
+    spec (single-file) or in the catalog file the registry names (split)."""
+    if spec:
+        try:
+            from demo.server.flow.flowspec import resolve_catalog
+            return resolve_catalog(spec)
+        except (ValueError, KeyError, OSError):
+            pass
+    if cat_path is not None and cat_path.exists():
+        return json.loads(cat_path.read_text(encoding="utf-8"))
+    return []
+
+
 def _flow_paths(company: str) -> "tuple[Any, Any]":
+    """(spec path, catalog path). The catalog path is None for a single-file
+    company — its templates live inside the spec."""
     entry = load_flow_registry()[company]
+    cat = entry.get("catalog")
     return (REPO_ROOT / "data" / "flows" / entry["spec"],
-            REPO_ROOT / "data" / "pre-scripts" / entry["catalog"])
+            (REPO_ROOT / "data" / "pre-scripts" / cat) if cat else None)
 
 
 def flow_versions(company: str) -> "dict[str, Any]":
@@ -623,8 +710,78 @@ def flow_instruction(company: str) -> str:
     if not spec_path.exists():
         return ""
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
-    catalog = json.loads(cat_path.read_text(encoding="utf-8")) if cat_path.exists() else []
-    return render_instruction(spec) + "\n\n" + build_script_catalog(catalog, compact=True)
+    catalog = _read_catalog(spec, cat_path)
+    from demo.server.flow.flowspec import normalize_catalog
+    return (render_instruction(spec) + "\n\n"
+            + build_script_catalog(normalize_catalog(catalog, spec), compact=False))
+
+
+def flow_prescripts(company: str, instruction_version: str | None = None) -> dict[str, Any]:
+    """ทุก pre-script ของบริษัท (สำหรับหน้าอ่าน pre-script ข้างๆ playground).
+    default = catalog + spec เดียวกับที่ FlowLiveSession ใช้ (sft_v11 + instruction v14.1)
+    คืน: {company, version, states:[{state, phase, beats:[...]}], entries:[{text_id, fine_state,
+          template, phase, bound}], counts}"""
+    company = (company or "").strip().upper()
+    reg = load_flow_registry()
+    if company not in reg:
+        return {}
+    spec_path = _flow_spec_path(company, instruction_version)
+    if not spec_path.exists():
+        return {}
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    # catalog ที่ spec เวอร์ชันนั้นประกาศไว้ (v14.1 → v14_aeon_flow_catalog) — อ่านเพื่อแสดงเท่านั้น
+    cat_path = None
+    if spec.get("catalog"):
+        p_spec = REPO_ROOT / spec["catalog"]
+        if p_spec.exists(): cat_path = p_spec
+    if cat_path is None:
+        _, cat_path = _flow_paths(company)
+    catalog = _read_catalog(spec, cat_path)
+
+    # fine_state → (state, phase) จาก spec + ลำดับของ beat ใน flow
+    fs_state: dict[str, tuple[str, str]] = {}
+    states_out: list[dict[str, Any]] = []
+    for st in spec.get("states", []):
+        beats = [t.get("fine_state") for t in st.get("templates", []) if t.get("fine_state")]
+        for b in beats:
+            fs_state.setdefault(b, (st.get("id", ""), st.get("phase", "")))
+        states_out.append({"state": st.get("id", ""), "phase": st.get("phase", ""),
+                           "note": st.get("note", ""), "beats": beats})
+    # faq_routing: route มี templates:[{fine_state}] — นับเป็น bound (กลุ่ม "faq")
+    faq_beats = []
+    for r in (spec.get("faq_routing", {}) or {}).get("routes", []):
+        for t in (r.get("templates") or []):
+            fsx = t.get("fine_state") if isinstance(t, dict) else t
+            if isinstance(fsx, str):
+                fs_state.setdefault(fsx, ("faq", "faq")); faq_beats.append(fsx)
+    if faq_beats:
+        states_out.append({"state": "faq", "phase": "faq",
+                           "note": "คำถามแทรกจากลูกค้า — ตอบแล้วกลับเข้า flow เดิม",
+                           "beats": faq_beats})
+    # auxiliary_templates (ถ้ามี) — ใช้ได้ตามบริบท ไม่ผูก state
+    aux_beats = []
+    for a in (spec.get("auxiliary_templates", []) or []):
+        fsx = a.get("fine_state") if isinstance(a, dict) else a
+        if isinstance(fsx, str):
+            fs_state.setdefault(fsx, ("aux", "aux")); aux_beats.append(fsx)
+    if aux_beats:
+        states_out.append({"state": "aux", "phase": "aux",
+                           "note": "ใช้ได้ตามบริบท (ไม่ผูก state)", "beats": aux_beats})
+
+    entries = []
+    for e in catalog:
+        fs = e.get("_fine_state") or ""
+        st, ph = fs_state.get(fs, ("", ""))
+        entries.append({"text_id": e.get("text_id"), "fine_state": fs, "template": e.get("template", ""),
+                        "state": st, "phase": ph, "bound": bool(st),
+                        "intent_name": e.get("intent_name", ""), "category": e.get("category", "")})
+    entries.sort(key=lambda x: (not x["bound"], str(x["state"]), str(x["text_id"])))
+    return {"company": company, "display_name": reg[company].get("display_name", company),
+            "version": instruction_version or flow_versions(company).get("default", ""),
+            "catalog_file": cat_path.name if cat_path else "",
+            "spec_file": spec_path.name, "states": states_out, "entries": entries,
+            "counts": {"templates": len(entries), "bound": sum(1 for x in entries if x["bound"]),
+                       "fine_states": len({x["fine_state"] for x in entries if x["fine_state"]})}}
 
 
 def get_flow_spec(company: str) -> dict[str, Any]:
@@ -695,14 +852,16 @@ def save_flow_spec(
     `new_templates` = [{fine_state, template}] authored in the editor — appended
     to the catalog (new fine_states only) so states can bind brand-new beats.
     No restart needed — FlowLiveSession reads spec + catalog fresh per session."""
-    from demo.server.flow.flowspec import validate_flow_spec
+    from demo.server.flow.flowspec import (normalize_catalog, validate_flow_spec,
+                                           validate_strict)
 
     company = (company or "").strip().upper()
     reg = load_flow_registry()
     if company not in reg:
         return {"ok": False, "errors": [f"ไม่รู้จักบริษัท {company}"]}
     spec_path, cat_path = _flow_paths(company)
-    catalog = json.loads(cat_path.read_text(encoding="utf-8")) if cat_path.exists() else []
+    spec_now = json.loads(spec_path.read_text(encoding="utf-8")) if spec_path.exists() else None
+    catalog = _read_catalog(spec_now, cat_path)
 
     # Templates authored/edited in the editor. A new fine_state is appended; an
     # existing one UPDATES its (first) catalog entry's text — so the editor can
@@ -737,7 +896,16 @@ def save_flow_spec(
     spec.setdefault("flow_id", f"{company}-outbound-remind")
     spec.setdefault("spec_version", 2)
     _sanitize_spec(spec)  # drop dangling tool/state refs from editor edits
+    from demo.server.flow.flowspec import normalize_catalog
+    # Freeze the derived fields AT CREATION and store those. The author may omit
+    # text_id; assigning it once here means the ids never move again, instead of
+    # being recomputed on every load where a later edit could shift them.
+    catalog = normalize_catalog(catalog, spec)
     errs, _ = validate_flow_spec(spec, catalog)
+    # The key-level lock runs on the same call: a spec that validates structurally
+    # but carries a retired or misspelled key is rejected HERE, at the moment it
+    # would be written, rather than being accepted and doing nothing at runtime.
+    errs = errs + validate_strict(spec, catalog)
     if errs:
         return {"ok": False, "errors": errs[:10]}
     if added or updated:
@@ -748,8 +916,16 @@ def save_flow_spec(
 
 # --- Flow Builder: author a new company's flow from the UI -------------------
 
-_FLOW_BASE_SPEC = REPO_ROOT / "data" / "flows" / "AEON-outbound-remind.json"
-_FLOW_BASE_CATALOG = REPO_ROOT / "data" / "pre-scripts" / "v10_pre_script_database_parameterized.json"
+# The Builder starts a new company from a base flow. That base is DATA — a template
+# file the deployment owns and can replace — never a live company's spec. Pointing
+# this at a shipped customer's flow meant "author a new company" silently began as a
+# copy of that customer's states, tools and outcome codes, and the app had to name
+# them to do it. Both paths are overridable so a deployment with a different domain
+# supplies its own starting point.
+_FLOW_BASE_SPEC = Path(os.environ.get("AAX6_FLOW_BASE_SPEC", "")) if os.environ.get(
+    "AAX6_FLOW_BASE_SPEC") else FLOW_DIR / "_TEMPLATE.company.json"
+_FLOW_BASE_CATALOG = Path(os.environ.get("AAX6_FLOW_BASE_CATALOG", "")) if os.environ.get(
+    "AAX6_FLOW_BASE_CATALOG") else REPO_ROOT / "data" / "pre-scripts" / "v10_pre_script_database_parameterized.json"
 
 
 # Human-readable Thai label per beat (what the line does), for the Builder UI.
@@ -876,7 +1052,8 @@ def create_flow_company(
     the registry + a demo persona. `custom` = [{fine_state, phase, template}] extra
     beats the author added; each is written to the catalog AND bound into a state
     of its phase. Returns {ok, case_id} or {ok:False, errors:[...]}."""
-    from demo.server.flow.flowspec import validate_flow_spec
+    from demo.server.flow.flowspec import (normalize_catalog, validate_flow_spec,
+                                           validate_strict)
 
     company = (company or "").strip().upper()
     display_name = (display_name or "").strip()
@@ -926,8 +1103,11 @@ def create_flow_company(
 
     spec = json.loads(_FLOW_BASE_SPEC.read_text(encoding="utf-8"))
     spec["company"] = company
-    spec["flow_id"] = f"{company}-outbound-remind"
-    spec["description"] = f"Flow Builder — {display_name} outbound-remind (adapted from AEON base)."
+    # keep the base's own flow kind (…-outbound-remind, …-outbound-appointment) so a
+    # replaced base does not still label everything a reminder call
+    kind = "-".join(str(spec.get("flow_id", "flow")).split("-")[1:]) or "flow"
+    spec["flow_id"] = f"{company}-{kind}"
+    spec["description"] = f"Flow Builder — {display_name} {kind} (from {_FLOW_BASE_SPEC.name})."
     keep = set(filled) | {fs for fs, _ in to_bind}
     _strip_unbound(spec, keep)
     # Bind each custom beat into the first state of its phase (fallback: first state).
@@ -935,20 +1115,85 @@ def create_flow_company(
         st = next((s for s in spec["states"] if s.get("phase") == phase), None) or spec["states"][0]
         st.setdefault("templates", []).append({"fine_state": fs})
 
+    # Freeze the derived fields AT CREATION and store those. The author may omit
+    # text_id; assigning it once here means the ids never move again, instead of
+    # being recomputed on every load where a later edit could shift them.
+    catalog = normalize_catalog(catalog, spec)
     errs, _ = validate_flow_spec(spec, catalog)
+    # The key-level lock runs on the same call: a spec that validates structurally
+    # but carries a retired or misspelled key is rejected HERE, at the moment it
+    # would be written, rather than being accepted and doing nothing at runtime.
+    errs = errs + validate_strict(spec, catalog)
     if errs:
         return {"ok": False, "errors": errs[:8]}
 
-    spec_name = f"{company}-outbound-remind.json"
-    catalog_name = f"{company.lower()}_builder_catalog.json"
-    (REPO_ROOT / "data" / "flows" / spec_name).write_text(
-        json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
-    (REPO_ROOT / "data" / "pre-scripts" / catalog_name).write_text(
-        json.dumps(catalog, ensure_ascii=False, indent=1), encoding="utf-8")
+    # ONE file, the same one the JSON-editor path writes. The Builder used to emit a
+    # spec plus a separate catalog plus an index entry — three artifacts that could
+    # disagree, and two of them the tenant never saw.
+    _write_tenant(company, spec, catalog, display_name)
 
-    reg = load_flow_registry()
-    reg[company] = {"spec": spec_name, "catalog": catalog_name, "display_name": display_name}
-    FLOW_REGISTRY_FILE.write_text(json.dumps(reg, ensure_ascii=False, indent=1), encoding="utf-8")
+    persona = _demo_persona(company, display_name, agent_name)
+    existing = []
+    if BUILDER_CASES_FILE.exists():
+        try:
+            existing = json.loads(BUILDER_CASES_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            existing = []
+    existing = [c for c in existing if c.get("id") != persona["id"]] + [persona]
+    BUILDER_CASES_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    return {"ok": True, "company": company, "case_id": persona["id"], "beats": len(catalog)}
+
+
+def create_flow_company_raw(
+    spec: dict, catalog: list[dict],
+    display_name: str = "", agent_name: str = "",
+) -> dict[str, Any]:
+    """Author a new flow company from a RAW FlowSpec + catalog JSON — the JSON-editor
+    path (no AEON clone, no prefill). The company code is read from ``spec['company']``.
+    Validates via ``validate_flow_spec`` and, only when it passes, writes the spec +
+    catalog, appends the registry, and writes a demo persona. Returns {ok, company,
+    case_id, beats} or {ok:False, errors:[...]}."""
+    from demo.server.flow.flowspec import (normalize_catalog, validate_flow_spec,
+                                           validate_strict)
+
+    if not isinstance(spec, dict):
+        return {"ok": False, "errors": ["spec ต้องเป็น JSON object"]}
+    if not isinstance(catalog, list):
+        return {"ok": False, "errors": ["catalog ต้องเป็น JSON array"]}
+
+    company = str(spec.get("company", "")).strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9]{1,11}", company):
+        return {"ok": False, "errors": ["spec.company ต้องเป็น A-Z/0-9 (ขึ้นต้นด้วยตัวอักษร) 2–12 ตัว"]}
+    if company in load_flow_registry():
+        return {"ok": False, "errors": [f"บริษัท {company} มีอยู่แล้ว"]}
+
+    # keep the spec's own company/flow_id consistent with the code
+    spec["company"] = company
+    flow_id = str(spec.get("flow_id") or f"{company}-outbound-remind")
+    spec["flow_id"] = flow_id
+
+    # Freeze the derived fields AT CREATION and store those. The author may omit
+    # text_id; assigning it once here means the ids never move again, instead of
+    # being recomputed on every load where a later edit could shift them.
+    catalog = normalize_catalog(catalog, spec)
+    errs, _ = validate_flow_spec(spec, catalog)
+    # The key-level lock runs on the same call: a spec that validates structurally
+    # but carries a retired or misspelled key is rejected HERE, at the moment it
+    # would be written, rather than being accepted and doing nothing at runtime.
+    errs = errs + validate_strict(spec, catalog)
+    if errs:
+        return {"ok": False, "errors": errs[:8]}
+
+    display_name = (display_name or "").strip() or company
+    agent_name = (agent_name or "").strip() or display_name
+
+    # One company, one file: the templates go INSIDE the spec. Two files could only
+    # ever drift apart, and the training side already reads this layout
+    # (`resolve_catalog` inline-first) — so a spec authored here can be handed
+    # straight to it. The four shipped companies keep their split layout; both are
+    # read the same way.
+    _write_tenant(company, spec, catalog, display_name)
 
     persona = _demo_persona(company, display_name, agent_name)
     existing = []
@@ -1024,6 +1269,16 @@ def _strip_toolcall_markup(content: str) -> str:
 
 
 def _flow_vllm_chat(base_url: str, payload: dict, timeout: int = 180) -> dict:
+    # Thinking OFF, explicitly. The chat template turns it ON whenever
+    # `enable_thinking` is undefined, so saying nothing was not "the default" —
+    # it was a choice nobody made. The eval harness has always sent False, and the
+    # model was trained that way, so serving with it on was an eval/serve split.
+    # Measured with it on: the model spends ~2x the tokens, duplicates beats,
+    # closed a postpone request as a PTP and then looped `callback_datetime` seven
+    # times. It also writes its reasoning into `content`, and a turn that returns
+    # content without a tool call is spoken to the customer verbatim.
+    payload = {**payload, "chat_template_kwargs":
+               {**(payload.get("chat_template_kwargs") or {}), "enable_thinking": False}}
     req = urllib.request.Request(
         base_url.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode(),
@@ -1072,13 +1327,14 @@ class FlowLiveSession:
             from demo.server.flow.flowspec import build_tool_schemas
             from demo.server.flow.flowspec_render import render_instruction
             from demo.server.flow.spec_backend import SpecBackend
-        from agents.prescript import build_script_catalog, fill_template
+        from agents.prescript import DateFormatError, build_script_catalog, fill_template
         from simulator.config import COMPANY_NAMES, COMPANY_AGENT_NAMES, COMPANY_PHONES
         from simulator import datetime_utils
 
         self.session_id = uuid.uuid4().hex[:12]
         self.voice_gender = voice_gender if voice_gender in ("M", "F") else "F"
         self._fill_template = fill_template
+        self._DateFormatError = DateFormatError
         self._SpecBackend = SpecBackend
 
         # Resolve to a persona whose company has a FlowSpec; else fall back to
@@ -1108,13 +1364,54 @@ class FlowLiveSession:
         entry = load_flow_registry()[self._company]
         spec_path = _flow_spec_path(self._company, self._instruction_version)
         self._spec = json.loads(spec_path.read_text(encoding="utf-8"))
-        if self._is_v12:
-            # v12 spec names its own catalog (v12_aeon_catalog.json, 67 entries)
-            catalog_path = REPO_ROOT / self._spec["catalog"]
-        else:
-            catalog_path = REPO_ROOT / "data" / "pre-scripts" / entry["catalog"]
-        self._catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        # A catalog only has to declare _fine_state + template; text_id, company,
+        # state, intent_name and category are derived from the spec that binds it.
+        # `resolve_catalog` takes the templates from the spec itself when it carries
+        # `catalog_inline` (one company = one file), and from the named file
+        # otherwise — the same two layouts the training repo reads.
+        from demo.server.flow.flowspec import normalize_catalog, resolve_catalog
+        try:
+            raw_catalog = resolve_catalog(self._spec)
+        except (ValueError, KeyError, OSError):
+            # spec names no catalog of its own → the registry entry does
+            raw_catalog = json.loads(
+                (REPO_ROOT / "data" / "pre-scripts" / entry["catalog"]).read_text(
+                    encoding="utf-8"))
+        self._catalog = normalize_catalog(raw_catalog, self._spec)
         self._by_id = {e["text_id"]: e for e in self._catalog}
+
+        # --- spec-declared session-init API -----------------------------------
+        # A production deployment knows the caller through its own CRM, not through
+        # a persona shipped in this repo. If the spec declares `session_init`, that
+        # one call runs HERE (before turn 1) and its response becomes the render
+        # context, so every template is ready by the time the agent speaks. The
+        # repo persona stays as the seed: it supplies the request's own tokens
+        # ({msisdn}/{case_ref}) and remains the fallback if the CRM is unreachable
+        # — a live call must not die on someone else's timeout.
+        from demo.server.flow import session_init
+        from agents import prescript as _prescript
+
+        self.init_result = session_init.fetch_context(self._spec, seed=self.customer_data)
+        if self.init_result["data"]:
+            self.customer_data.update(self.init_result["data"])
+        # Re-derive the pre-due flag AFTER the CRM answered. It was computed from the
+        # persona minutes earlier, so a live `due_date` from the API left a stale flag
+        # — and the flag decides whether the agent says "จะถึงกำหนด" or "ครบกำหนด".
+        _dd = str(self.customer_data.get("due_date") or "")[:10]
+        _td = str(self.customer_data.get("today") or "")[:10]
+        if _dd and _td:
+            self.customer_data["due_upcoming"] = _dd > _td      # ISO compares as text
+
+        # Say plainly which placeholders nothing can fill — those are the tokens the
+        # agent would speak literally. `known` = names other layers resolve, so this
+        # reports only genuinely unresolvable ones.
+        self.unresolved_placeholders = session_init.audit_placeholders(
+            [e.get("template", "") for e in self._catalog], self.customer_data)
+        if self.unresolved_placeholders:
+            logging.getLogger("demo.server.sessions").warning(
+                "%s: %d placeholder(s) unfillable, will leak if used: %s",
+                self._company, len(self.unresolved_placeholders),
+                self.unresolved_placeholders)
 
         # --- flow-company text_id remap guard (memorizer models only) ---
         # A builder-created company renumbers its catalog (1000+). A *memorizer*
@@ -1131,19 +1428,13 @@ class FlowLiveSession:
         # through AEON would corrupt it. Guard OFF for them: direct lookup.
         self._canon_id_to_fs: dict[int, str] = {}
         self._fs_to_local: dict[str, dict] = {}
-        _is_interpreter = "flow" in (self._model_override or FLOW_MODEL).lower()
-        if entry.get("catalog", "").endswith("_builder_catalog.json") and not _is_interpreter:
-            # memorizer models (sft_v11/v2_2) emit canonical AEON ids → remap their
-            # reply output through fine_state (see _render_reply). Interpreters
-            # (sft_flow_*) read the in-prompt catalog and emit this company's own
-            # ids, so they get direct lookup (guard off).
-            canon_name = load_flow_registry()["AEON"]["catalog"]
-            canon = json.loads(
-                (REPO_ROOT / "data" / "pre-scripts" / canon_name).read_text(encoding="utf-8"))
-            self._canon_id_to_fs = {
-                e["text_id"]: e.get("_fine_state") for e in canon if e.get("_fine_state")}
-            self._fs_to_local = {
-                e.get("_fine_state"): e for e in self._catalog if e.get("_fine_state")}
+        # A model that reads the catalog printed in its own prompt answers with THIS
+        # company's ids, so nothing needs translating. The removed branch existed for
+        # one retired lineage (sft_v11 / sft_v2_2) that had memorized a single
+        # company's fixed numbering, and it worked by loading that company's catalog
+        # by name from inside this app. Serving such a model again is a data problem
+        # — publish its numbering as that company's catalog — not a reason for the
+        # app to know a company exists.
 
         system = self._fill_template(render_instruction(self._spec), cd, gender=self.voice_gender)
         if self._is_v12:
@@ -1160,14 +1451,102 @@ class FlowLiveSession:
             except Exception:
                 pass  # table is an optimization — never block session start
         else:
-            system += "\n\n" + build_script_catalog(self._catalog, compact=True)
+            # Full text, not the compact listing. Compact prints only the id and the
+            # beat name, so N wordings of one beat arrive as N lines that differ by
+            # a number and nothing else — the model is asked to pick a variant it
+            # cannot see. (AEON's `verify_name` has 7; `ask_pay_today` has 9.) The
+            # training prompt shows every template in full, so this is also what the
+            # model was trained to read.
+            system += "\n\n" + build_script_catalog(self._catalog, compact=False)
         self._system = system
         self._tools = build_tool_schemas(self._spec) + [
             _flow_reply_schema([e["text_id"] for e in self._catalog])
         ]
+        # instruction-grounded step-completeness: fine_state -> [required tool names]
+        # from each state's own entry_tools (spec: "must be called before this state's
+        # reply", e.g. AEON ptp_capture requires get_current_datetime+record_verbal_
+        # commitment+payment_date before its "close" reply). Session-wide call_log =
+        # each of these tools is a once-per-call step, so "called at least once" = done.
+        self._fine_state_requires: dict[str, list[str]] = {}
+        for st in self._spec.get("states", []):
+            et = st.get("entry_tools")
+            if not et:
+                continue
+            for t in st.get("templates", []):
+                for fs in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or []):
+                    self._fine_state_requires[fs] = et
+        # chain obligation: fine_state -> ordered required steps (each a set of
+        # acceptable beats) of the chain state it belongs to. The instruction now
+        # tells the model "พูดต่อกันในเทิร์นเดียว (chain) ตามลำดับ" for these states; a
+        # reply that voices only part of the chain is the #1 failure the gold eval
+        # sees (KBANK: `close` alone where `confirm_info → close` was ordered), so the
+        # app holds such a reply back and asks for the full chain — the same way it
+        # already holds back a reply whose entry_tools were skipped.
+        from demo.server.flow.flowspec import is_chain_state as _is_chain
+        # A beat can belong to SEVERAL chain states (`close` is in both
+        # `confirm_info → close` and `close → apology`), so keep every candidate
+        # chain per beat; the gate then judges the reply against the chain it fits
+        # best. A single-owner map silently overwrote `close` with the last state
+        # and demanded `apology` on a PTP close.
+        # A beat that ALSO stands alone in some non-chain state cannot be used to
+        # demand a chain: the same beat means "this state's whole turn" there. AEON's
+        # `close` is both the entire reply of `ptp_capture` and the first step of
+        # `close_unreachable`'s `close → apology`, so indexing the chain under the beat
+        # made every ordinary promise-to-pay close report "missing apology" and get
+        # rejected — an apology to a customer who had just agreed to pay.
+        _solo_capable = {
+            fs
+            for st in self._spec.get("states", [])
+            if not _is_chain(st)
+            for t in st.get("templates", [])
+            for fs in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or [])
+        }
+        self._chain_steps: dict[str, list[list[set]]] = {}
+        for st in self._spec.get("states", []):
+            if not _is_chain(st):
+                continue
+            steps = [set([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or [])
+                     for t in st.get("templates", []) if not t.get("optional")]
+            for step in steps:
+                for fs in step:
+                    if fs in _solo_capable:
+                        continue
+                    self._chain_steps.setdefault(fs, []).append(steps)
+        # The mirror of the chain rule: a state that is NOT a chain speaks ONE beat.
+        # `max_templates_per_reply` used to say this in `constraints`, with the chain
+        # pairs repeated by hand as its exceptions; that copy was removed as duplicated
+        # data — correctly, but nothing then enforced the half it also carried. Derive
+        # it from the states instead: beats that belong only to non-chain states may
+        # not be combined with each other. (AEON's disclose_ask is the case that
+        # exposed this: its two beats each say the amount AND ask, so voicing both
+        # states the balance twice and asks twice in one breath.)
+        self._solo_beats: dict[str, str] = {}
+        for st in self._spec.get("states", []):
+            if _is_chain(st):
+                continue
+            for t in st.get("templates", []):
+                for fs in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or []):
+                    if fs not in self._chain_steps:
+                        self._solo_beats[fs] = st["id"]
+        # A call ends when the agent SPEAKS a closing line, not when it stamps the
+        # outcome. The spec already marks which states are terminal; nothing read it.
+        # Without this the session runs on after the close: the backend refuses every
+        # further tool with `call_already_closed`, the model retries it to the hop
+        # limit saying nothing, and then reaches for the only line that always fits —
+        # the greeting — so the caller is greeted again after being told goodbye.
+        self._terminal_beats = {
+            b for st in self._spec.get("states", []) if st.get("terminal")
+            for t in st.get("templates", [])
+            for b in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or [])
+        }
+        self._step_nudges = 0   # per-session cap on self-correction retries (avoid loop burn)
 
-        self._base_url = os.environ.get("AAX6_VLLM_BASE_URL", "http://localhost:8000/v1")
-        self._model = self._model_override or FLOW_MODEL
+        # the actual model for API calls — MUST resolve to something served, or every
+        # turn 404s at vLLM with no reply reaching the caller (see _default_served_model).
+        self._model = self._model_override or _default_served_model()
+        # multi-instance aware: route to the endpoint actually serving this model
+        # (grpo540→:8000, grpo400→:8002); falls back to the default endpoint.
+        self._base_url = endpoint_for_model(self._model)
         self._turn_count = 0
         self.done = False
         self._last_turn_timing: dict[str, Any] | None = None
@@ -1213,25 +1592,34 @@ class FlowLiveSession:
 
     @staticmethod
     def _resolve_flow_case(case_id: str) -> str:
-        """Honor the requested persona if its company has a FlowSpec; otherwise
-        fall back to the first persona of the fallback company."""
+        """Honor the requested persona if its company has a FlowSpec; otherwise fall
+        back to the first persona of any registered company. Which company that is
+        follows from the registry, not from a name compiled into the app — the
+        fallback used to be one company, so a deployment that never registered it
+        raised `no AEON persona found` while holding perfectly good personas."""
         registry = load_flow_registry()
         cases = _all_cases()
         ids = {c.get("id") for c in cases}
         parts = case_id.split("-")
         if case_id in ids and len(parts) > 1 and parts[1] in registry:
             return case_id
-        for c in cases:
-            cid = c.get("id", "")
-            if cid.split("-")[1:2] == [FLOW_FALLBACK_COMPANY]:
-                return cid
-        raise KeyError(f"no {FLOW_FALLBACK_COMPANY} persona found")
+        preferred = [FLOW_FALLBACK_COMPANY] if FLOW_FALLBACK_COMPANY else []
+        for company in preferred + sorted(registry):
+            for c in cases:
+                if c.get("id", "").split("-")[1:2] == [company]:
+                    return c["id"]
+        raise KeyError(
+            f"no persona found for any registered company ({', '.join(sorted(registry)) or 'none'})")
 
     def _init_agent(self) -> None:
-        self._backend = self._SpecBackend(
-            {k: v for k, v in self.customer_data.items() if not str(k).startswith("_")},
-            self._spec,
-        )
+        # ONE context object, shared with the backend — deliberately not a copy. A
+        # tool's response updates the render context in place (SpecBackend.dispatch),
+        # so what the API just said is what the next template speaks. With a copy
+        # here a re-checked balance stayed invisible: the tool returned 99999 and the
+        # agent read the session-init snapshot of 45000 aloud.
+        self.customer_data = {k: v for k, v in self.customer_data.items()
+                              if not str(k).startswith("_")}
+        self._backend = self._SpecBackend(self.customer_data, self._spec)
         self._messages: list[dict[str, Any]] = [{"role": "system", "content": self._system}]
         self._greeted = False
 
@@ -1295,8 +1683,14 @@ class FlowLiveSession:
                 continue
             seen.add(e["text_id"])
             good.append(e["text_id"])
+            # strict_dates: a date the MODEL supplies must be canonical, or the
+            # agent reads "2026-06-02 (Tuesday)" aloud instead of a Thai date. The
+            # flow path never enabled this, so every [promised_date]/[callback_date]
+            # would have been spoken as an ISO string. Malformed → DateFormatError,
+            # which the caller turns into a reject+retry.
             texts.append(self._fill_template(
-                e["template"], self.customer_data, dynamic_vars=dyn, gender=self.voice_gender))
+                e["template"], self.customer_data, dynamic_vars=dyn,
+                strict_dates=True, gender=self.voice_gender))
         return good, " ".join(texts), dyn if isinstance(dyn, dict) else {}
 
     def _fallback_reply(self) -> "tuple[list[int], str]":
@@ -1312,9 +1706,21 @@ class FlowLiveSession:
             if c:
                 return [c["text_id"]], self._fill_template(
                     c["template"], self.customer_data, gender=self.voice_gender)
-        e = next((x for x in self._catalog if x.get("_fine_state") == "faq_repeat"), None)
+        # Which beat to fall back on is the company's choice, not this file's: a
+        # spec may name one via `fallback_fine_state`. Default `faq_repeat` keeps
+        # every existing company's behaviour unchanged.
+        want = (self._spec or {}).get("fallback_fine_state", "faq_repeat")
+        e = next((x for x in self._catalog if x.get("_fine_state") == want), None)
         if e:
             return [e["text_id"]], self._fill_template(e["template"], self.customer_data, gender=self.voice_gender)
+        # Nothing in the catalog can carry a re-ask. Speaking invented Thai here
+        # breaks the one rule the instruction gives the model ("ห้ามสร้างข้อความอิสระ")
+        # and the line is unreviewable — no company wrote it. Count it so an
+        # under-populated catalog shows up as a number instead of as a bot that
+        # apologises every turn.
+        self._off_catalog_replies = getattr(self, "_off_catalog_replies", 0) + 1
+        print(f"[flow] off-catalog fallback #{self._off_catalog_replies} "
+              f"({getattr(self, '_company', '?')}: catalog has no '{want}' beat)", flush=True)
         return [], self._fill_template(
             "ขออภัย{suffix} รบกวนคุณลูกค้าแจ้งอีกครั้งได้ไหม{q_suffix}",
             self.customer_data, gender=self.voice_gender)
@@ -1357,6 +1763,7 @@ class FlowLiveSession:
 
         def blocking() -> tuple[str, float, int]:
             llm_ms, llm_hops = 0.0, 0
+            _closed_retries = 0
             agent_text = ""
             try:
                 content = user_msg
@@ -1422,9 +1829,230 @@ class FlowLiveSession:
                                       "result": {"sent": False, "reason": "verify_required",
                                                  "blocked_text_ids": hit}})
                                 continue  # model picks again in the same tool loop
-                        ids, text, dyn = self._render_reply(args)
+                        try:
+                            ids, text, dyn = self._render_reply(args)
+                        except self._DateFormatError as e:
+                            # strict_dates is on for model-supplied dates (see
+                            # _render_reply): a malformed one is agent-fixable, so
+                            # reject and let it retry rather than speak the raw
+                            # string. Same shape as the guards above.
+                            push({"kind": "warning",
+                                  "text": f"รูปแบบวันที่ไม่ถูกต้อง: {e}"})
+                            if self._step_nudges < 2:
+                                self._step_nudges += 1
+                                self._messages.append({"role": "assistant", "tool_calls": [{
+                                    "id": tc.get("id", "call_x"), "type": "function",
+                                    "function": {"name": "reply",
+                                                 "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                                self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                       "content": json.dumps({
+                                                           "sent": False, "reason": "date_format_invalid",
+                                                           "detail": str(e),
+                                                           "hint": "ส่ง dynamic_vars วันที่เป็น YYYY-MM-DD (Weekday) "
+                                                                   "เช่น 2026-06-02 (Tuesday)"},
+                                                           ensure_ascii=False)})
+                                push({"kind": "tool_call", "name": "reply", "args": args})
+                                push({"kind": "tool_result", "name": "reply",
+                                      "result": {"sent": False, "reason": "date_format_invalid"}})
+                                continue
+                            ids, text = self._fallback_reply()
+                            dyn = {}
                         if not ids and not self._looks_sayable(text):  # reply [] → safe fallback
                             ids, text = self._fallback_reply()
+
+                        # instruction-grounded step-completeness gate: the beat(s) about to
+                        # be spoken belong to a state whose spec declares entry_tools — has
+                        # the model actually called them yet? (e.g. AEON's ptp_capture needs
+                        # get_current_datetime+record_verbal_commitment+payment_date before
+                        # its "close" reply.) Same pattern as the KYC reply-gate above:
+                        # reject with a hint, let the model retry in the same loop, and
+                        # surface it to the FE so a missed step is visible, not silent.
+                        _reply_fs = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
+                        _missing: list[str] = []
+                        _rejected: dict[str, Any] = {}
+                        for _fs in _reply_fs:
+                            for _tool in self._fine_state_requires.get(_fs, []):
+                                if _tool in _missing or _tool in _rejected:
+                                    continue
+                                if self._backend.successful_calls(_tool) == 0:
+                                    _missing.append(_tool)
+                                    continue
+                                # A prior SUCCESS is not enough. Observed: the model
+                                # closed an appointment as "confirmed" on turn 1, the
+                                # patient then asked to cancel, the cancel write was
+                                # rejected `call_already_closed` — and the agent still
+                                # said "บันทึกยกเลิกนัด…เรียบร้อยแล้ว". Never let a reply
+                                # claim a write the backend refused; hand the model the
+                                # actual error instead.
+                                _last = next((c for c in reversed(self._backend.call_log)
+                                              if c.get("tool") == _tool), None)
+                                _res = (_last or {}).get("result") or {}
+                                if isinstance(_res, dict) and _res.get("error"):
+                                    # …unless the refused call was a REDUNDANT REPEAT of
+                                    # one that already succeeded with the same arguments.
+                                    # Then the write the reply is about did happen, and
+                                    # blocking creates a livelock: the reply is the right
+                                    # next move, the app refuses it, the model re-calls the
+                                    # tool, the backend refuses that too, forever. Args must
+                                    # match — a second call that changes the outcome (the
+                                    # confirmed→cancelled case above) is a different
+                                    # request and stays blocked.
+                                    _same_ok = any(
+                                        c.get("tool") == _tool
+                                        and c.get("args") == (_last or {}).get("args")
+                                        and not (isinstance(c.get("result"), dict)
+                                                 and c["result"].get("error"))
+                                        for c in self._backend.call_log)
+                                    if not _same_ok:
+                                        _rejected[_tool] = _res.get("error")
+                        if _rejected:
+                            warn_text = ("ตอบไม่ได้ — เครื่องมือถูกปฏิเสธ: "
+                                         + ", ".join(f"{k} ({v})" for k, v in _rejected.items()))
+                            push({"kind": "warning", "text": warn_text,
+                                  "rejected_tools": _rejected})
+                            if self._step_nudges < 2:
+                                self._step_nudges += 1
+                                self._messages.append({"role": "assistant", "tool_calls": [{
+                                    "id": tc.get("id", "call_x"), "type": "function",
+                                    "function": {"name": "reply",
+                                                 "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                                self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                       "content": json.dumps({
+                                                           "sent": False, "reason": "tool_call_rejected",
+                                                           "rejected": _rejected,
+                                                           "hint": "การบันทึกล่าสุดไม่สำเร็จ — ห้ามบอกลูกค้าว่าบันทึกเรียบร้อย "
+                                                                   "ให้แก้ไขการเรียกเครื่องมือ หรือตอบตามสถานะจริง"},
+                                                           ensure_ascii=False)})
+                                push({"kind": "tool_call", "name": "reply", "args": args})
+                                push({"kind": "tool_result", "name": "reply",
+                                      "result": {"sent": False, "reason": "tool_call_rejected",
+                                                 "rejected": _rejected}})
+                                continue
+                        # A slot the sentence needs but the context has EMPTY. The
+                        # backend echoes what it recorded, so `new_slot: ""` means the
+                        # model called save_appointment without the date the patient
+                        # just gave. fill_template then substitutes "" and the line
+                        # goes out as "บันทึกเลื่อนนัด...เป็น  เรียบร้อยแล้ว" — a blank
+                        # where the date belongs, which reads as fine until you listen.
+                        # Rejecting sends the model back to supply it.
+                        from agents.prescript import _placeholder_names as _slots
+                        _blank: list[str] = []
+                        for _tid in ids:
+                            _e = self._by_id.get(_tid)
+                            if not _e:
+                                continue
+                            for _n in _slots(_e.get("template", "")):
+                                _v = self.customer_data.get(_n)
+                                if _n in self.customer_data and (_v is None or str(_v).strip() == ""):
+                                    _blank.append(_n)
+                        if _blank and self._step_nudges < 2:
+                            push({"kind": "warning",
+                                  "text": f"ยังไม่มีค่าให้พูด: {', '.join(sorted(set(_blank)))}",
+                                  "empty_slots": sorted(set(_blank))})
+                            self._step_nudges += 1
+                            self._messages.append({"role": "assistant", "tool_calls": [{
+                                "id": tc.get("id", "call_x"), "type": "function",
+                                "function": {"name": "reply",
+                                             "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                            self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                   "content": json.dumps({
+                                                       "sent": False, "reason": "empty_slot",
+                                                       "slots": sorted(set(_blank)),
+                                                       "hint": "ประโยคนี้ต้องพูดค่าที่ยังว่างอยู่ — "
+                                                               "เรียก tool ที่บันทึกค่านั้นพร้อมค่าที่ลูกค้าบอก "
+                                                               "แล้วค่อยตอบ"},
+                                                       ensure_ascii=False)})
+                            push({"kind": "tool_call", "name": "reply", "args": args})
+                            push({"kind": "tool_result", "name": "reply",
+                                  "result": {"sent": False, "reason": "empty_slot",
+                                             "slots": sorted(set(_blank))}})
+                            continue
+
+                        # one beat per reply for a non-chain state (see _solo_beats)
+                        _solo = {self._solo_beats[f] for f in _reply_fs if f in self._solo_beats}
+                        if len(_reply_fs) > 1 and len(_solo) == 1 and \
+                                all(f in self._solo_beats for f in _reply_fs) and self._step_nudges < 2:
+                            _st_id = next(iter(_solo))
+                            push({"kind": "warning",
+                                  "text": f"state {_st_id} ให้พูดบีตเดียว แต่พูด {len(_reply_fs)} บีต: "
+                                          f"{', '.join(sorted(_reply_fs))}",
+                                  "beats": sorted(_reply_fs)})
+                            self._step_nudges += 1
+                            self._messages.append({"role": "assistant", "tool_calls": [{
+                                "id": tc.get("id", "call_x"), "type": "function",
+                                "function": {"name": "reply",
+                                             "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                            self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                   "content": json.dumps({
+                                                       "sent": False, "reason": "too_many_beats",
+                                                       "state": _st_id, "beats": sorted(_reply_fs),
+                                                       "hint": f"state {_st_id} เลือกพูดได้บีตเดียว "
+                                                               "ส่ง text_id เดียวที่เหมาะที่สุด"},
+                                                       ensure_ascii=False)})
+                            push({"kind": "tool_call", "name": "reply", "args": args})
+                            push({"kind": "tool_result", "name": "reply",
+                                  "result": {"sent": False, "reason": "too_many_beats",
+                                             "beats": sorted(_reply_fs)}})
+                            continue
+
+                        # Which chain does this reply belong to? Among every chain any
+                        # spoken beat is part of, take the one the reply covers most;
+                        # if that chain is fully covered the reply is complete.
+                        _chain_missing: list[str] = []
+                        _order = ""
+                        _cands = [c for _fs in _reply_fs for c in self._chain_steps.get(_fs, [])]
+                        if _cands:
+                            _best = max(_cands, key=lambda c: sum(1 for st_ in c if st_ & _reply_fs))
+                            _chain_missing = ["/".join(sorted(st_)) for st_ in _best if not (st_ & _reply_fs)]
+                            _order = " → ".join("/".join(sorted(x)) for x in _best)
+                        if _chain_missing and self._step_nudges < 2:
+                            push({"kind": "warning",
+                                  "text": f"พูดไม่ครบ chain: ขาด {', '.join(_chain_missing)} (ต้องพูด {_order} ในเทิร์นเดียว)",
+                                  "missing_beats": _chain_missing})
+                            self._step_nudges += 1
+                            self._messages.append({"role": "assistant", "tool_calls": [{
+                                "id": tc.get("id", "call_x"), "type": "function",
+                                "function": {"name": "reply",
+                                             "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                            self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                   "content": json.dumps({
+                                                       "sent": False, "reason": "incomplete_chain",
+                                                       "missing_beats": _chain_missing,
+                                                       "hint": f"state นี้ต้องพูดต่อกันในเทิร์นเดียว: {_order} — "
+                                                               "ส่ง text_ids ของทุกขั้นในครั้งเดียว เรียงตามลำดับ"},
+                                                       ensure_ascii=False)})
+                            push({"kind": "tool_call", "name": "reply", "args": args})
+                            push({"kind": "tool_result", "name": "reply",
+                                  "result": {"sent": False, "reason": "incomplete_chain",
+                                             "missing_beats": _chain_missing}})
+                            continue
+                        if _missing:
+                            warn_text = f"ลืมเรียก tool ก่อนตอบ: {', '.join(_missing)}"
+                            push({"kind": "warning", "text": warn_text, "missing_tools": _missing})
+                            if self._step_nudges < 2:
+                                # give the model a chance to self-correct: tell it exactly
+                                # what it skipped, then let it retry within the same turn
+                                # instead of sending the incomplete reply to the customer.
+                                self._step_nudges += 1
+                                self._messages.append({"role": "assistant", "tool_calls": [{
+                                    "id": tc.get("id", "call_x"), "type": "function",
+                                    "function": {"name": "reply",
+                                                 "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                                self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                       "content": json.dumps({
+                                                           "sent": False, "reason": "missing_required_tools",
+                                                           "missing_tools": _missing,
+                                                           "hint": f"คุณลืมเรียกเครื่องมือ: {', '.join(_missing)} "
+                                                                   "ตามขั้นตอนที่ระบุ — เรียกเครื่องมือเหล่านี้ให้ครบก่อน "
+                                                                   "แล้วค่อยตอบลูกค้า ห้ามตอบก่อนทำครบ"},
+                                                           ensure_ascii=False)})
+                                push({"kind": "tool_call", "name": "reply", "args": args})
+                                push({"kind": "tool_result", "name": "reply",
+                                      "result": {"sent": False, "reason": "missing_required_tools",
+                                                 "missing_tools": _missing}})
+                                continue  # model retries in the same tool loop
+                            # already nudged twice — let it through rather than stall the
+                            # call forever; the FE warning above still records the miss.
                         if self._is_v12 and ids:
                             self._backend.note_reply(
                                 {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id})
@@ -1443,7 +2071,7 @@ class FlowLiveSession:
                         # prefix "เรียบร้อยค่ะ" only on a genuine CLOSING reply
                         # after a save — never on a repeat/fallback/other reply
                         # (e.g. the model closing with 1076 faq_repeat by mistake)
-                        _reply_fs = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
+                        # (_reply_fs already computed above by the step-completeness gate)
                         _CLOSE_FS = {"close", "offer_callback"}
                         if (self._is_v12 and _filler_state.get("saved") and text
                                 and (_reply_fs & _CLOSE_FS)):
@@ -1453,9 +2081,39 @@ class FlowLiveSession:
                             _filler_state["saved"] = False
                         push({"kind": "reply", "text": display_text, "text_ids": ids, "dynamic_vars": dyn})
                         agent_text = text
+                        # the closing line was just spoken -> the call is over
+                        _spoken = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
+                        if _spoken & self._terminal_beats:
+                            self.done = True
                         break
                     _emit_filler(fn["name"])
                     result = self._backend.dispatch(fn["name"], args)
+                    # The call is already closed and the model keeps re-sending the
+                    # same write instead of speaking. Left alone it burns every hop
+                    # in the turn, says nothing at all, and then reaches for whatever
+                    # line always fits — the greeting — so the caller is greeted again
+                    # after goodbye. Two refusals is enough: say the closing line and
+                    # end the call, which is what the terminal state asks for anyway.
+                    if isinstance(result, dict) and result.get("error") == "call_already_closed":
+                        _closed_retries += 1
+                        if _closed_retries >= 2:
+                            _close = next(
+                                (e for e in self._catalog
+                                 if e["_fine_state"] in self._terminal_beats), None)
+                            if _close:
+                                ids = [_close["text_id"]]
+                                text = self._fill_template(_close["template"],
+                                                           self.customer_data,
+                                                           gender=self.voice_gender)
+                            else:
+                                ids, text = self._fallback_reply()
+                            push({"kind": "warning",
+                                  "text": "สายปิดไปแล้ว — ปิดบทสนทนา"})
+                            push({"kind": "reply", "text": text, "text_ids": ids,
+                                  "dynamic_vars": {}})
+                            agent_text = text
+                            self.done = True
+                            break
                     if (fn["name"] in _WRITE_TOOLS and not result.get("error")
                             and result.get("recorded") is not False):
                         _filler_state["saved"] = True   # a real write succeeded
@@ -1587,21 +2245,162 @@ def build(
     return ReplaySession(case_id, voice_gender=voice_gender)
 
 
+def flow_template() -> dict:
+    """A blank, documented FlowSpec + catalog skeleton for authoring a NEW company —
+    the 'download template' payload. The user fills it and re-uploads (→ create_flow_company_raw).
+    Tools are HTTP webhooks (impl:"http"): every tool call POSTs {url} with {body}, so a new
+    company wires its own CRM/booking API. {placeholders} are filled from customer_data + args."""
+    return {
+        "_readme": [
+            "กรอกไฟล์นี้แล้ว upload กลับเพื่อสร้างบริษัทใหม่ในเดโม",
+            "spec.company = รหัสบริษัท (A-Z/0-9, 2-12 ตัว). ทุก fine_state ที่อ้างใน states ต้องมีใน catalog.",
+            "catalog: ใส่แค่ _fine_state + template พอ — text_id/company/state/intent_name/category ระบบเติมให้เอง",
+            "beat เดียวใส่ได้หลายบรรทัด = หลายสำนวน (เช่น close 2 บรรทัดข้างล่าง) โมเดลเลือกเองว่าจะพูดสำนวนไหน",
+            "templates ใน 1 state: มีหลายอันแบบไม่มี when_event = พูดต่อกันในเทิร์นเดียว (chain) / มี when_event = เลือกอันเดียวตาม event",
+            "outcomes.results = โค้ดผลสายของบริษัทนี้ (debt: ptp/refused/unreachable/reached/tcb/tin · หรือกำหนดเอง).",
+            "tools = HTTP webhook: แต่ละ tool ยิง POST ไป url พร้อม body (แทน {customer_name} {amount} ...).",
+            "faq_routing = ลูกค้าถามแทรกกลางสาย → ตอบด้วย template ไหน แล้วกลับเข้า flow เดิม",
+            "constraints = กฎของบริษัท: ใส่ type ถ้าอยากให้ระบบบังคับจริง / ไม่ใส่ type แต่ใส่ desc = กฎที่เขียนลง prompt ให้โมเดลอ่าน",
+        ],
+        "spec": {
+            "spec_version": 2,
+            "flow_id": "YOURCO-outbound-call",
+            "company": "YOURCO",
+            "description": "",
+            "crm_fields": ["customer_name", "your_field_1", "your_field_2"],
+            "events": {
+                "name_confirmed": {"desc": "ลูกค้ายืนยันตัวตน", "cues": ["ใช่", "ครับ", "ค่ะ"]},
+                "asks_caller": {"desc": "ลูกค้าถามว่าโทรจากที่ไหน", "cues": ["ใครโทรมา", "ที่ไหน"]},
+            },
+            "tools": {"declarations": [
+                {"name": "record_outcome", "impl": "http", "desc": "บันทึกผลสาย",
+                 "url": "{API_BASE}/YOURCO/record_outcome", "method": "POST", "args": {},
+                 "gating": {"required_at": "end_of_call"}},
+                {"name": "notify_crm", "impl": "http", "desc": "ตัวอย่าง webhook — ไม่ต้องใส่ body ก็ได้ ระบบส่ง {tool,args,ref} ให้เอง",
+                 "url": "https://api.example.com/hook", "method": "POST", "args": {}},
+            ]},
+            "states": [
+                {"id": "greet", "phase": "opening", "initial": True,
+                 "templates": [{"fine_state": "greet_verify"}],
+                 "on": [{"event": "name_confirmed", "to": "close"}]},
+                {"id": "close", "phase": "close", "terminal": True,
+                 "templates": [{"fine_state": "close"}], "entry_tools": ["record_outcome"],
+                 "outcome": {"result": "reached", "reason": "done"}},
+            ],
+            "faq_routing": {
+                "_hint": "ลูกค้าถามแทรก → ตอบด้วย templates ที่ระบุ แล้วกลับเข้า state เดิมต่อ",
+                "routes": [
+                    {"intent": "asks_caller",
+                     "desc": "ถามว่าโทรจากไหน → บอกชื่อบริษัทแล้วทำ flow ต่อ",
+                     "templates": [{"fine_state": "faq_caller"}],
+                     "then": "resume"},
+                ],
+            },
+            "constraints": [
+                {"id": "outcome_once", "type": "once_per_call",
+                 "template_fine_state": "close", "enforce": ["prompt", "reward"],
+                 "desc": "ประโยคปิดสายพูดครั้งเดียวต่อสาย"},
+                {"enforce": ["prompt"],
+                 "desc": "ตัวอย่างกฎแบบข้อความ (ไม่มี type) — จะถูกเขียนลง instruction ให้โมเดลอ่าน แต่ระบบไม่บังคับเชิงกลไก"},
+            ],
+            "outcomes": {"required_at_close": True,
+                         "results": {"reached": {"reasons": ["done"], "desc": "จบสาย"}}},
+        },
+        "catalog": [
+            {"_fine_state": "greet_verify",
+             "template": "สวัสดีค่ะ ติดต่อจากบริษัท ... เรียนสายกับคุณ {customer_name} ใช่ไหมคะ"},
+            {"_fine_state": "close", "template": "ขอบคุณค่ะ สวัสดีค่ะ"},
+            {"_fine_state": "close", "template": "ขอบคุณมากค่ะ สวัสดีค่ะ"},
+            {"_fine_state": "faq_caller", "template": "ดิฉันติดต่อจากบริษัท ... ค่ะ"},
+        ],
+    }
+
+
+def delete_flow_company(company: str) -> dict[str, Any]:
+    """Off-board a tenant: remove its `<CODE>.company.json` and the demo personas
+    written with it.
+
+    Every tenant owns exactly one file, so there is nothing to check for sharing and
+    no index to prune — the previous version had to refuse four companies by name
+    because they pointed at curated catalogs other companies also used. A tenant that
+    supplied its own spec can always take it back.
+    """
+    company = (company or "").strip().upper()
+    if not company:
+        return {"ok": False, "errors": ["ต้องระบุรหัสบริษัท"]}
+    if company not in load_flow_registry():
+        return {"ok": False, "errors": [f"ไม่พบบริษัท {company}"]}
+
+    removed: list[str] = []
+    f = FLOW_DIR / f"{company}{TENANT_SUFFIX}"
+    if f.exists():
+        f.unlink()
+        removed.append(f"data/flows/{f.name}")
+
+    if BUILDER_CASES_FILE.exists():
+        try:
+            cases = json.loads(BUILDER_CASES_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            cases = []
+
+        # A persona carries its company in its ID (`TC-<COMPANY>-BUILD-001`) — the
+        # same derivation `list_cases` and the sessions use. There is no `company`
+        # field on the row, so filtering on one silently kept every persona and the
+        # deleted company kept showing up in the picker.
+        def _company_of(case_id: str) -> str:
+            parts = str(case_id).split("-")
+            return parts[1].upper() if len(parts) > 1 else ""
+
+        kept = [c for c in cases if _company_of(c.get("id", "")) != company]
+        if len(kept) != len(cases):
+            BUILDER_CASES_FILE.write_text(
+                json.dumps(kept, ensure_ascii=False, indent=1), encoding="utf-8")
+            removed.append(f"personas x{len(cases) - len(kept)}")
+
+    return {"ok": True, "company": company, "removed": removed}
+
+
+def _vllm_base_urls() -> list[str]:
+    """vLLM endpoints to query. AAX6_VLLM_BASE_URLS = comma-separated list (multi-model:
+    grpo540 on :8000, grpo400 on :8002); falls back to the single AAX6_VLLM_BASE_URL."""
+    multi = os.environ.get("AAX6_VLLM_BASE_URLS", "").strip()
+    if multi:
+        return [u.strip() for u in multi.split(",") if u.strip()]
+    return [os.environ.get("AAX6_VLLM_BASE_URL", "http://localhost:8000/v1")]
+
+
+def _model_endpoints() -> dict[str, str]:
+    """{served_model_id: base_url} across ALL configured vLLM endpoints — so a picked
+    version routes to the instance actually serving it (multi-instance A100)."""
+    import urllib.request
+    out: dict[str, str] = {}
+    for url in _vllm_base_urls():
+        try:
+            with urllib.request.urlopen(url.rstrip("/") + "/models", timeout=5) as r:
+                for m in json.load(r).get("data", []):
+                    out.setdefault(m["id"], url)
+        except Exception:
+            continue
+    return out
+
+
+def endpoint_for_model(model: str | None) -> str:
+    """The base_url serving `model` (multi-instance aware); default = first configured."""
+    if model:
+        ep = _model_endpoints().get(model)
+        if ep:
+            return ep
+    return _vllm_base_urls()[0]
+
+
 def served_models() -> dict[str, list[str]]:
-    """Qwen checkpoints currently served by vLLM, split into flow vs pre-flow
-    (base). Powers the demo's model-version picker. Empty on any error."""
-    base_url = os.environ.get("AAX6_VLLM_BASE_URL", "http://localhost:8000/v1")
-    try:
-        import urllib.request
-        with urllib.request.urlopen(base_url.rstrip("/") + "/models", timeout=5) as r:
-            ids = [m["id"] for m in json.load(r).get("data", [])]
-    except Exception:
+    """Qwen checkpoints currently served by vLLM (aggregated across all endpoints),
+    split into flow vs pre-flow (base). Powers the demo's model-version picker."""
+    ids = list(_model_endpoints().keys())
+    if not ids:
         return {"base": [], "flow": []}
-    # All local Qwen checkpoints live under the "qwen" picker (base list): the raw
-    # base + every SFT adapter (sft_v10/v11 + sft_flow_*). The engine is routed by
-    # the model itself (any sft_* reads the FlowSpec → FlowLiveSession), so the
-    # picker doesn't have to match an engine button. `flow` = the flow-editor
-    # subset (sft_flow_*), kept for that button's default.
+    # GRPO/SFT checkpoints all live under the "qwen" picker (base list). The engine is
+    # routed by the flow/company selection, so the picker just lists served versions.
     sft = sorted(i for i in ids if i.lower().startswith("sft"))
-    base_only = [i for i in ids if not i.lower().startswith("sft")]
+    base_only = sorted(i for i in ids if not i.lower().startswith("sft"))
     return {"base": base_only + sft, "flow": [i for i in sft if "flow" in i.lower()]}

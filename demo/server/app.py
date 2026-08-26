@@ -40,7 +40,10 @@ from demo.server import replay, sessions, stt_ws, tts  # noqa: E402
 
 logger = logging.getLogger("demo.server")
 
-DEFAULT_CASE_ID = "TC-AEON-AAX-025"
+# No shipped persona id. Whoever deploys picks one with AAX6_DEMO_CASE_ID; with
+# none set the session resolver takes the first persona of a registered company,
+# so the app never has to know a company by name to start.
+DEFAULT_CASE_ID = os.environ.get("AAX6_DEMO_CASE_ID", "")
 DEFAULT_MODE = "live"
 DEFAULT_AGENT = "qwen"
 
@@ -131,6 +134,13 @@ class FlowSpecBody(BaseModel):
     new_templates: list[dict] = []
 
 
+class FlowCompanyRawBody(BaseModel):
+    spec: dict = {}
+    catalog: list[dict] = []
+    display_name: str = ""
+    agent_name: str = ""
+
+
 # ---------------------------------------------------------------------------
 # NDJSON helpers
 # ---------------------------------------------------------------------------
@@ -193,16 +203,34 @@ async def flow_companies() -> JSONResponse:
     return JSONResponse(sessions.flow_companies())
 
 
+@app.get("/api/flow/companies/meta")
+async def flow_companies_meta() -> JSONResponse:
+    """[{company, display_name, deletable}] — drives the delete affordance."""
+    return JSONResponse(sessions.flow_companies_meta())
+
+
 @app.get("/api/flow/beats")
 async def flow_beats() -> JSONResponse:
     """Base-flow beats for the Flow Builder form: [{fine_state, hint, example}]."""
     return JSONResponse(sessions.flow_beats())
 
 
+@app.get("/api/flow/versions")
+async def flow_versions(company: str = Query(...)) -> JSONResponse:
+    """Selectable instruction versions for a company's flow + the default (A/B picker)."""
+    return JSONResponse(sessions.flow_versions(company))
+
+
 @app.get("/api/models")
 async def list_models() -> JSONResponse:
     """Qwen checkpoints vLLM currently serves, split flow vs pre-flow (base)."""
     return JSONResponse(sessions.served_models())
+
+
+@app.get("/api/flow/template")
+async def flow_template() -> JSONResponse:
+    """Blank FlowSpec + catalog skeleton for authoring a new company (download → fill → upload)."""
+    return JSONResponse(sessions.flow_template())
 
 
 @app.get("/api/flow/cue-library")
@@ -218,6 +246,15 @@ async def flow_instruction(company: str = Query(...)) -> JSONResponse:
     if not txt:
         raise HTTPException(404, detail=f"no flow instruction for company {company!r}")
     return JSONResponse({"company": company, "instruction": txt})
+
+
+@app.get("/api/flow/prescripts")
+async def flow_prescripts(company: str = Query(...), version: str | None = Query(default=None)) -> JSONResponse:
+    """ทุก pre-script ของบริษัท + ผูกกับ state ไหน (สำหรับหน้าอ่าน pre-script)."""
+    result = sessions.flow_prescripts(company, version)
+    if not result:
+        raise HTTPException(404, detail=f"no pre-scripts for company {company!r}")
+    return JSONResponse(result)
 
 
 @app.get("/api/flow/spec")
@@ -254,6 +291,34 @@ async def create_flow_company(body: FlowCompanyBody) -> JSONResponse:
     return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
+@app.post("/api/flow/company/raw")
+async def create_flow_company_raw(body: FlowCompanyRawBody) -> JSONResponse:
+    """Author a new flow company from a RAW FlowSpec + catalog JSON (the JSON-editor
+    path — no template prefill, no AEON clone). Validates then writes catalog+spec,
+    registers, adds a demo persona. Returns {ok, case_id} or {ok:False, errors:[...]}."""
+    try:
+        result = sessions.create_flow_company_raw(
+            body.spec, body.catalog, body.display_name, body.agent_name
+        )
+    except Exception as e:
+        logger.exception("flow company raw create failed")
+        raise HTTPException(500, detail=f"create failed: {e}")
+    return JSONResponse(result, status_code=200 if result.get("ok") else 400)
+
+
+@app.delete("/api/flow/company/{company}")
+async def delete_flow_company(company: str) -> JSONResponse:
+    """Remove a Builder-created flow company: registry entry, spec, catalog, personas.
+    Shipped companies are refused. Returns {ok, removed:[...]} or {ok:False,
+    errors:[...]} (400)."""
+    try:
+        result = sessions.delete_flow_company(company)
+    except Exception as e:
+        logger.exception("flow company delete failed")
+        raise HTTPException(500, detail=f"delete failed: {e}")
+    return JSONResponse(result, status_code=200 if result.get("ok") else 400)
+
+
 @app.get("/api/session")
 async def create_session(
     agent: str | None = Query(default=None),
@@ -261,6 +326,7 @@ async def create_session(
     gender: str | None = Query(default=None),
     flow: bool = Query(default=False),
     model: str | None = Query(default=None),
+    instruction_version: str | None = Query(default=None),
 ) -> StreamingResponse:
     mode, default_case_id, default_agent = _config()
     chosen_case = (case_id or default_case_id).strip()
@@ -275,18 +341,34 @@ async def create_session(
     # + reads the flow catalog, not the prescript path.
     if chosen_agent == "qwen" and not model:
         model = sessions.FLOW_MODEL
-    # An SFT adapter always reads the FlowSpec instruction → route it to the flow
-    # session regardless of which engine button was used (a flow model under the
-    # prescript prompt just loops on the greeting).
-    if model and model.lower().startswith("sft"):
+    # v9-lineage pre-script adapters (sft_v2, sft_v2_2) read the pre-script prompt,
+    # NOT the FlowSpec → route them to the live pre-script LiveSession (needs
+    # AAX6_PROMPT_VERSION=v9). Everything else sft* is a flow adapter.
+    PRESCRIPT_SFT = {"sft_v2", "sft_v2_2"}
+    is_prescript_sft = bool(model) and model in PRESCRIPT_SFT
+    # An SFT flow adapter always reads the FlowSpec instruction → route it to the
+    # flow session regardless of which engine button was used (a flow model under
+    # the prescript prompt just loops on the greeting).
+    if model and model.lower().startswith("sft") and not is_prescript_sft:
         flow = True
-    # Flow-interpreter mode is always a live session (it can't replay).
-    if flow and mode != "live":
+    # Flow session AND pre-script sft both must run live (neither can replay).
+    if (flow or is_prescript_sft) and mode != "live":
         mode = "live"
     try:
-        session = sessions.build(
-            chosen_case, mode, agent=chosen_agent, voice_gender=chosen_gender, flow=flow,
-            model=(model or None),
+        # OFF THE EVENT LOOP. Session construction does blocking I/O — reading the
+        # spec/catalog, and (when the spec declares `session_init`) a synchronous
+        # HTTP call to the deployment's CRM. Building inline froze the whole server
+        # for the duration of that call: with one uvicorn worker, a spec pointing at
+        # this same process deadlocked until its own timeout, and a real CRM would
+        # stall every other request the same way.
+        from starlette.concurrency import run_in_threadpool
+
+        session = await run_in_threadpool(
+            lambda: sessions.build(
+                chosen_case, mode, agent=chosen_agent, voice_gender=chosen_gender,
+                flow=flow, model=(model or None),
+                instruction_version=((instruction_version or "").strip() or None),
+            )
         )
     except KeyError as e:
         raise HTTPException(404, detail=str(e))
@@ -464,6 +546,28 @@ async def stt_ws_endpoint(ws: WebSocket) -> None:
     await stt_ws.run_session(ws)
 
 
+@app.api_route("/api/mock-crm/{company}", methods=["GET", "POST"])
+async def mock_crm(company: str) -> JSONResponse:
+    """Stand-in CRM for demos, so a spec's `session_init` can point at a REAL
+    endpoint out of the box. Returns the shipped persona's fields under the names
+    the templates actually use — which is what a purpose-built endpoint looks like:
+    no mapping layer, the response IS the context. A deployment swaps the spec's url
+    for its own CRM and changes nothing else (a nested legacy payload also works —
+    session_init flattens it). Read-only, no auth — it serves demo fixtures only.
+    """
+    rows = [c for c in sessions.list_cases()
+            if str(c.get("company", "")).upper() == company.upper()]
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"no demo persona for {company}")
+    cd = sessions.case_customer_data(rows[0]["id"])
+    # Whatever the persona row holds, under the names the templates use. This
+    # endpoint used to derive an appointment's end time from its start — one
+    # domain's arithmetic, in the app, so that one company's closing template had
+    # something to speak. A field a template needs belongs in the fixture.
+    out = {k: v for k, v in cd.items() if not str(k).startswith("_")}
+    return JSONResponse(out)
+
+
 @app.get("/api/health")
 async def health() -> dict:
     mode, case_id, agent = _config()
@@ -474,3 +578,17 @@ async def health() -> dict:
         "agent": agent,
         "sessions": len(SESSIONS),
     }
+
+
+# --- built frontend (single-port deploy) --------------------------------------
+# When AAX6_DEMO_STATIC points at a Vite `dist/`, serve it from this same app so one
+# process answers both /api/* and the UI. That lets the app run on a GPU host with no
+# node toolchain (build on a dev box, ship the dist). Mounted LAST so every /api route
+# above still wins; html=True falls back to index.html for SPA paths. No-op when the
+# env var is unset, so local dev keeps using the vite dev server.
+_STATIC = os.getenv("AAX6_DEMO_STATIC", "").strip()
+if _STATIC and Path(_STATIC).is_dir():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=_STATIC, html=True), name="ui")
+    logger.info("serving built frontend from %s", _STATIC)

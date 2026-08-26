@@ -19,63 +19,38 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from demo.server.flow.flowspec import load_flow_spec, validate_flow_spec
+from demo.server.flow.flowspec import load_flow_spec, validate_flow_spec, is_chain_state
 
 RENDER_VERSION = "v12"
 
-# Thai labels for the standard CRM snapshot fields; unknown fields fall back
-# to the raw field name so novel flows still render.
-_CRM_LABELS = {
-    "today": "วันนี้",
-    "customer_name": "ชื่อลูกค้า",
-    "amount": "ยอดค้างชำระทั้งหมด",
-    "minimum_payment": "ยอดชำระขั้นต่ำ",
-    "due_date": "วันครบกำหนด",
-    "due_status": "สถานะ",
-    "company_phone": "เบอร์บริษัท",
-}
+# CRM field labels come from the spec (`crm_labels`), because what a field is called
+# in the customer's language is part of that company's flow, not of this renderer. The
+# hardcoded map here read like a glossary but was a debt collector's: an appointment
+# flow's `doctor_name` fell through to the raw field name while `minimum_payment` —
+# a field it does not have — was the one spelled out in Thai.
+_CRM_LABELS: dict[str, str] = {}
 
 _PHASE_TITLES = {"opening": "OPENING DIALOG", "main": "MAIN DIALOG", "close": "CLOSING"}
 
 
-def _label_template(t: dict) -> str:
-    s = f"`{t['fine_state']}`"
+def _label_template(t: dict, chain: bool = False) -> str:
+    if t.get("any_of"):                       # one step that accepts any of several beats
+        s = "(" + " หรือ ".join(f"`{b}`" for b in t["any_of"]) + ")"
+    else:
+        s = f"`{t['fine_state']}`"
     if t.get("when_event"):
         s += f" (เมื่อ {t['when_event']})"
     if t.get("optional"):
-        s += " (ถ้าจำเป็น)"
+        s += " (ข้ามได้)" if chain else " (ถ้าจำเป็น)"
     return s
 
 
-def _fmt_templates(templates: list[dict], mode: str | None = None) -> str:
-    # Templates are organised into GROUPS (field `group`): pick ONE group (OR),
-    # and within that group say every beat in order (AND). No `group` field →
-    # fall back to the legacy flat mode ("and"=one chain / "or"=one choice each).
-    if any("group" in t for t in templates):
-        order: list = []
-        groups: dict = {}
-        for t in templates:
-            g = t.get("group", 0)
-            if g not in groups:
-                groups[g] = []
-                order.append(g)
-            groups[g].append(t)
-        chains = [" → ".join(_label_template(t) for t in groups[g]) for g in order]
-        if len(order) == 1:
-            tail = "  ‹พูดต่อกัน (AND)›" if len(groups[order[0]]) > 1 else ""
-            return chains[0] + tail
-        joined = "  — หรือ —  ".join(f"[ {c} ]" if " → " in c else c for c in chains)
-        return joined + "  ‹เลือก 1 กลุ่ม (OR); ในกลุ่มพูดต่อกัน (AND)›"
-
-    parts = [_label_template(t) for t in templates]
-    if mode not in ("and", "or"):
-        conditional = any(t.get("when_event") or t.get("optional") for t in templates)
-        mode = "or" if conditional else "and"
-    if len(parts) <= 1:
-        return " / ".join(parts)
-    if mode == "and":
-        return " → ".join(parts) + "  ‹พูดต่อกันทั้งหมดในเทิร์นเดียว (AND)›"
-    return " / ".join(parts) + "  ‹เลือกพูดอันเดียว (OR)›"
+def _fmt_templates(templates: list[dict], chain: bool = False) -> str:
+    """Chain → `a` → `b`; alternatives → `a` / `b`. Word-for-word the training
+    renderer, so the served instruction says exactly what the model was trained
+    on. Chain-ness comes from `is_chain_state`, never from a hand-set flag."""
+    parts = [_label_template(t, chain) for t in templates]
+    return (" → " if chain else " / ").join(parts)
 
 
 def _fmt_event(spec: dict, event: str) -> str:
@@ -86,10 +61,33 @@ def _fmt_event(spec: dict, event: str) -> str:
     return f"{event} ({ev.get('desc', '')})" if ev.get("desc") else event
 
 
+def _closing_tool(spec: dict) -> tuple[str, list[str]]:
+    """The tool this spec closes a call with, and its argument names.
+
+    Was hardcoded to `record_outcome` in three places, so the appointment flow —
+    whose closer is `save_appointment` — was instructed to call a tool absent from
+    its own schema, at the exact moment it had to write the booking. The closer is
+    whichever tool declares `gating.required_at: "end_of_call"`. There is no fallback:
+    defaulting to the collection name is how the appointment flow came to be told to
+    call a tool it does not have, and a silent wrong name is worse than a load error.
+    """
+    for d in (spec.get("tools") or {}).get("declarations", []):
+        if (d.get("gating") or {}).get("required_at") == "end_of_call":
+            return d["name"], list((d.get("args") or {}).keys())
+    raise ValueError(
+        "spec declares no closing tool — exactly one tool must carry "
+        'gating.required_at: "end_of_call"')
+
+
 def _render_state(spec: dict, st: dict) -> list[str]:
     lines = [f"**{st['id']}**" + (" ← เริ่มที่นี่" if st.get("initial") else "")]
     if st.get("templates"):
-        lines.append(f"- template: {_fmt_templates(st['templates'], st.get('template_mode'))}")
+        if is_chain_state(st):
+            lines.append(f"- **พูดต่อกันในเทิร์นเดียว (chain) ตามลำดับ:** "
+                         f"{_fmt_templates(st['templates'], chain=True)} "
+                         f"— เรียก `reply(text_ids=[...])` ใส่หลาย id เรียงตามนี้")
+        else:
+            lines.append(f"- template: {_fmt_templates(st['templates'])}")
     if st.get("entry_tools"):
         chain = " → ".join(f"`{t}`" for t in st["entry_tools"])
         lines.append(f"- เมื่อเข้า state นี้ เรียก (silent): {chain}")
@@ -107,7 +105,8 @@ def _render_state(spec: dict, st: dict) -> list[str]:
     out = st.get("outcome")
     if out:
         reasons = "/".join(out.get("reasons", [])) or "-"
-        lines.append(f"  - จบสาย: `record_outcome(\"{out['result']}\", reason: {reasons})`")
+        closer, _ = _closing_tool(spec)
+        lines.append(f"  - จบสาย: `{closer}(\"{out['result']}\", reason: {reasons})`")
     return lines
 
 
@@ -121,18 +120,30 @@ def render_instruction(spec: dict) -> str:
     sec: list[str] = []
 
     # --- header ---
-    role = spec.get("role", "")
-    header = f"คุณรับบทเป็นเจ้าหน้าที่ติดตามทวงถามหนี้ของ **บริษัท {company}**"
-    if role:
-        header += f" — {role}"
-    sec.append(
-        header + f"\n\n**เป้าหมาย: {spec.get('goal', '')}** ปฏิบัติตาม พ.ร.บ. การทวงถามหนี้ พ.ศ. 2558"
-    )
+    # Role and governing law come FROM THE SPEC. Both used to be hardcoded to debt
+    # collection, so the hospital appointment flow opened its prompt by declaring
+    # the agent a debt collector bound by the Debt Collection Act — while its own
+    # `agent_role` and `legal_note` sat in the file, read by nothing. A spec that
+    # says nothing keeps the debt default, so the collection specs are unchanged.
+    # `agent_role` is the IDENTITY (who the agent is). `role` is a style note in the
+    # collection specs ("พูดคุยกระชับ สุภาพ…") which reads as nonsense in the identity
+    # slot, so it stays a modifier appended after — exactly as it rendered before.
+    identity = spec.get("agent_role") or ""
+    header = (f"คุณรับบทเป็น **{identity}**" if identity
+              else f"คุณรับบทเป็นเจ้าหน้าที่ติดตามทวงถามหนี้ของ **บริษัท {company}**")
+    if spec.get("role"):
+        header += f" — {spec['role']}"
+    legal = spec.get("legal_note")
+    if legal is None:
+        legal = "ปฏิบัติตาม พ.ร.บ. การทวงถามหนี้ พ.ศ. 2558"
+    sec.append(header + f"\n\n**เป้าหมาย: {spec.get('goal', '')}**"
+               + (f" {legal}" if legal else ""))
 
     # --- CRM snapshot (placeholders intact; fill_template substitutes at load) ---
+    labels = {**_CRM_LABELS, **(spec.get("crm_labels") or {})}
     crm = ["## ข้อมูลลูกค้า (CRM Snapshot)"]
     for field in spec.get("crm_fields", []):
-        label = _CRM_LABELS.get(field, field)
+        label = labels.get(field, field)
         crm.append(f"- **{label}:** {{{field}}}")
     sec.append("\n".join(crm))
 
@@ -211,14 +222,15 @@ def render_instruction(spec: dict) -> str:
         else:
             out = (then or {}).get("outcome", {})
             reasons = "/".join(out.get("reasons", [])) or "-"
-            line += f" → `record_outcome(\"{out.get('result')}\", \"{reasons}\")` ปิดสาย"
+            line += f" → `{_closing_tool(spec)[0]}(\"{out.get('result')}\", \"{reasons}\")` ปิดสาย"
         if route.get("note"):
             line += f" — {route['note']}"
         faq.append(line)
     sec.append("\n".join(faq))
 
     # --- outcomes summary ---
-    oc = ["## Outcome (จบสายต้อง `record_outcome(result, reason, remark)` เสมอ)"]
+    _closer, _cargs = _closing_tool(spec)
+    oc = [f"## Outcome (จบสายต้องเรียก `{_closer}({', '.join(_cargs)})` เสมอ)"]
     for result, info in spec.get("outcomes", {}).get("results", {}).items():
         reasons = "/".join(info.get("reasons", [])) or "-"
         oc.append(f"- `{result}` (reason: {reasons}) — {info.get('desc', '')}")
@@ -232,8 +244,10 @@ def render_instruction(spec: dict) -> str:
         for st in spec["states"]:
             if st.get("phase") == phase:
                 for t in st.get("templates", []):
-                    if t["fine_state"] not in groups:
-                        groups.append(t["fine_state"])
+                    # an `any_of` step names its beats in a list instead of `fine_state`
+                    for fs in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or []):
+                        if fs not in groups:
+                            groups.append(fs)
         if groups:
             ov.append(f"- **{phase}** — " + ", ".join(f"`{g}`" for g in groups))
     aux = spec.get("auxiliary_templates", {}).get("allowed", [])
