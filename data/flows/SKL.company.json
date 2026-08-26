@@ -1,0 +1,3275 @@
+{
+ "spec_version": 2,
+ "flow_id": "SKL-outbound-remind",
+ "company": "SKL",
+ "display_name": "สยามคูโบต้าลีสซิ่ง",
+ "description": "Outbound payment-reminder flow for SKL (สยามคูโบต้าลีสซิ่ง); cloned from _TEMPLATE, paired with mined v11_skl catalog.",
+ "role": "เลียนแบบบอทโทรจริงในโปรดักชัน (flow \"Outbound - Remind\" สกัดจาก 30,000 สาย)",
+ "sources": [
+  "tmp/skl/*.json (mined transcripts)",
+  "data/flows/_TEMPLATE-outbound-remind.json"
+ ],
+ "catalog": "__inline__",
+ "goal": "ทักทาย/ยืนยันชื่อ → แจ้งยอด → ชวนชำระวันนี้ → (ลังเล) โน้มน้าวตามเหตุ → ปิดสาย/นัด — สั้น กระชับ เหมือนคนคุยโทรศัพท์",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "amount",
+  "minimum_payment",
+  "due_date",
+  "due_status",
+  "company_phone"
+ ],
+ "crm_labels": {
+  "today": "วันนี้",
+  "customer_name": "ชื่อลูกค้า",
+  "amount": "ยอดค้างชำระทั้งหมด",
+  "minimum_payment": "ยอดชำระขั้นต่ำ",
+  "due_date": "วันครบกำหนด",
+  "due_status": "สถานะ",
+  "company_phone": "เบอร์บริษัท"
+ },
+ "events": {
+  "name_confirmed": {
+   "desc": "ลูกค้ายืนยันว่าเป็นเจ้าของชื่อ",
+   "cues": [
+    "ใช่",
+    "พูดอยู่"
+   ]
+  },
+  "no_input": {
+   "desc": "เงียบ หรือตอบไม่ชัดจนตีความไม่ได้ (NO-INPUT — ไม่ใช่การปฏิเสธ)",
+   "cues": [
+    "...",
+    "…",
+    "(เงียบ)",
+    "(ไม่ตอบ)",
+    "อือ..."
+   ]
+  },
+  "third_party": {
+   "desc": "คนอื่นรับสาย / ปลายสายบอกว่าไม่ใช่เจ้าของชื่อ"
+  },
+  "agrees_to_pay": {
+   "desc": "รับปากจะชำระ — วันนี้ หรือให้วันที่/จำนวน/ช่องทางมา"
+  },
+  "already_paid": {
+   "desc": "แจ้งว่าชำระไปแล้ว"
+  },
+  "hardship_lost_job": {
+   "desc": "จ่ายไม่ได้เพราะตกงาน/รายได้หด"
+  },
+  "hardship_sick": {
+   "desc": "จ่ายไม่ได้เพราะป่วย/ปัญหาสุขภาพ"
+  },
+  "hardship_other": {
+   "desc": "ลังเล/จ่ายไม่ได้ด้วยเหตุอื่น หรือปฏิเสธครั้งแรกแบบไม่ให้เหตุ"
+  },
+  "refuses": {
+   "desc": "ยังปฏิเสธ/ยืนยันจ่ายไม่ได้หลังถูกโน้มน้าวแล้ว — คำเดิมหรือคำใหม่ก็นับ"
+  },
+  "stop_signal": {
+   "desc": "สัญญาณปฏิเสธที่ต้องหยุดทันที ไม่ต้องรอครบโควตาโน้มน้าว",
+   "cues": [
+    "บอกแล้วไง",
+    "ไม่มีจริงๆ",
+    "ฟังกันบ้างไหม",
+    "พูดซ้ำสิ่งเดิมครั้งที่ 2 ด้วยน้ำเสียงรำคาญ"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "ขอเลื่อน / ขอให้โทรกลับภายหลัง"
+  },
+  "gives_new_phone": {
+   "desc": "ให้เบอร์ติดต่อใหม่"
+  },
+  "faq": {
+   "desc": "คำถาม/คำพูดแทรกระหว่างสาย — route ตาม faq_routing แล้วกลับเข้า state เดิม"
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "ไม่มี KYC ถามเลข 4 หลัก และไม่มีการโอนสายไปเจ้าหน้าที่จริง (ตามบอทจริง)"
+  ],
+  "declarations": [
+   {
+    "name": "check_account_status",
+    "impl": "http",
+    "desc": "อ่านข้อมูลบัญชี (ยอด/วันครบกำหนด/สถานะ)",
+    "args": {},
+    "gating": {
+     "after_event": "name_confirmed",
+     "required_before_state": "disclose_ask",
+     "max_calls_per_conversation": 1,
+     "note": "ห้ามเรียก turn แรกก่อนทักทาย; เรียกทันทีหลังลูกค้ายืนยันชื่อ ก่อน reply แจ้งยอดครั้งแรก"
+    },
+    "url": "{API_BASE}/SKL/check_account_status",
+    "method": "POST"
+   },
+   {
+    "name": "record_verbal_commitment",
+    "impl": "http",
+    "desc": "บันทึกคำมั่นด้วยวาจา (amount, date, channel)",
+    "args": {
+     "amount": {
+      "type": "string"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ],
+      "optional": true
+     }
+    },
+    "gating": {
+     "must_precede": "payment_date"
+    },
+    "url": "{API_BASE}/SKL/record_verbal_commitment",
+    "method": "POST"
+   },
+   {
+    "name": "payment_date",
+    "impl": "http",
+    "desc": "บันทึกนัดชำระลง CRM",
+    "args": {
+     "last_4_digits": {
+      "type": "string",
+      "optional": true
+     },
+     "amount": {
+      "type": "number"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ],
+      "optional": true
+     }
+    },
+    "gating": {
+     "requires_prior": "record_verbal_commitment",
+     "args_must_match_commitment": true
+    },
+    "url": "{API_BASE}/SKL/payment_date",
+    "method": "POST"
+   },
+   {
+    "name": "callback_datetime",
+    "impl": "http",
+    "desc": "บันทึกนัดโทรกลับ",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     }
+    },
+    "url": "{API_BASE}/SKL/callback_datetime",
+    "method": "POST"
+   },
+   {
+    "name": "get_current_datetime",
+    "impl": "http",
+    "desc": "ขอวันที่มาตรฐาน",
+    "args": {},
+    "gating": {
+     "must_precede": [
+      "record_verbal_commitment",
+      "payment_date",
+      "callback_datetime"
+     ]
+    },
+    "url": "{API_BASE}/SKL/get_current_datetime",
+    "method": "POST"
+   },
+   {
+    "name": "record_outcome",
+    "impl": "http",
+    "desc": "บันทึกผลสาย (result, reason, remark)",
+    "args": {
+     "result": {
+      "type": "string",
+      "enum": [
+       "ptp",
+       "refused",
+       "unreachable",
+       "reached",
+       "tcb",
+       "tin"
+      ]
+     },
+     "reason": {
+      "type": "string",
+      "optional": true
+     },
+     "remark": {
+      "type": "string",
+      "optional": true
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/SKL/record_outcome",
+    "method": "POST"
+   },
+   {
+    "name": "update_phone",
+    "impl": "http",
+    "desc": "บันทึกเบอร์ติดต่อใหม่",
+    "args": {
+     "phone": {
+      "type": "string"
+     }
+    },
+    "url": "{API_BASE}/SKL/update_phone",
+    "method": "POST"
+   }
+  ],
+  "validation": {
+   "date_format": "YYYY-MM-DD (Weekday)",
+   "payment_channels": [
+    "atm",
+    "bank_transfer",
+    "branch",
+    "counter_service",
+    "mobile_app",
+    "other"
+   ],
+   "case_status_gates": {
+    "pending_review": "account_under_review",
+    "closed": "account_closed"
+   },
+   "result_codes": [
+    "ptp",
+    "refused",
+    "unreachable",
+    "reached",
+    "tcb",
+    "tin"
+   ]
+  }
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_verify"
+    }
+   ],
+   "note": "reply ทักทาย+ยืนยันชื่อก่อน ยังไม่เรียก tool ใดๆ",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "no_input",
+     "to": "verify_retry"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    }
+   ]
+  },
+  {
+   "id": "verify_retry",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "verify_name"
+    }
+   ],
+   "note": "ถามยืนยันชื่อซ้ำ — อนุญาตเฉพาะกรณี NO-INPUT เท่านั้น",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "inferred": true,
+     "note": "เงียบซ้ำรอบสอง → ปิดสาย unreachable",
+     "spec_note": "ไม่ระบุตรงๆ ใน v11 instruction; อนุมานจาก production behavior"
+    }
+   ]
+  },
+  {
+   "id": "third_party",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "third_party"
+    }
+   ],
+   "note": "คนอื่นรับสาย — ขอเบอร์/ฝากติดต่อ ห้ามเปิดเผยยอดหนี้",
+   "on": [
+    {
+     "event": "gives_new_phone",
+     "tools": [
+      "update_phone"
+     ],
+     "to": "close_unreachable"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    },
+    {
+     "event": "refuses",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "disclose_ask",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "disclose_balance"
+    },
+    {
+     "fine_state": "ask_pay_today"
+    }
+   ],
+   "note": "แจ้งยอด + ถามสะดวกชำระวันนี้ไหม — พูดต่อกันในเทิร์นเดียว โดยเรียก reply ใส่ text_id **สองตัวที่ต่างกัน**: ตัวแรกกลุ่ม `disclose_balance` (แจ้งยอด/วันครบกำหนด) → ตัวที่สองกลุ่ม `ask_pay_today` (ถามชำระ) — **ห้ามข้าม disclose_balance และห้ามใส่ id ซ้ำ** — นับเป็นการขอให้จ่ายครั้งที่ 1",
+   "counts_as": "pay_ask",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "already_paid",
+     "to": "close_paid"
+    },
+    {
+     "event": "hardship_lost_job",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_sick",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_other",
+     "to": "convince"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "convince",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "convince_lost_job",
+     "when_event": "hardship_lost_job"
+    },
+    {
+     "fine_state": "convince_sick",
+     "when_event": "hardship_sick"
+    },
+    {
+     "fine_state": "convince_other",
+     "when_event": "hardship_other"
+    },
+    {
+     "fine_state": "probe_hardship",
+     "optional": true,
+     "note": "ใช้ถามอุปสรรคเมื่อเหตุไม่ชัด ก่อนเลือก convince variant"
+    }
+   ],
+   "note": "โน้มน้าวตามเหตุ ทำได้ครั้งเดียว — นับเป็นการขอให้จ่ายครั้งที่ 2 (ครั้งสุดท้าย)",
+   "counts_as": "pay_ask",
+   "max_visits": 1,
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "refuses",
+     "to": "close_refused"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "ptp_capture",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "ptp_record"
+    },
+    {
+     "fine_state": "close"
+    }
+   ],
+   "entry_tools": [
+    "record_verbal_commitment",
+    "payment_date",
+    "record_outcome"
+   ],
+   "outcome": {
+    "result": "ptp",
+    "reasons": [
+     "ptp",
+     "minimum"
+    ]
+   },
+   "note": "จับ PTP: บันทึกคำมั่น→payment_date→record_outcome(ptp) แล้วปิดสายในเทิร์นเดียว — พูด ptp_record (ยืนยันบันทึกนัดชำระ+เก็บใบเสร็จ) ต่อด้วย close (ขอบคุณ+สวัสดี) โดยเรียก reply(text_ids=[ptp_record, close])",
+   "terminal": true
+  },
+  {
+   "id": "close_paid",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    }
+   ],
+   "outcome": {
+    "result": "ptp",
+    "reasons": [
+     "paid"
+    ]
+   },
+   "note": "ลูกค้าแจ้งชำระแล้ว — ขอบคุณ+ปิดสาย",
+   "terminal": true,
+   "spec_note": "result ptp/paid ตาม v11 outcome mapping",
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "close_refused",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    }
+   ],
+   "outcome": {
+    "result": "refused",
+    "reasons": []
+   },
+   "note": "ครบโควตาขอให้จ่าย 2 ครั้ง หรือเจอ stop_signal → record_outcome(refused) แล้วปิดทันที ห้ามโน้มน้าวครั้งที่ 3",
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "callback_close",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "offer_callback"
+    }
+   ],
+   "entry_tools": [
+    "callback_datetime",
+    "record_outcome"
+   ],
+   "outcome": {
+    "result": "tcb",
+    "reasons": [
+     "callback"
+    ],
+    "inferred": true,
+    "note": "v11 ไม่ระบุ outcome ของ callback ตรงๆ; tcb=transfer-to-callback ตาม v10 flow map"
+   },
+   "terminal": true
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "apology"
+    }
+   ],
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "other_person",
+     "wrong_number",
+     "no_input"
+    ]
+   },
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "close_confirm_info",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    },
+    {
+     "fine_state": "close"
+    }
+   ],
+   "outcome": {
+    "result": "reached",
+    "reasons": [
+     "no_input"
+    ],
+    "inferred": true,
+    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้รับข้อมูลครบถ้วนแล้ว ปิดสาย; result 'reached' อนุมาน (v11 ระบุแค่ retry_predue → close)"
+   },
+   "terminal": true,
+   "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้แจ้งข้อมูลครบถ้วนแล้ว ปิดสายสุภาพ",
+   "entry_tools": [
+    "record_outcome"
+   ]
+  }
+ ],
+ "faq_routing": {
+  "note": "แทรกได้จากทุก state ที่ไม่ terminal — ตอบด้วย template ที่ตรง intent แล้ว resume state เดิม (ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ) เว้นแต่ระบุ terminal",
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "โทรมาจากไหน",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "bot",
+    "desc": "เป็นบอท/AI ใช่ไหม",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "hold",
+    "desc": "สักครู่/แป๊บนึง",
+    "templates": [
+     {
+      "fine_state": "faq_hold"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "repeat",
+    "desc": "อะไรนะ/พูดอีกที",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "agent",
+    "desc": "ขอคุยกับเจ้าหน้าที่คนจริง",
+    "templates": [
+     {
+      "fine_state": "handoff_refuse"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "tcb",
+      "reasons": [
+       "agent"
+      ]
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "scam",
+    "desc": "มิจฉาชีพรึเปล่า",
+    "templates": [
+     {
+      "fine_state": "faq_scam"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "annoyed",
+    "desc": "รำคาญ/ไม่ต้องโทรมา",
+    "templates": [
+     {
+      "fine_state": "faq_annoyed"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "channel",
+    "desc": "จ่ายที่ไหน/ยังไง",
+    "templates": [
+     {
+      "fine_state": "offer_channel_only"
+     }
+    ],
+    "then": "resume",
+    "note": "ตอบช่องทางอย่างเดียว ห้ามแจ้งยอด/วันครบกำหนดซ้ำ"
+   },
+   {
+    "intent": "amount",
+    "desc": "ยอดเท่าไหร่",
+    "templates": [
+     {
+      "fine_state": "faq_amount"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "due",
+    "desc": "ต้องจ่ายเมื่อไหร่",
+    "templates": [
+     {
+      "fine_state": "faq_due"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "wrong_name",
+    "desc": "เรียกชื่อผิด",
+    "templates": [
+     {
+      "fine_state": "faq_wrong_name"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "tin",
+      "reasons": [
+       "wrong_name"
+      ]
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "mourning",
+    "desc": "เจ้าของชื่อเสียชีวิต",
+    "templates": [
+     {
+      "fine_state": "faq_mourning"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "reached",
+      "reasons": [
+       "mourning"
+      ],
+      "inferred": true,
+      "note": "v11 ระบุแค่ 'เสียใจ+บันทึก ปิดสุภาพ' — result อนุมาน"
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "out_of_scope",
+    "desc": "นอกขอบเขต: ปิดบัญชีก่อนกำหนด/ยอดปิดบัญชี, ค่าปรับล่าช้า/ดอกเบี้ยผิดนัด, โอนเล่มทะเบียน/ไฟแนนซ์หมด, ยึดรถ/คืนรถ, เปลี่ยนผู้เช่าซื้อ/ผู้ค้ำประกัน, ขอลดค่างวด/ปรับโครงสร้างหนี้, ขอใบเสร็จ/ใบกำกับภาษี",
+    "templates": [
+     {
+      "fine_state": "faq_faq_referral"
+     }
+    ],
+    "then": "resume",
+    "note": "แนะนำติดต่อ [company_phone] แล้วกลับเข้า flow"
+   }
+  ]
+ },
+ "auxiliary_templates": {
+  "note": "template ที่ไม่ผูกกับ state เดียว — ใช้ได้ตามบริบทใน phase ที่ตรง",
+  "allowed": [
+   {
+    "fine_state": "offer_channel_only",
+    "desc": "บอกช่องทางชำระประกอบการตกลงจ่าย"
+   },
+   {
+    "fine_state": "apology",
+    "desc": "ขออภัยตามบริบท"
+   },
+   {
+    "fine_state": "ai_disclosure",
+    "desc": "แนะนำตัวว่าเป็นระบบอัตโนมัติ เมื่อถูกถามหรือเปิดสาย"
+   },
+   {
+    "fine_state": "verify_first",
+    "desc": "ตอบก่อนยืนยันตัวตน — ห้ามแจ้งยอดจนกว่าจะยืนยันชื่อ"
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "max_pay_asks",
+   "type": "max_occurrences",
+   "counts": "pay_ask",
+   "max": 2,
+   "on_exceed": {
+    "to": "close_refused"
+   },
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ขอให้จ่ายได้สูงสุด 2 ครั้งต่อสาย (ask_pay_today 1 + convince 1) นับทุกเหตุผลที่ลูกค้าให้ ครบแล้วยังไม่รับปาก → refused ปิดทันที"
+  },
+  {
+   "id": "disclose_once",
+   "type": "once_per_call",
+   "template_fine_state": "disclose_balance",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่"
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ถามคำถามเดิมซ้ำได้เฉพาะกรณีลูกค้าเงียบ (NO-INPUT) เท่านั้น — การปฏิเสธ/บอกจ่ายไม่ได้คือ input ชัดเจน ห้ามถามซ้ำ"
+  },
+  {
+   "id": "no_reverify_after_confirm",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "template_fine_states": [
+    "greet_verify",
+    "verify_name"
+   ],
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ยืนยันชื่อแล้วห้ามถามชื่อซ้ำ — check_account_status แล้วแจ้งยอดทันที"
+  },
+  {
+   "id": "answered_no_repeat",
+   "type": "no_repeat_answered_request",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ลูกค้าตอบ request แล้ว (จ่ายไม่ได้/ให้วันมา/ปฏิเสธ) = เดินหน้าต่อ ห้ามยิงคำถามเดิมซ้ำ"
+  },
+  {
+   "id": "stop_signal_immediate_close",
+   "type": "immediate_transition_on",
+   "event": "stop_signal",
+   "to": "close_refused",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "เจอสัญญาณหยุด → record_outcome(refused) ปิดทันที ไม่ต้องรอครบโควตาโน้มน้าว"
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "exceptions": [
+    [
+     "disclose_balance",
+     "ask_pay_today"
+    ],
+    [
+     "confirm_info",
+     "close"
+    ]
+   ],
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "template = หนึ่ง turn เต็ม เลือก 1 อัน/turn — ห้าม chain เนื้อซ้ำ (ยกเว้นคู่ที่ระบุ)"
+  },
+  {
+   "id": "faq_resume",
+   "type": "resume_after_interrupt",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ตอบ FAQ แล้วกลับเข้า flow จากจุดเดิม — ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ"
+  },
+  {
+   "id": "outcome_required",
+   "type": "require_tool_before_end",
+   "tool": "record_outcome",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "จบสายต้อง record_outcome(result, reason, remark) เสมอ ครั้งเดียว"
+  },
+  {
+   "id": "overdue_future_ptp_is_refusal",
+   "type": "outcome_precondition",
+   "when": {
+    "crm": {
+     "due_status": "overdue"
+    },
+    "last_payment_date": "future"
+   },
+   "reject": {
+    "result": "ptp"
+   },
+   "require_instead": {
+    "result": "refused"
+   },
+   "enforce": [
+    "backend"
+   ],
+   "desc": "บัญชี overdue และวันจ่ายที่บันทึกไว้เป็นอนาคต → ระบบไม่รับ ptp ให้บันทึก refused แทน (หรือเจรจาให้ชำระวันนี้ก่อนบันทึก)",
+   "source_ref": "Miro §1.1/§3.2 — enforced in backend.record_outcome"
+  },
+  {
+   "id": "busy_voicemail_preconnection_only",
+   "type": "outcome_precondition",
+   "when": {
+    "after_tool": "check_account_status"
+   },
+   "reject": {
+    "reasons": [
+     "busy",
+     "voice_mail"
+    ]
+   },
+   "enforce": [
+    "backend"
+   ],
+   "desc": "busy/voice_mail ใช้ได้เฉพาะสายที่ไม่เคยติด — ถ้าเรียก check_account_status แล้วถือว่าสายติด ให้บันทึกตามที่เกิดจริง (reached/refused)",
+   "source_ref": "Miro §3.1 — enforced in backend.record_outcome"
+  },
+  {
+   "id": "commitment_pair",
+   "type": "tool_pair",
+   "first": "record_verbal_commitment",
+   "second": "payment_date",
+   "args_must_match": true,
+   "enforce": [
+    "backend"
+   ],
+   "desc": "payment_date ต้องมี record_verbal_commitment ค่าตรงกัน (amount/date/channel) มาก่อน ไม่งั้นถูก reject",
+   "source_ref": "3-Element Enforcer — enforced in backend.payment_date"
+  },
+  {
+   "id": "kyc_verbal_gate",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**KYC gate:** ห้ามเปิดเผยจำนวนหนี้/ยอด/วันครบกำหนด (disclose_balance, faq_amount, faq_due) ก่อนลูกค้ายืนยันตัวตนชัดเจน. ถ้าลูกค้าถามยอด/วันครบกำหนด **ก่อน verify → ตอบ verify_first (1115) ขอยืนยันตัวตนก่อน ห้ามบอกยอด/รายละเอียด**. การยืนยันตัวตนที่ชัดเจน = ลูกค้าตอบรับตรงๆ ว่า 'ใช่ / ใช่ครับ / ใช่ค่ะ / ถูกต้อง / ผมเอง / ดิฉันเอง' เท่านั้น — คำรับสั้นๆ กำกวมอย่าง 'ครับ / ค่ะ / อือ / อ๋อ / โอเค' **ไม่นับว่ายืนยันตัวตน** ให้ถาม verify_first ต่อ ห้ามแจ้งยอด"
+  },
+  {
+   "id": "preverify_faq_persistence",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ก่อน name_confirmed: ลูกค้าถามยอด/วันครบกำหนด/เรื่องหนี้ **ซ้ำกี่รอบก็ตาม** → ตอบ verify_first (1115) ทุกรอบ (1115 จบด้วยคำถามยืนยันชื่อ = พยายาม verify ต่อในตัว) ห้ามหยุดถามยืนยันชื่อ ห้ามสลับไปตอบ FAQ ห้ามเปิดเผยยอด/รายละเอียด"
+  },
+  {
+   "id": "verify_before_disclose",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "inverted": true,
+   "template_fine_states": [
+    "disclose_balance",
+    "faq_amount",
+    "faq_due"
+   ],
+   "enforce": [
+    "prompt",
+    "session"
+   ],
+   "desc": "ก่อนลูกค้ายืนยันตัวตน (name_confirmed) ห้ามเปิดเผยยอด/วันครบกำหนด/ประเภทหนี้ — session layer BLOCK template กลุ่มนี้จนกว่า verification สำเร็จ (blocked_reply_ids)"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ความเงียบไม่ใช่การตกลง:** ลูกค้าตอบว่า '...' / '(เงียบ)' / ตอบไม่เป็นคำพูดที่ตีความได้ = เหตุการณ์ `no_input` เท่านั้น — **ห้ามถือเป็น agrees_to_pay ห้ามเรียก record_verbal_commitment / payment_date และห้ามบันทึกผลเป็น ptp** ให้เดินตาม transition ของ no_input ใน state ปัจจุบัน (ถามซ้ำ หรือปิดสายตามที่ flow กำหนด) การบันทึกคำมั่นจากความเงียบถือว่าผิดร้ายแรงเทียบเท่ากับบันทึกคำมั่นที่ลูกค้าไม่ได้ให้"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าแจ้งเหตุติดขัด (ตกงาน/ป่วย/เงินช็อต/ยังไม่มีเงิน) → ต้องพูด convince ก่อนเสมอ** (convince_lost_job / convince_sick / convince_other ตามเหตุ) แล้วรอคำตอบ — **ห้ามข้ามไป record_verbal_commitment และห้ามปิดสาย** จนกว่าลูกค้าจะรับปากชำระเอง"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**`handoff_refuse` ใช้ได้เฉพาะเมื่อลูกค้าขอคุยกับเจ้าหน้าที่ที่เป็นคนเท่านั้น** — ลูกค้าเงียบ ถามยอด หรือถามเรื่องอื่น **ห้ามตอบด้วย handoff_refuse** เพราะไม่ได้ตอบสิ่งที่ถาม ให้เดินตาม flow ของ state ปัจจุบันแทน"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าเงียบหลังได้รับข้อมูลครบแล้ว (no_input ที่ disclose_ask/convince)** → ปิดด้วย `confirm_info` ที่ทวนว่าได้รับข้อมูลครบถ้วนแล้ว และบันทึกผลเป็น reached — **ห้ามปิดด้วย close/close_paid** และห้ามบันทึกเป็น ptp"
+  }
+ ],
+ "outcomes": {
+  "required_at_close": true,
+  "results": {
+   "ptp": {
+    "reasons": [
+     "ptp",
+     "paid",
+     "minimum"
+    ],
+    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
+   },
+   "refused": {
+    "reasons": [],
+    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
+   },
+   "unreachable": {
+    "reasons": [
+     "other_person",
+     "wrong_number",
+     "busy",
+     "voice_mail",
+     "no_input"
+    ],
+    "desc": "ไม่ถึงตัวลูกหนี้"
+   },
+   "reached": {
+    "reasons": [
+     "mourning",
+     "no_input"
+    ],
+    "desc": "ถึงตัวแต่จบแบบอื่น",
+    "inferred": true
+   },
+   "tcb": {
+    "reasons": [
+     "agent",
+     "callback"
+    ],
+    "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
+   },
+   "tin": {
+    "reasons": [
+     "wrong_name"
+    ],
+    "desc": "incorrect name"
+   }
+  }
+ },
+ "test_cases": [
+  {
+   "id": "SKL-FLOW-01",
+   "name": "name_confirmed → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → disclose_ask → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-02",
+   "name": "name_confirmed → already_paid  ⇒ ptp",
+   "flow_path": "greet → disclose_ask → close_paid",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "จ่ายไปแล้วเมื่อวานค่ะ",
+     "event": "already_paid"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "paid"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-03",
+   "name": "name_confirmed → hardship_lost_job → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → disclose_ask → convince → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-04",
+   "name": "name_confirmed → hardship_lost_job → refuses  ⇒ refused",
+   "flow_path": "greet → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-05",
+   "name": "name_confirmed → hardship_lost_job → stop_signal  ⇒ refused",
+   "flow_path": "greet → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-06",
+   "name": "name_confirmed → hardship_lost_job → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → disclose_ask → convince → callback_close",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-07",
+   "name": "name_confirmed → hardship_lost_job → no_input  ⇒ reached",
+   "flow_path": "greet → disclose_ask → convince → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-08",
+   "name": "name_confirmed → hardship_sick → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → disclose_ask → convince → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-09",
+   "name": "name_confirmed → hardship_sick → refuses  ⇒ refused",
+   "flow_path": "greet → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-10",
+   "name": "name_confirmed → hardship_sick → stop_signal  ⇒ refused",
+   "flow_path": "greet → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-11",
+   "name": "name_confirmed → hardship_sick → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → disclose_ask → convince → callback_close",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-12",
+   "name": "name_confirmed → hardship_sick → no_input  ⇒ reached",
+   "flow_path": "greet → disclose_ask → convince → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-13",
+   "name": "name_confirmed → hardship_other → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → disclose_ask → convince → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-14",
+   "name": "name_confirmed → hardship_other → refuses  ⇒ refused",
+   "flow_path": "greet → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-15",
+   "name": "name_confirmed → hardship_other → stop_signal  ⇒ refused",
+   "flow_path": "greet → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-16",
+   "name": "name_confirmed → hardship_other → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → disclose_ask → convince → callback_close",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-17",
+   "name": "name_confirmed → hardship_other → no_input  ⇒ reached",
+   "flow_path": "greet → disclose_ask → convince → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-18",
+   "name": "name_confirmed → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → disclose_ask → callback_close",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-19",
+   "name": "name_confirmed → stop_signal  ⇒ refused",
+   "flow_path": "greet → disclose_ask → close_refused",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-20",
+   "name": "name_confirmed → no_input  ⇒ reached",
+   "flow_path": "greet → disclose_ask → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-21",
+   "name": "no_input → name_confirmed → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → verify_retry → disclose_ask → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-22",
+   "name": "no_input → name_confirmed → already_paid  ⇒ ptp",
+   "flow_path": "greet → verify_retry → disclose_ask → close_paid",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "จ่ายไปแล้วเมื่อวานค่ะ",
+     "event": "already_paid"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "paid"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-23",
+   "name": "no_input → name_confirmed → hardship_lost_job → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-24",
+   "name": "no_input → name_confirmed → hardship_lost_job → refuses  ⇒ refused",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-25",
+   "name": "no_input → name_confirmed → hardship_lost_job → stop_signal  ⇒ refused",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-26",
+   "name": "no_input → name_confirmed → hardship_lost_job → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → callback_close",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-27",
+   "name": "no_input → name_confirmed → hardship_lost_job → no_input  ⇒ reached",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ช่วงนี้ตกงาน ยังไม่มีเงินเลยค่ะ",
+     "event": "hardship_lost_job"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-28",
+   "name": "no_input → name_confirmed → hardship_sick → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-29",
+   "name": "no_input → name_confirmed → hardship_sick → refuses  ⇒ refused",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-30",
+   "name": "no_input → name_confirmed → hardship_sick → stop_signal  ⇒ refused",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-31",
+   "name": "no_input → name_confirmed → hardship_sick → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → callback_close",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-32",
+   "name": "no_input → name_confirmed → hardship_sick → no_input  ⇒ reached",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ป่วยเข้าโรงพยาบาลอยู่",
+     "event": "hardship_sick"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-33",
+   "name": "no_input → name_confirmed → hardship_other → agrees_to_pay  ⇒ ptp",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → ptp_capture",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "สะดวกครับ จ่ายขั้นต่ำวันนี้เลย",
+     "event": "agrees_to_pay"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_verbal_commitment",
+     "payment_date",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "ptp",
+     "reason": [
+      "ptp",
+      "minimum"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-34",
+   "name": "no_input → name_confirmed → hardship_other → refuses  ⇒ refused",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-35",
+   "name": "no_input → name_confirmed → hardship_other → stop_signal  ⇒ refused",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_refused",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-36",
+   "name": "no_input → name_confirmed → hardship_other → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → callback_close",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-37",
+   "name": "no_input → name_confirmed → hardship_other → no_input  ⇒ reached",
+   "flow_path": "greet → verify_retry → disclose_ask → convince → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ยังไม่สะดวกจ่ายครับ",
+     "event": "hardship_other"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance",
+     "convince_lost_job"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-38",
+   "name": "no_input → name_confirmed → reschedule_request  ⇒ tcb",
+   "flow_path": "greet → verify_retry → disclose_ask → callback_close",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ตอนนี้ไม่สะดวกคุย รบกวนโทรมาใหม่นะครับ",
+     "event": "reschedule_request"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "callback_datetime",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "tcb",
+     "reason": [
+      "callback"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-39",
+   "name": "no_input → name_confirmed → stop_signal  ⇒ refused",
+   "flow_path": "greet → verify_retry → disclose_ask → close_refused",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "อย่าโทรมาอีก จะฟ้อง",
+     "event": "stop_signal"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "refused",
+     "reason": []
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-40",
+   "name": "no_input → name_confirmed → no_input  ⇒ reached",
+   "flow_path": "greet → verify_retry → disclose_ask → close_confirm_info",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ใช่ครับ ผมเองครับ",
+     "event": "name_confirmed"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "disclose_balance"
+    ],
+    "tools_required": [
+     "check_account_status",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "reached",
+     "reason": [
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-41",
+   "name": "no_input → third_party → gives_new_phone  ⇒ unreachable",
+   "flow_path": "greet → verify_retry → third_party → close_unreachable",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ไม่ใช่ครับ เขาไม่อยู่ ผมรับสายแทน",
+     "event": "third_party"
+    },
+    {
+     "says": "เบอร์ใหม่เขา 081-111-2222",
+     "event": "gives_new_phone"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "third_party"
+    ],
+    "tools_required": [
+     "update_phone",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "unreachable",
+     "reason": [
+      "other_person",
+      "wrong_number",
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-42",
+   "name": "no_input → third_party → no_input  ⇒ unreachable",
+   "flow_path": "greet → verify_retry → third_party → close_unreachable",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ไม่ใช่ครับ เขาไม่อยู่ ผมรับสายแทน",
+     "event": "third_party"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "third_party"
+    ],
+    "tools_required": [
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "unreachable",
+     "reason": [
+      "other_person",
+      "wrong_number",
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-43",
+   "name": "no_input → third_party → refuses  ⇒ unreachable",
+   "flow_path": "greet → verify_retry → third_party → close_unreachable",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ไม่ใช่ครับ เขาไม่อยู่ ผมรับสายแทน",
+     "event": "third_party"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name",
+     "third_party"
+    ],
+    "tools_required": [
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "unreachable",
+     "reason": [
+      "other_person",
+      "wrong_number",
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-44",
+   "name": "no_input → no_input  ⇒ unreachable",
+   "flow_path": "greet → verify_retry → close_unreachable",
+   "customer_script": [
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "verify_name"
+    ],
+    "tools_required": [
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "unreachable",
+     "reason": [
+      "other_person",
+      "wrong_number",
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-45",
+   "name": "third_party → gives_new_phone  ⇒ unreachable",
+   "flow_path": "greet → third_party → close_unreachable",
+   "customer_script": [
+    {
+     "says": "ไม่ใช่ครับ เขาไม่อยู่ ผมรับสายแทน",
+     "event": "third_party"
+    },
+    {
+     "says": "เบอร์ใหม่เขา 081-111-2222",
+     "event": "gives_new_phone"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "third_party"
+    ],
+    "tools_required": [
+     "update_phone",
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "unreachable",
+     "reason": [
+      "other_person",
+      "wrong_number",
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-46",
+   "name": "third_party → no_input  ⇒ unreachable",
+   "flow_path": "greet → third_party → close_unreachable",
+   "customer_script": [
+    {
+     "says": "ไม่ใช่ครับ เขาไม่อยู่ ผมรับสายแทน",
+     "event": "third_party"
+    },
+    {
+     "says": "ไม่มีเบอร์อื่นให้ครับ",
+     "event": "no_input"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "third_party"
+    ],
+    "tools_required": [
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "unreachable",
+     "reason": [
+      "other_person",
+      "wrong_number",
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  },
+  {
+   "id": "SKL-FLOW-47",
+   "name": "third_party → refuses  ⇒ unreachable",
+   "flow_path": "greet → third_party → close_unreachable",
+   "customer_script": [
+    {
+     "says": "ไม่ใช่ครับ เขาไม่อยู่ ผมรับสายแทน",
+     "event": "third_party"
+    },
+    {
+     "says": "ยังไงก็จ่ายไม่ได้จริงๆ ครับ",
+     "event": "refuses"
+    }
+   ],
+   "expect": {
+    "beats_in_order": [
+     "greet_verify",
+     "third_party"
+    ],
+    "tools_required": [
+     "record_outcome"
+    ],
+    "outcome": {
+     "result": "unreachable",
+     "reason": [
+      "other_person",
+      "wrong_number",
+      "no_input"
+     ]
+    },
+    "must_not": []
+   },
+   "source": "spec-walk (auto-enumerated)"
+  }
+ ],
+ "compliance": {
+  "note": "spec-declared beat roles for compliance gating (was hardcoded regex in env.py). Auto-derived to preserve behavior.",
+  "verify_fine_states": [
+   "greet_verify",
+   "verify_name"
+  ],
+  "disclose_fine_states": [
+   "ask_pay_today",
+   "disclose_balance"
+  ],
+  "close_fine_states": [
+   "apology",
+   "close",
+   "disclose_balance",
+   "faq_faq_referral",
+   "offer_callback"
+  ]
+ },
+ "session_init": {
+  "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ ไม่มี mapping. เปลี่ยน endpoint ที่ env AAX6_API_BASE ไม่ต้องแก้ spec",
+  "url": "{API_BASE}/SKL/init",
+  "method": "GET",
+  "timeout": 8
+ },
+ "catalog_inline": [
+  {
+   "company": "SKL",
+   "text_id": 1000,
+   "_fine_state": "greet_verify",
+   "template": "สวัสดี{suffix} {pronoun}ติดต่อจากบริษัท[company_name] ไม่ทราบว่ากำลังเรียนสายอยู่กับคุณ [customer_name] ใช่หรือไม่{q_suffix}",
+   "intent_name": "opening_greet_verify",
+   "category": "A",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1001,
+   "_fine_state": "verify_name",
+   "template": "คุณ [customer_name] พูดสายอยู่ใช่ไหม{q_suffix}",
+   "intent_name": "opening_verify_name",
+   "category": "B",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1005,
+   "_fine_state": "third_party",
+   "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ [customer_name] หรือไม่{q_suffix}",
+   "intent_name": "opening_third_party",
+   "category": "B",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1018,
+   "_fine_state": "disclose_balance",
+   "template": "ขออนุญาตแจ้งกำหนดการชำระค่างวดตามสัญญาเช่าซื้อ ซึ่งครบกำหนดใน[due_date] โดยมียอดค่างวดจำนวน [minimum_payment] บาท นะ{q_suffix}",
+   "intent_name": "disclose_balance",
+   "category": "B",
+   "state": "negotiation",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1020,
+   "_fine_state": "ask_pay_today",
+   "template": "ไม่ทราบว่าคุณลูกค้าสะดวกชำระค่างวดภายในวันนี้ไหม{q_suffix}",
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1067,
+   "_fine_state": "convince_lost_job",
+   "template": "ดิฉันเข้าใจในสถานการณ์นะ{q_suffix} อย่างไรคุณลูกค้าลองวางแผนการชำระดูก่อนนะ{q_suffix} เพื่อรักษาประวัติการผ่อนชำระที่ดีไว้ รบกวนลองพยายามชำระภายในวันนี้นะ{q_suffix}",
+   "intent_name": "hardship_convince_lost_job",
+   "category": "A",
+   "state": "hardship",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1068,
+   "_fine_state": "convince_sick",
+   "template": "ดิฉันเข้าใจในสถานการณ์และขอให้คุณลูกค้ามีสุขภาพดีขึ้นโดยเร็วนะ{q_suffix} อย่างไรลองวางแผนการชำระเพื่อรักษาประวัติการผ่อนชำระที่ดีไว้นะ{q_suffix}",
+   "intent_name": "hardship_convince_sick",
+   "category": "A",
+   "state": "hardship",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1069,
+   "_fine_state": "convince_other",
+   "template": "ดิฉันเข้าใจนะ{q_suffix} อย่างไรคุณลูกค้าลองวางแผนการชำระและรวบรวมยอดเงินดูก่อนนะ{q_suffix} เพื่อรักษาประวัติการผ่อนชำระที่ดีไว้ รบกวนลองพยายามชำระภายในวันนี้นะ{q_suffix}",
+   "intent_name": "hardship_convince_other",
+   "category": "A",
+   "state": "hardship",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1041,
+   "_fine_state": "probe_hardship",
+   "template": "รบกวนสอบถามเพิ่มเติมว่า ติดปัญหาด้านใดหรือเปล่า{q_suffix}",
+   "intent_name": "hardship_probe_hardship",
+   "category": "A",
+   "state": "hardship",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1109,
+   "_fine_state": "confirm_info",
+   "template": "ลูกค้ารับทราบข้อมูลครบถ้วนแล้วนะ{q_suffix}",
+   "intent_name": "closing_confirm_info",
+   "category": "A",
+   "state": "closing",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1047,
+   "_fine_state": "close",
+   "template": "ขอขอบคุณที่ใช้บริการบริษัท[company_name] สวัสดี{suffix}",
+   "intent_name": "closing_close",
+   "category": "A",
+   "state": "closing",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1051,
+   "_fine_state": "offer_callback",
+   "template": "ขออนุญาตติดต่อกลับอีกครั้ง{{if callback_date}} [callback_date]{{/if}} นะ{q_suffix} สวัสดี{suffix}",
+   "intent_name": "closing_offer_callback",
+   "category": "A",
+   "state": "closing",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1036,
+   "_fine_state": "apology",
+   "template": "ขออภัยที่รบกวนเวลา{suffix} {pronoun}ขออนุญาตวางสาย เนื่องจากต้องติดต่อคุณ [customer_name] โดยตรง หากลูกค้ามีข้อสงสัย สามารถสอบถามเพิ่มเติมได้ที่ [company_phone] สวัสดี{suffix}",
+   "intent_name": "apology",
+   "category": "B",
+   "state": "closing",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1114,
+   "_fine_state": "faq_caller",
+   "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติของบริษัท[company_name] มีหน้าที่แจ้งเตือนการชำระค่างวดให้กับลูกค้า{suffix}",
+   "intent_name": "faq_caller",
+   "category": "A",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1013,
+   "_fine_state": "ai_disclosure",
+   "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติของบริษัท[company_name] มีหน้าที่แจ้งเตือนการชำระค่างวดให้กับลูกค้า{suffix}",
+   "intent_name": "opening_ai_disclosure",
+   "category": "A",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1071,
+   "_fine_state": "faq_hold",
+   "template": "ได้{suffix} ถ้าสะดวกแล้วบอกนะ{q_suffix}",
+   "intent_name": "faq_hold",
+   "category": "A",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1076,
+   "_fine_state": "faq_repeat",
+   "template": "ขออภัย{suffix} {pronoun}ขออนุญาตแจ้งอีกครั้งนะ{q_suffix}",
+   "intent_name": "faq_repeat",
+   "category": "A",
+   "state": "negotiation",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1031,
+   "_fine_state": "handoff_refuse",
+   "template": "ยินดี{suffix} {pronoun}ขออนุญาตรับเรื่องประสานงานให้เจ้าหน้าที่ติดต่อกลับคุณ [customer_name] ภายใน [num] วันทำการนะ{q_suffix} ขอบคุณที่ใช้บริการบริษัท[company_name] สวัสดี{suffix}",
+   "intent_name": "handoff_refuse",
+   "category": "B",
+   "state": "closing",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1072,
+   "_fine_state": "faq_scam",
+   "template": "{pronoun}เข้าใจในความกังวลนะ{q_suffix} {pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัท[company_name]จริงๆ {suffix} ไม่ใช่มิจฉาชีพ หากไม่มั่นใจ รบกวนติดต่อกลับที่ [company_phone] ได้{suffix}",
+   "intent_name": "faq_scam",
+   "category": "A",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1073,
+   "_fine_state": "faq_annoyed",
+   "template": "ขออภัยที่รบกวนนะ{q_suffix} {pronoun}ขออนุญาตแจ้งเรื่องสำคัญสั้นๆ {suffix}",
+   "intent_name": "faq_annoyed",
+   "category": "A",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1110,
+   "_fine_state": "offer_channel_only",
+   "template": "คุณลูกค้าสามารถชําระภายในวันนี้ผ่านช่องทางรับชำระเงินของบริษัท[company_name]ได้เลยนะ{q_suffix}",
+   "intent_name": "negotiation_offer_channel_only",
+   "category": "A",
+   "state": "negotiation",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1077,
+   "_fine_state": "faq_amount",
+   "template": "คุณ [customer_name] มีค่างวดที่ต้องชำระเป็นจำนวน [minimum_payment] บาท {suffix}",
+   "intent_name": "faq_amount",
+   "category": "A",
+   "state": "negotiation",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1078,
+   "_fine_state": "faq_due",
+   "template": "กำหนดชำระเป็น[due_date] {suffix}",
+   "intent_name": "faq_due",
+   "category": "A",
+   "state": "negotiation",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false
+  },
+  {
+   "company": "SKL",
+   "text_id": 1075,
+   "_fine_state": "faq_wrong_name",
+   "template": "ขออภัยด้วยนะ{q_suffix} หากเรียนชื่อไม่ถูกต้อง รบกวนคุณลูกค้าช่วยยืนยันชื่ออีกครั้งได้ไหม{q_suffix}",
+   "intent_name": "faq_wrong_name",
+   "category": "A",
+   "state": "opening",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1074,
+   "_fine_state": "faq_mourning",
+   "template": "ขอแสดงความเสียใจด้วยนะ{q_suffix} {pronoun}ขออนุญาตบันทึกเรื่องและให้เจ้าหน้าที่ติดต่อกลับภายหลังนะ{q_suffix}",
+   "intent_name": "faq_mourning",
+   "category": "A",
+   "state": "closing",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1079,
+   "_fine_state": "faq_faq_referral",
+   "template": "เรื่องนี้รบกวนติดต่อสอบถามรายละเอียดเพิ่มเติมที่ [company_phone] ได้{suffix}",
+   "intent_name": "faq_faq_referral",
+   "category": "A",
+   "state": "closing",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_synthetic": true
+  },
+  {
+   "company": "SKL",
+   "text_id": 1115,
+   "intent_name": "verify_first",
+   "category": "A",
+   "state": "opening",
+   "template": "ขออนุญาตยืนยันตัวตนก่อนนะคะ ไม่ทราบว่า ดิฉันกำลังเรียนสายอยู่กับคุณ [customer_name] ใช่หรือไม่คะ",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "verify_first",
+   "_real_count": 0
+  },
+  {
+   "company": "SKL",
+   "text_id": 1048,
+   "_fine_state": "ptp_record",
+   "template": "ดิฉันขออนุญาตบันทึกนัดชำระ{{if promised_amount}} [promised_amount] บาท{{/if}}{{if promised_date}} [promised_date]{{/if}} {suffix} เมื่อชำระค่างวดแล้ว เก็บใบเสร็จที่ชำระไว้เป็นหลักฐานก่อนนะ{q_suffix} เมื่อยอดชำระเข้าระบบของทางบริษัทฯแล้ว จะมีข้อความแจ้งกลับไปนะ{q_suffix}",
+   "intent_name": "closing_ptp_record",
+   "category": "A",
+   "state": "closing",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true
+  }
+ ]
+}

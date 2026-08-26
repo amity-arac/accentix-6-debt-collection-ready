@@ -1,0 +1,975 @@
+{
+ "spec_version": 2,
+ "flow_id": "AMT-outbound-appointment",
+ "company": "AMT",
+ "display_name": "โรงพยาบาล AMT",
+ "description": "Non-debt flow — private hospital (AMT) appointment CONFIRMATION call. No name verification: all appointment data is injected in the CRM snapshot up-front. Greet + state the appointment, then branch on confirm (state the doctor's in-clinic time window) / reschedule. On reschedule the agent MUST first look up the doctor's on-duty days via check_doctor_time and offer them; if none of those days suit the patient, offer a DIFFERENT doctor on the patient's preferred day. No debt, no balance, no KYC.",
+ "role": "โทรออกในนามโรงพยาบาลเอกชน AMT เพื่อยืนยันนัดพบแพทย์ของผู้ป่วย — สุภาพ อบอุ่น กระชับ ชัดเจนเรื่องวันเวลา",
+ "agent_role": "เจ้าหน้าที่โรงพยาบาล AMT โทรยืนยันนัดพบแพทย์",
+ "legal_note": "",
+ "sources": [
+  "WYSIWYT diversity demo — hand-authored non-debt flow (hospital appointment + doctor-schedule reschedule)"
+ ],
+ "catalog": "__inline__",
+ "goal": "ทักทาย + แจ้งนัด (ผู้ป่วย/แพทย์/วัน) ทันที ไม่ต้องยืนยันตัวตน → ถ้าสะดวก: ยืนยันนัด + แจ้งช่วงเวลาที่แพทย์เข้าตรวจ → ถ้าไม่สะดวก: เรียก check_doctor_time ดูวันที่แพทย์เข้าเวร เสนอให้ลูกค้าเลือก → ถ้าลูกค้าไม่สะดวกวันที่แพทย์เข้าเลย เสนอเปลี่ยนเป็นแพทย์ท่านอื่นในวันที่ลูกค้าสะดวก → บันทึกผล → ปิดสาย",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "doctor_name",
+  "doctor_schedule",
+  "appointment_date",
+  "visit_time_start",
+  "visit_time_end"
+ ],
+ "events": {
+  "confirms": {
+   "desc": "ผู้ป่วยยืนยันจะเข้าตามนัดเดิม หรือเลือกวันที่แพทย์เข้าเวรที่เสนอไป",
+   "cues": [
+    "สะดวก",
+    "ยืนยัน",
+    "ไปตามนัด",
+    "มาแน่",
+    "ตามเดิม",
+    "เอาวันนั้น",
+    "วันพุธก็ได้"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "ขอเลื่อน/เปลี่ยนวันนัด (ไม่สะดวกตามเดิม) หรือระบุวันที่ขอเลื่อนไป",
+   "cues": [
+    "ไม่สะดวก",
+    "เลื่อน",
+    "เปลี่ยนวัน",
+    "ไม่ว่าง",
+    "ติดธุระ",
+    "ขอเป็นวัน",
+    "วันอื่น"
+   ]
+  },
+  "slot_unavailable": {
+   "desc": "ผู้ป่วยไม่สะดวกวันที่แพทย์เจ้าของไข้เข้าเวรเลยสักวัน (ต้องหาทางเลือกอื่น)",
+   "cues": [
+    "วันพวกนั้นไม่ว่าง",
+    "ไม่สะดวกสักวัน",
+    "วันนั้นติดหมด",
+    "ขอวันอื่นที่ไม่ใช่วันหมอ",
+    "อยากได้วันอังคาร"
+   ]
+  },
+  "no_input": {
+   "desc": "เงียบ หรือตอบไม่ชัด (NO-INPUT)",
+   "cues": [
+    "...",
+    "…",
+    "(เงียบ)",
+    "(ไม่ตอบ)",
+    "อือ..."
+   ]
+  },
+  "third_party": {
+   "desc": "ผู้รับสายไม่ใช่ผู้ป่วย / โทรผิดเบอร์",
+   "cues": [
+    "ไม่ใช่ครับ",
+    "ไม่ใช่ค่ะ",
+    "โทรผิด",
+    "ไม่รู้จัก",
+    "ผิดเบอร์",
+    "ไม่มีคนชื่อนี้"
+   ]
+  },
+  "cancel_request": {
+   "desc": "ผู้ป่วยขอยกเลิกนัด ไม่ประสงค์เข้ารับการตรวจ",
+   "cues": [
+    "ขอยกเลิก",
+    "ยกเลิกนัด",
+    "ไม่ไปแล้ว",
+    "ไม่เอาแล้ว",
+    "ไม่ต้องนัด",
+    "ขอยกเลิกเลย"
+   ]
+  },
+  "other_doctor_request": {
+   "desc": "ผู้ป่วยขอเปลี่ยนแพทย์ (วันเดิมหรือวันใดก็ได้)",
+   "cues": [
+    "ขอเปลี่ยนหมอ",
+    "เปลี่ยนแพทย์",
+    "หมอท่านอื่น",
+    "ขอหมอคนอื่น",
+    "ไม่อยากเจอหมอคนนี้"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "ไม่มีการยืนยันตัวตน — ข้อมูลนัด (ชื่อผู้ป่วย/แพทย์/วัน/ช่วงเวลาแพทย์) ให้มาครบใน CRM snapshot ตั้งแต่ต้นสาย"
+  ],
+  "declarations": [
+   {
+    "name": "check_doctor_time",
+    "impl": "http",
+    "desc": "ดูเวรของแพทย์ที่ระบุ — คืนวัน/เวลาที่แพทย์ท่านนั้นเข้าตรวจ เรียกหลังลูกค้าขอเลื่อนนัด เพื่อเสนอวันให้เลือก",
+    "args": {
+     "name": {
+      "type": "string",
+      "desc": "ชื่อแพทย์เจ้าของไข้ (จาก CRM: {doctor_name})"
+     }
+    },
+    "gating": {
+     "after_event": "reschedule_request",
+     "note": "เรียก (silent) ก่อนเสนอวันเลื่อนเสมอ — ห้ามเดาวันที่แพทย์เข้าเวรเอง"
+    },
+    "url": "{API_BASE}/AMT/check_doctor_time",
+    "method": "POST"
+   },
+   {
+    "name": "save_appointment",
+    "impl": "http",
+    "desc": "บันทึกสถานะนัดหมาย (ยืนยัน/เลื่อน) — เรียกก่อนปิดสายเสมอ",
+    "args": {
+     "status": {
+      "type": "string",
+      "desc": "confirmed / rescheduled",
+      "enum": [
+       "confirmed",
+       "rescheduled",
+       "cancelled",
+       "unreachable",
+       "unresolved"
+      ]
+     },
+     "new_slot": {
+      "type": "string",
+      "desc": "วันที่ลูกค้าเลือกเลื่อนไป — บังคับเมื่อ status=rescheduled เลือกหนึ่งค่าจาก available_dates ที่ check_doctor_time คืนมา และส่งทั้งสตริงรวมวงเล็บชื่อวัน เช่น '2026-09-02 (Wednesday)'",
+      "optional": true,
+      "format": "YYYY-MM-DD (Weekday)",
+      "required_when": {
+       "arg": "status",
+       "equals": "rescheduled"
+      },
+      "one_of_from": {
+       "tool": "check_doctor_time",
+       "field": "available_dates"
+      }
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "note": "เรียกครั้งเดียวตอนปิดสาย ก่อน reply ปิด — ถ้า status=rescheduled ต้องใส่ new_slot ที่ลูกค้าบอกด้วยเสมอ",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/AMT/save_appointment",
+    "method": "POST"
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_remind"
+    }
+   ],
+   "note": "แจ้งนัด (แพทย์ + วันเวลา) แล้วถามว่ายังสะดวกเข้าตามนัดไหม — ห้ามเรียก save_appointment ในเทิร์นแรก ต้องรอคำตอบของผู้ป่วยก่อนเสมอ",
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "confirm_close"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "check_slot"
+    },
+    {
+     "event": "no_input",
+     "to": "greet_retry",
+     "note": "เงียบครั้งแรก — ลองใหม่ครั้งเดียว ห้ามวนซ้ำที่ greet"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party_close"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "other_doctor_request",
+     "to": "offer_other_doctor"
+    }
+   ]
+  },
+  {
+   "id": "check_slot",
+   "phase": "main",
+   "entry_tools": [
+    "check_doctor_time"
+   ],
+   "templates": [
+    {
+     "fine_state": "offer_doctor_slot"
+    }
+   ],
+   "note": "ผู้ป่วยขอเลื่อน — เรียก check_doctor_time (silent) ดูวันที่แพทย์เข้าเวรก่อน แล้วเสนอวันเหล่านั้นให้ผู้ป่วยเลือก (offer_doctor_slot) ห้ามเดาวันเอง",
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close",
+     "note": "ผู้ป่วยเลือกวันที่แพทย์เข้าเวร → บันทึกเลื่อนนัดกับแพทย์คนเดิม"
+    },
+    {
+     "event": "reschedule_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close",
+     "note": "ผู้ป่วยระบุวันที่ตรงกับวันแพทย์เข้าเวร → บันทึกเลื่อน"
+    },
+    {
+     "event": "slot_unavailable",
+     "to": "offer_other_doctor"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "note": "เงียบ ≠ ยินยอมเลื่อนนัด — ปิดสายโดยไม่บันทึกการเลื่อน"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "other_doctor_request",
+     "to": "offer_other_doctor"
+    }
+   ]
+  },
+  {
+   "id": "offer_other_doctor",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_other_doctor"
+    }
+   ],
+   "note": "ผู้ป่วยไม่สะดวกวันที่แพทย์เจ้าของไข้เข้าเวรเลย — ถามว่าสะดวกวันไหน โดยแจ้งว่าวันนั้นอาจต้องเปลี่ยนเป็นแพทย์ท่านอื่นที่เข้าตรวจแทน",
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close_other"
+    },
+    {
+     "event": "reschedule_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close_other"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "note": "เงียบ ≠ ยินยอมเลื่อนนัด — ปิดสายโดยไม่บันทึกการเลื่อน"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "slot_unavailable",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "handoff_close"
+    }
+   ]
+  },
+  {
+   "id": "confirm_close",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "confirmed",
+    "reasons": [
+     "confirmed"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "confirm_visit"
+    }
+   ],
+   "note": "save_appointment(confirmed) แล้วปิดด้วย: ยืนยันนัด + แจ้งช่วงเวลาที่แพทย์เข้าตรวจ ([visit_time_start]-[visit_time_end]) + สวัสดี",
+   "on": [],
+   "entry_tools": [
+    "save_appointment"
+   ]
+  },
+  {
+   "id": "reschedule_close",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "rescheduled",
+    "reasons": [
+     "rescheduled"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_reschedule"
+    }
+   ],
+   "note": "save_appointment(rescheduled, new_slot=<วันที่แพทย์เข้าเวรที่ผู้ป่วยเลือก>) — แพทย์คนเดิม — แล้วปิดด้วยรับทราบการเลื่อน + สวัสดี",
+   "on": [],
+   "entry_tools": [
+    "save_appointment"
+   ]
+  },
+  {
+   "id": "reschedule_close_other",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "rescheduled",
+    "reasons": [
+     "other_doctor"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_reschedule_other"
+    }
+   ],
+   "note": "save_appointment(rescheduled, new_slot=<วันที่ผู้ป่วยสะดวก>) — เปลี่ยนเป็นแพทย์ท่านอื่นที่เข้าตรวจในวันนั้น — แล้วปิดด้วยรับทราบ + แจ้งว่าจะจัดแพทย์ท่านอื่น + สวัสดี",
+   "on": [],
+   "entry_tools": [
+    "save_appointment"
+   ]
+  },
+  {
+   "id": "greet_retry",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "greet_retry"
+    }
+   ],
+   "note": "ลองอีกครั้งเดียว ถ้ายังเงียบให้ปิดสาย",
+   "max_visits": 1,
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "confirm_close"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "check_slot"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party_close"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    },
+    {
+     "event": "other_doctor_request",
+     "to": "offer_other_doctor"
+    }
+   ]
+  },
+  {
+   "id": "cancel_close",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "thank_cancel"
+    }
+   ],
+   "note": "บันทึก status=cancelled เพื่อปล่อยคิวคืน ห้ามบันทึกเป็น rescheduled",
+   "terminal": true,
+   "outcome": {
+    "result": "cancelled",
+    "reasons": [
+     "patient_request"
+    ]
+   }
+  },
+  {
+   "id": "third_party_close",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "wrong_person"
+    }
+   ],
+   "note": "ไม่ใช่ผู้ป่วย — ไม่ต้องย้ำรายละเอียดนัด ปิดสายสุภาพ",
+   "terminal": true,
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "wrong_number"
+    ]
+   }
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "close_unreachable"
+    }
+   ],
+   "note": "ไม่มีการตอบ — ห้ามบันทึกเลื่อนนัดจากความเงียบ",
+   "terminal": true,
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "no_input"
+    ]
+   }
+  },
+  {
+   "id": "handoff_close",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "handoff_schedule"
+    }
+   ],
+   "note": "ไม่มีวันไหนตรงกัน — ส่งต่อเจ้าหน้าที่ ห้ามบันทึกว่าเลื่อนสำเร็จ",
+   "terminal": true,
+   "outcome": {
+    "result": "unresolved",
+    "reasons": [
+     "no_slot_agreed"
+    ]
+   }
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "purpose",
+    "desc": "ถามว่านัดเรื่องอะไร / ตรวจอะไร",
+    "templates": [
+     {
+      "fine_state": "faq_purpose"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "cost",
+    "desc": "ถามค่าใช้จ่าย",
+    "templates": [
+     {
+      "fine_state": "faq_cost"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "preparation",
+    "desc": "ถามการเตรียมตัว เช่น งดน้ำงดอาหาร",
+    "templates": [
+     {
+      "fine_state": "faq_preparation"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "location",
+    "desc": "ถามสถานที่ / การเดินทาง",
+    "templates": [
+     {
+      "fine_state": "faq_location"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "ai_or_human",
+    "desc": "ถามว่าเป็นคนหรือระบบอัตโนมัติ",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "repeat",
+    "desc": "ขอให้ทวนนัดอีกครั้ง / ฟังไม่ชัด",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume"
+   }
+  ],
+  "note": "ตอบคำถามสั้นๆ แล้วกลับไปทำ flow ต่อทันที เรื่องที่เกินขอบเขต ให้ส่งต่อเจ้าหน้าที่ ห้ามเดาข้อมูลทางการแพทย์"
+ },
+ "auxiliary_templates": {
+  "allowed": []
+ },
+ "constraints": [
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ทักทาย + แจ้งนัดจาก CRM snapshot ได้ทันทีตั้งแต่ต้นสาย — ไม่ต้องยืนยันตัวตน ไม่มีเรื่องยอดเงิน/หนี้"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ปิดสายต้องเรียก save_appointment ก่อนพูดประโยคปิดเสมอ (status = confirmed / rescheduled)"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ถ้าผู้ป่วยยืนยันเข้าตามนัด: ต้องแจ้งช่วงเวลาที่แพทย์เข้าตรวจ ([visit_time_start]-[visit_time_end]) ในประโยคยืนยัน"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ถ้าผู้ป่วยไม่สะดวก (ขอเลื่อน): **ต้องเรียก check_doctor_time (silent) ก่อนเสมอ** เพื่อดูวันที่แพทย์เจ้าของไข้เข้าตรวจ **ห้ามเดาวันเอง** แล้วเสนอวันเหล่านั้นให้ผู้ป่วยเลือก (offer_doctor_slot)"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ถ้าผู้ป่วยเลือกวันที่แพทย์เข้าเวรวันใดวันหนึ่ง: เรียก save_appointment(status='rescheduled', new_slot='<วันที่เลือก>') — เป็นแพทย์คนเดิม — แล้วปิดด้วย thank_reschedule"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ถ้าผู้ป่วยไม่สะดวกวันที่แพทย์เข้าเวรเลยสักวัน (slot_unavailable): ถามว่าผู้ป่วยสะดวกวันไหน (ask_other_doctor) โดยแจ้งว่าวันนั้นอาจต้องเปลี่ยนเป็นแพทย์ท่านอื่นที่เข้าตรวจแทน — พอผู้ป่วยบอกวัน ให้ save_appointment(status='rescheduled', new_slot='<วันที่ผู้ป่วยสะดวก>') แล้วปิดด้วย thank_reschedule_other — new_slot ต้องเป็นวันที่ผู้ป่วยบอก ห้ามเว้นว่าง"
+  },
+  {
+   "id": "no_close_before_answer",
+   "desc": "ห้ามเรียก save_appointment ก่อนที่ผู้ป่วยจะตอบว่ายืนยัน/เลื่อน/ยกเลิก — คำทักทายรับสาย (ฮัลโหล/สวัสดี/ว่าไงครับ) ไม่ใช่การยืนยันนัด",
+   "enforce": [
+    "prompt",
+    "reward"
+   ]
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ความเงียบไม่ใช่การตกลง:** ลูกค้าตอบว่า '...' / '(เงียบ)' / ตอบไม่เป็นคำพูดที่ตีความได้ = เหตุการณ์ `no_input` เท่านั้น — **ห้ามถือเป็น agrees_to_pay ห้ามเรียก record_verbal_commitment / payment_date และห้ามบันทึกผลเป็น ptp** ให้เดินตาม transition ของ no_input ใน state ปัจจุบัน (ถามซ้ำ หรือปิดสายตามที่ flow กำหนด) การบันทึกคำมั่นจากความเงียบถือว่าผิดร้ายแรงเทียบเท่ากับบันทึกคำมั่นที่ลูกค้าไม่ได้ให้"
+  }
+ ],
+ "outcomes": {
+  "required_at_close": true,
+  "results": {
+   "confirmed": {
+    "reasons": [
+     "confirmed"
+    ],
+    "desc": "ผู้ป่วยยืนยันเข้าตามนัดเดิม"
+   },
+   "rescheduled": {
+    "reasons": [
+     "rescheduled",
+     "other_doctor"
+    ],
+    "desc": "ผู้ป่วยขอเลื่อนนัด (แพทย์คนเดิมวันที่เข้าเวร / หรือเปลี่ยนเป็นแพทย์ท่านอื่นในวันที่ผู้ป่วยสะดวก)"
+   },
+   "cancelled": {
+    "reasons": [
+     "patient_request"
+    ],
+    "desc": "ผู้ป่วยขอยกเลิกนัด"
+   },
+   "unreachable": {
+    "reasons": [
+     "wrong_number",
+     "no_input"
+    ],
+    "desc": "ติดต่อผู้ป่วยไม่ได้ (ผิดคน / ไม่มีการตอบ)"
+   },
+   "unresolved": {
+    "reasons": [
+     "no_slot_agreed"
+    ],
+    "desc": "ตกลงวันนัดไม่ได้ในสายนี้ — ส่งต่อเจ้าหน้าที่จัดคิว"
+   }
+  }
+ },
+ "compliance": {
+  "note": "spec-declared beat roles for compliance gating (was hardcoded regex in env.py). Auto-derived to preserve behavior.",
+  "verify_fine_states": [],
+  "disclose_fine_states": [],
+  "close_fine_states": []
+ },
+ "session_init": {
+  "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ ไม่มี mapping. เปลี่ยน endpoint ที่ env AAX6_API_BASE ไม่ต้องแก้ spec",
+  "url": "{API_BASE}/AMT/init",
+  "method": "GET",
+  "timeout": 8
+ },
+ "catalog_inline": [
+  {
+   "company": "AMT",
+   "text_id": 8501,
+   "intent_name": "greet_remind",
+   "category": "A",
+   "state": "opening",
+   "template": "สวัสดีค่ะคุณ [customer_name] โรงพยาบาล AMT โทรมาแจ้งเตือนว่าคุณมีนัดพบ [doctor_name] [appointment_date] ค่ะ ไม่ทราบว่ายังสะดวกเข้าตามนัดเหมือนเดิมไหมคะ",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_remind",
+   "_real_count": 0,
+   "hint": "เปิดสายแบบแจ้งเตือนนัด"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8502,
+   "intent_name": "greet_remind",
+   "category": "A",
+   "state": "opening",
+   "template": "สวัสดีค่ะ ที่นี่โรงพยาบาล AMT ค่ะ โทรมายืนยันนัดของคุณ [customer_name] ที่มีนัดพบ [doctor_name] [appointment_date] นะคะ ไม่ทราบว่ายังสะดวกมาตามนัดไหมคะ",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_remind",
+   "_real_count": 0,
+   "hint": "เปิดสายแบบยืนยันนัด"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8512,
+   "intent_name": "offer_doctor_slot",
+   "category": "A",
+   "state": "main",
+   "template": "ไม่เป็นไรค่ะ ดิฉันเช็คตารางให้แล้วนะคะ [doctor_name] เข้าตรวจ [available_dates_text] ค่ะ ไม่ทราบว่าคุณ [customer_name] สะดวกวันไหนคะ เดี๋ยวดิฉันบันทึกเลื่อนนัดให้เลยค่ะ",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "offer_doctor_slot",
+   "_real_count": 0,
+   "hint": "เช็คตารางเรียบร้อยแล้ว เสนอวันได้เลย"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8513,
+   "intent_name": "offer_doctor_slot",
+   "category": "A",
+   "state": "main",
+   "template": "ได้ค่ะ ขอเช็คตารางแพทย์ให้สักครู่นะคะ [doctor_name] เข้าตรวจ [available_dates_text] ค่ะ คุณสะดวกเลื่อนไปวันไหนดีคะ",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "offer_doctor_slot",
+   "_real_count": 0,
+   "hint": "บอกว่าขอเช็คตารางสักครู่ ก่อนเสนอวัน"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8514,
+   "intent_name": "ask_other_doctor",
+   "category": "A",
+   "state": "main",
+   "template": "เข้าใจค่ะ ถ้าวันที่ [doctor_name] เข้าตรวจไม่สะดวกเลย ไม่ทราบว่าคุณสะดวกวันไหนคะ วันนั้นอาจจะต้องเปลี่ยนเป็นแพทย์ท่านอื่นที่เข้าตรวจแทนนะคะ จะสะดวกไหมคะ",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ask_other_doctor",
+   "_real_count": 0,
+   "hint": "ถามวันสะดวก — สลับกับ 8515 ได้"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8515,
+   "intent_name": "ask_other_doctor",
+   "category": "A",
+   "state": "main",
+   "template": "ไม่เป็นไรค่ะ ถ้าช่วงที่คุณหมอท่านเดิมเข้าตรวจไม่สะดวก รบกวนแจ้งวันที่คุณสะดวกได้เลยค่ะ วันนั้นทางโรงพยาบาลจะจัดแพทย์ท่านอื่นที่เข้าตรวจให้แทนนะคะ สะดวกไหมคะ",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ask_other_doctor",
+   "_real_count": 0,
+   "hint": "ถามวันสะดวก — สลับกับ 8514 ได้"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8520,
+   "intent_name": "confirm_visit",
+   "category": "A",
+   "state": "closing",
+   "template": "ขอบคุณค่ะ ยืนยันนัดของคุณ [customer_name] เรียบร้อยแล้วนะคะ [doctor_name] จะเข้าตรวจในช่วงเวลา [visit_time_start] - [visit_time_end] รบกวนคุณมาถึงก่อนเวลานัดเล็กน้อยนะคะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "confirm_visit",
+   "_real_count": 0,
+   "hint": "ยืนยันนัดเรียบร้อย — สลับกับ 8521 ได้"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8521,
+   "intent_name": "confirm_visit",
+   "category": "A",
+   "state": "closing",
+   "template": "รับทราบค่ะ ทางเรายืนยันนัดของคุณ [customer_name] เรียบร้อยแล้ว โดย [doctor_name] จะเข้าตรวจช่วง [visit_time_start] - [visit_time_end] แล้วพบกันที่โรงพยาบาลนะคะ สวัสดีค่ะ",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "confirm_visit",
+   "_real_count": 0,
+   "hint": "ยืนยันนัดเรียบร้อย — สลับกับ 8520 ได้"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8530,
+   "intent_name": "thank_reschedule",
+   "category": "A",
+   "state": "closing",
+   "template": "รับทราบค่ะ ดิฉันบันทึกเลื่อนนัดของคุณ [customer_name] กับ [doctor_name] เป็น [new_slot] เรียบร้อยแล้วนะคะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "thank_reschedule",
+   "_real_count": 0
+  },
+  {
+   "company": "AMT",
+   "text_id": 8540,
+   "intent_name": "thank_reschedule_other",
+   "category": "A",
+   "state": "closing",
+   "template": "รับทราบค่ะ ดิฉันบันทึกเลื่อนนัดของคุณ [customer_name] เป็น [new_slot] เรียบร้อยแล้ว โดยจะจัดแพทย์ท่านอื่นที่เข้าตรวจในวันนั้นให้แทนนะคะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "thank_reschedule_other",
+   "_real_count": 0,
+   "hint": "บันทึกเลื่อนนัดเรียบร้อย — สลับกับ 8541 ได้"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8541,
+   "intent_name": "thank_reschedule_other",
+   "category": "A",
+   "state": "closing",
+   "template": "ได้ค่ะ ดิฉันบันทึกเลื่อนนัดเป็น [new_slot] ให้แล้วนะคะ วันนั้นจะเป็นแพทย์ท่านอื่นที่เข้าตรวจแทน [doctor_name] ค่ะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "thank_reschedule_other",
+   "_real_count": 0,
+   "hint": "บันทึกเลื่อนนัดเรียบร้อย — สลับกับ 8540 ได้"
+  },
+  {
+   "company": "AMT",
+   "text_id": 8503,
+   "intent_name": "greet_retry",
+   "_fine_state": "greet_retry",
+   "category": "A",
+   "state": "opening",
+   "template": "ขออภัยค่ะ สัญญาณอาจไม่ชัดเจน ไม่ทราบว่าได้ยินเสียงดิฉันไหมคะ ดิฉันติดต่อจากโรงพยาบาล AMT ค่ะ",
+   "expects_response": true,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": false
+  },
+  {
+   "company": "AMT",
+   "text_id": 8504,
+   "intent_name": "wrong_person",
+   "_fine_state": "wrong_person",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัยที่รบกวนค่ะ ดิฉันขออนุญาตวางสาย เนื่องจากต้องเรียนสายกับคุณ [customer_name] โดยตรงนะคะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": true
+  },
+  {
+   "company": "AMT",
+   "text_id": 8505,
+   "intent_name": "close_unreachable",
+   "_fine_state": "close_unreachable",
+   "category": "A",
+   "state": "closing",
+   "template": "ไม่เป็นไรค่ะ ดิฉันขออนุญาตติดต่อกลับมาอีกครั้งนะคะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": true
+  },
+  {
+   "company": "AMT",
+   "text_id": 8531,
+   "intent_name": "thank_cancel",
+   "_fine_state": "thank_cancel",
+   "category": "A",
+   "state": "closing",
+   "template": "รับทราบค่ะ ดิฉันบันทึกยกเลิกนัดของคุณ [customer_name] กับ [doctor_name] เรียบร้อยแล้วนะคะ หากต้องการนัดใหม่ ติดต่อได้ที่ [company_phone] ค่ะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": true
+  },
+  {
+   "company": "AMT",
+   "text_id": 8550,
+   "intent_name": "faq_purpose",
+   "_fine_state": "faq_purpose",
+   "category": "C",
+   "state": "faq",
+   "template": "เป็นนัดตรวจตามแผนการรักษากับ [doctor_name] ค่ะ หากต้องการรายละเอียดของการตรวจ เจ้าหน้าที่คลินิกยินดีแจ้งให้ทราบที่ [company_phone] นะคะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": false
+  },
+  {
+   "company": "AMT",
+   "text_id": 8551,
+   "intent_name": "faq_cost",
+   "_fine_state": "faq_cost",
+   "category": "C",
+   "state": "faq",
+   "template": "ค่าใช้จ่ายขึ้นอยู่กับรายการตรวจที่แพทย์พิจารณาในวันนั้นค่ะ ดิฉันขออนุญาตให้เจ้าหน้าที่แจ้งรายละเอียดที่ [company_phone] นะคะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": false
+  },
+  {
+   "company": "AMT",
+   "text_id": 8552,
+   "intent_name": "faq_preparation",
+   "_fine_state": "faq_preparation",
+   "category": "C",
+   "state": "faq",
+   "template": "การเตรียมตัวก่อนตรวจขึ้นอยู่กับรายการที่แพทย์นัดค่ะ รบกวนสอบถามเจ้าหน้าที่คลินิกที่ [company_phone] เพื่อความถูกต้องนะคะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": false
+  },
+  {
+   "company": "AMT",
+   "text_id": 8553,
+   "intent_name": "faq_location",
+   "_fine_state": "faq_location",
+   "category": "C",
+   "state": "faq",
+   "template": "นัดของคุณ [customer_name] อยู่ที่โรงพยาบาล AMT ค่ะ หากต้องการรายละเอียดการเดินทาง หรือจุดติดต่อ สอบถามได้ที่ [company_phone] นะคะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": false
+  },
+  {
+   "company": "AMT",
+   "text_id": 8554,
+   "intent_name": "ai_disclosure",
+   "_fine_state": "ai_disclosure",
+   "category": "C",
+   "state": "faq",
+   "template": "ดิฉันเป็นผู้ช่วยอัตโนมัติของโรงพยาบาล AMT ค่ะ โทรมาเพื่อยืนยันนัดพบแพทย์ หากต้องการคุยกับเจ้าหน้าที่ ติดต่อได้ที่ [company_phone] นะคะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": false
+  },
+  {
+   "company": "AMT",
+   "text_id": 8555,
+   "intent_name": "faq_repeat",
+   "_fine_state": "faq_repeat",
+   "category": "C",
+   "state": "faq",
+   "template": "ได้ค่ะ ดิฉันขออนุญาตแจ้งอีกครั้งนะคะ คุณ [customer_name] มีนัดพบ [doctor_name] [appointment_date] เวลา [appointment_time] ค่ะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": false
+  },
+  {
+   "company": "AMT",
+   "text_id": 8560,
+   "intent_name": "handoff_schedule",
+   "_fine_state": "handoff_schedule",
+   "category": "A",
+   "state": "closing",
+   "template": "ไม่เป็นไรค่ะ ดิฉันขออนุญาตให้เจ้าหน้าที่ติดต่อกลับเพื่อจัดวันนัดใหม่ให้คุณ [customer_name] อีกครั้งนะคะ ขอบคุณค่ะ สวัสดีค่ะ",
+   "expects_response": false,
+   "is_acknowledgment": false,
+   "is_demand": false,
+   "is_closer": true
+  }
+ ]
+}

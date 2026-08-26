@@ -1,0 +1,2456 @@
+{
+ "spec_version": "2.2-core+overpay+floor2",
+ "flow_id": "AEON-outbound-remind",
+ "company": "AEON",
+ "display_name": "อิออน",
+ "description": "Machine-readable FlowSpec of the production AEON 'Outbound - Remind' voice-bot flow — the same flow the v11 instruction describes in prose. Single source of truth for: prompt rendering, backend enforcement, GRPO reward, and synthetic-flow generation. [v11.1: ปิดเคสจ่ายวันนี้โดยไม่ถามวัน/ช่องทางซ้ำ; channel optional]",
+ "role": "พูดคุยกระชับ สุภาพ เป็นธรรมชาติเหมือนเจ้าหน้าที่คุยทางโทรศัพท์",
+ "sources": [
+  "data/system_instructions/pre-script/v11_communicator_instruction-AEON.md",
+  "documentation/v10-teacher-flow-map.md",
+  "src/aax6/core/backend.py"
+ ],
+ "catalog": "__inline__",
+ "goal": "ทักทาย/ยืนยันชื่อ → แจ้งยอด → ชวนชำระวันนี้ → (ลังเล) โน้มน้าวตามเหตุ → ปิดสาย/นัด — สั้น กระชับ เหมือนคนคุยโทรศัพท์",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "amount",
+  "minimum_payment",
+  "due_date",
+  "due_status",
+  "company_phone"
+ ],
+ "crm_labels": {
+  "today": "วันนี้",
+  "customer_name": "ชื่อลูกค้า",
+  "amount": "ยอดค้างชำระทั้งหมด",
+  "minimum_payment": "ยอดชำระขั้นต่ำ",
+  "due_date": "วันครบกำหนด",
+  "due_status": "สถานะ",
+  "company_phone": "เบอร์บริษัท"
+ },
+ "events": {
+  "name_confirmed": {
+   "desc": "ลูกค้ายืนยันว่าเป็นเจ้าของชื่อ",
+   "cues": [
+    "ใช่",
+    "พูดอยู่",
+    "Correct",
+    "Speaking",
+    "This is him/her",
+    "พูดสายอยู่",
+    "...กำลังเรียนสาย"
+   ]
+  },
+  "no_input": {
+   "desc": "เงียบ หรือตอบไม่ชัดจนตีความไม่ได้ (NO-INPUT — ไม่ใช่การปฏิเสธ)",
+   "cues": [
+    "...",
+    "…",
+    "(เงียบ)",
+    "(ไม่ตอบ)",
+    "อือ...",
+    "asdfghjkl",
+    "อ้าว",
+    "เอ๊ะ",
+    "อ้าวทำไม",
+    "โห",
+    "หือ",
+    "Leave a message",
+    "ฝากข้อความหลังเสียงสัญญาณ",
+    "ฝาก หมายเลข นี้ กด 1 ฝาก หมายเลข โทร กลับ หมายเลข อื่น กด 2"
+   ]
+  },
+  "third_party": {
+   "desc": "คนอื่นรับสาย / ปลายสายบอกว่าไม่ใช่เจ้าของชื่อ",
+   "cues": [
+    "He is not home",
+    "พ่อไปตลาดครับ",
+    "คุณนพเก้าเข้าประชุมค่ะ",
+    "เขาไม่สะดวกค่ะ",
+    "He's busy",
+    "I'm his wife",
+    "คุยกับดิฉันแทนได้เลย",
+    "ผมเป็นเลขาครับ",
+    "เขายังไม่กลับครับ",
+    "มีธุระอะไรกับเขาคะ",
+    "I am his lawyer, you can talk to me",
+    "รบกวนติดต่อเลขาก่อนค่ะ"
+   ]
+  },
+  "agrees_to_pay": {
+   "desc": "รับปากจะชำระ — วันนี้ หรือให้วันที่/จำนวน/ช่องทางมา",
+   "cues": [
+    "สะดวกเดี๋ยวไปจ่ายเอง",
+    "จ่ายให้ค่ะ",
+    "เดี๋ยวจัดการให้",
+    "รู้แล้วเดี๋ยวไปจ่าย",
+    "I'll pay it when I'm ready",
+    "เดี๋ยวดูให้อีกที",
+    "จ่ายวันนี้",
+    "โอนให้เย็นนี้",
+    "เดี๋ยวไปจ่ายตอนนี้เลย",
+    "Paying now",
+    "Within this evening",
+    "จ่ายวันที่ 25",
+    "ขอจ่าย 3000",
+    "จ่าย 4000 ได้ไหม",
+    "ขอชำระ 5000",
+    "จ่ายแค่ 3000"
+   ]
+  },
+  "already_paid": {
+   "desc": "แจ้งว่าชำระไปแล้ว",
+   "cues": [
+    "จ่ายไปก่อนรอบบัญชีตัด",
+    "หักบัญชีอยู่แล้ว",
+    "ตัดผ่านบัตร",
+    "Autopay",
+    "อัตโนมัติ"
+   ]
+  },
+  "hardship_lost_job": {
+   "desc": "จ่ายไม่ได้เพราะตกงาน/รายได้หด",
+   "cues": [
+    "เงินเดือนออกแล้วจะจ่าย",
+    "รอเงินจากลูกค้า",
+    "ขายของได้เมื่อไหร่เดี๋ยวไปจ่าย",
+    "Waiting for salary",
+    "Waiting for client payment",
+    "ไม่มีปัญญาจ่าย",
+    "ไม่มีเงินเลย",
+    "ตกงานมานานแล้ว",
+    "Too much debt"
+   ]
+  },
+  "hardship_sick": {
+   "desc": "จ่ายไม่ได้เพราะป่วย/ปัญหาสุขภาพ",
+   "cues": [
+    "ป่วยติดเตียง"
+   ]
+  },
+  "hardship_other": {
+   "desc": "ลังเล/จ่ายไม่ได้ด้วยเหตุอื่น หรือปฏิเสธครั้งแรกแบบไม่ให้เหตุ",
+   "cues": [
+    "tight",
+    "หมุนเงินไม่ทัน",
+    "ช่วงนี้ช็อต",
+    "ไม่มีเงินก้อน",
+    "จ่ายไม่ได้",
+    "ไม่มี",
+    "ไม่มีเงิน",
+    "ไม่มีให้",
+    "Short on cash",
+    "Money is tight",
+    "ลืมสนิทเลย",
+    "ยุ่งจนลืมจ่าย"
+   ]
+  },
+  "refuses": {
+   "desc": "ยังปฏิเสธ/ยืนยันจ่ายไม่ได้หลังถูกโน้มน้าวแล้ว — คำเดิมหรือคำใหม่ก็นับ",
+   "cues": [
+    "I'm not paying",
+    "Sue me if you want",
+    "No money, no talk",
+    "Stop calling, I won't pay",
+    "ไม่จ่าย",
+    "อยากฟ้องก็ฟ้องเลย",
+    "ไม่มี ไม่หนี ไม่จ่าย",
+    "อยากได้ไปฟ้องเอา",
+    "ไม่ต้องโทรมาแล้ว ยังไงก็ไม่จ่าย"
+   ]
+  },
+  "stop_signal": {
+   "desc": "สัญญาณปฏิเสธที่ต้องหยุดทันที ไม่ต้องรอครบโควตาโน้มน้าว",
+   "cues": [
+    "บอกแล้วไง",
+    "ไม่มีจริงๆ",
+    "ฟังกันบ้างไหม",
+    "พูดซ้ำสิ่งเดิมครั้งที่ 2 ด้วยน้ำเสียงรำคาญ",
+    "หยุดโทร",
+    "เลิกโทรมาสักที",
+    "จะฟ้อง กทน.",
+    "Do not call me again",
+    "Stop calling, I've never used your service"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "ขอเลื่อน / ขอให้โทรกลับภายหลัง",
+   "cues": [
+    "Call back later",
+    "Busy, try again tomorrow",
+    "สะดวกช่วงบ่าย",
+    "พรุ่งนี้ค่อยโทรมาใหม่",
+    "เดี๋ยวโทรกลับเอง",
+    "I'm busy",
+    "ไม่สะดวกคุยตอนนี้",
+    "ขับรถอยู่",
+    "ติดประชุมอยู่ครับ",
+    "I'm in a meeting",
+    "ยุ่งอยู่ครับ",
+    "รบกวนโทรกลับ",
+    "ขอให้โทรกลับ",
+    "โทรกลับพรุ่งนี้",
+    "ไม่สะดวกตอนนี้ โทรมาใหม่",
+    "โทรมาใหม่ทีหลัง"
+   ]
+  },
+  "gives_new_phone": {
+   "desc": "ให้เบอร์ติดต่อใหม่",
+   "cues": [
+    "Change my number",
+    "I have a new phone",
+    "ขอเปลี่ยนเบอร์โทรใหม่",
+    "ใช้เบอร์นี้แทนเบอร์เดิมนะ",
+    "ให้ส่งบิลมาที่เบอร์ใหม่",
+    "ส่ง SMS มาที่เบอร์นี้แทน"
+   ]
+  },
+  "faq": {
+   "desc": "คำถาม/คำพูดแทรกระหว่างสาย — route ตาม faq_routing แล้วกลับเข้า state เดิม",
+   "cues": [
+    "Who is this?",
+    "โทรจากไหน",
+    "ธนาคารอะไรนะคะ",
+    "จากบริษัทอะไร",
+    "ขอดูบัตรพนักงานหน่อย",
+    "มีรหัสพนักงานไหม",
+    "มีไรโทรมาจากไหนโทรมาทำไม",
+    "Why",
+    "What is this about?",
+    "Why are you calling?",
+    "มีธุระอะไร",
+    "โทรมาทำไม"
+   ]
+  },
+  "offers_below_min": {
+   "desc": "เสนอจ่ายจำนวนเฉพาะที่ต่ำกว่ายอดขั้นต่ำ ([minimum_payment]) — ต้องเทียบตัวเลขกับขั้นต่ำก่อนจัด event",
+   "cues": [
+    "ขอจ่ายแค่ 2000 ได้ไหม",
+    "จ่าย 500 ก่อนได้ไหม",
+    "ขอ ชำระ แค่ 2,000 บาท ก่อน ได้ ไหม",
+    "มีแค่พันเดียว",
+    "Can I pay just 1,000?"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "ไม่มี KYC ถามเลข 4 หลัก และไม่มีการโอนสายไปเจ้าหน้าที่จริง"
+  ],
+  "declarations": [
+   {
+    "name": "check_account_status",
+    "impl": "http",
+    "desc": "อ่านข้อมูลบัญชี (ยอด/วันครบกำหนด/สถานะ)",
+    "args": {},
+    "gating": {
+     "after_event": "name_confirmed",
+     "required_before_state": "disclose_ask",
+     "max_calls_per_conversation": 1,
+     "note": "ห้ามเรียก turn แรกก่อนทักทาย; เรียกทันทีหลังลูกค้ายืนยันชื่อ ก่อน reply แจ้งยอดครั้งแรก"
+    },
+    "url": "{API_BASE}/AEON/check_account_status",
+    "method": "POST"
+   },
+   {
+    "name": "record_verbal_commitment",
+    "impl": "http",
+    "desc": "บันทึกคำมั่นด้วยวาจา (amount, date; channel เป็น optional — จ่ายวันนี้ไม่ต้องใส่/ไม่ต้องถาม)",
+    "args": {
+     "amount": {
+      "type": "string"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ],
+      "optional": true
+     }
+    },
+    "gating": {
+     "must_precede": "payment_date",
+     "note": "ต้องเรียก get_current_datetime ก่อนเสมอ เพื่อได้ date รูปแบบ canonical (กัน date_format_invalid)"
+    },
+    "url": "{API_BASE}/AEON/record_verbal_commitment",
+    "method": "POST"
+   },
+   {
+    "name": "payment_date",
+    "impl": "http",
+    "desc": "บันทึกนัดชำระลง CRM (channel เป็น optional — จ่ายวันนี้ไม่ต้องถามช่องทาง)",
+    "args": {
+     "last_4_digits": {
+      "type": "string",
+      "optional": true
+     },
+     "amount": {
+      "type": "number"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ],
+      "optional": true
+     }
+    },
+    "gating": {
+     "requires_prior": "record_verbal_commitment",
+     "args_must_match_commitment": true
+    },
+    "url": "{API_BASE}/AEON/payment_date",
+    "method": "POST"
+   },
+   {
+    "name": "callback_datetime",
+    "impl": "http",
+    "desc": "บันทึกนัดโทรกลับ — เรียกเมื่อลูกค้าขอเลื่อน/ให้ติดต่อกลับ (date รูปแบบ canonical; เรียก get_current_datetime ก่อนถ้าเป็นวันอื่น)",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "time": {
+      "type": "string",
+      "format": "HH:MM",
+      "optional": true
+     }
+    },
+    "url": "{API_BASE}/AEON/callback_datetime",
+    "method": "POST"
+   },
+   {
+    "name": "get_current_datetime",
+    "impl": "http",
+    "desc": "ขอวันที่มาตรฐานรูปแบบ YYYY-MM-DD (Weekday) — **เรียกก่อน record_verbal_commitment/payment_date/callback_datetime ทุกครั้ง แม้จ่ายวันนี้** เพื่อกัน date_format_invalid",
+    "args": {},
+    "gating": {
+     "must_precede": [
+      "record_verbal_commitment",
+      "payment_date",
+      "callback_datetime"
+     ]
+    },
+    "url": "{API_BASE}/AEON/get_current_datetime",
+    "method": "POST"
+   },
+   {
+    "name": "record_outcome",
+    "impl": "http",
+    "desc": "บันทึกผลสาย (result, reason, remark)",
+    "args": {
+     "result": {
+      "type": "string",
+      "enum": [
+       "ptp",
+       "refused",
+       "unreachable",
+       "reached",
+       "tcb",
+       "tin"
+      ]
+     },
+     "reason": {
+      "type": "string",
+      "optional": true
+     },
+     "remark": {
+      "type": "string",
+      "optional": true
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/AEON/record_outcome",
+    "method": "POST"
+   },
+   {
+    "name": "update_phone",
+    "impl": "http",
+    "desc": "บันทึกเบอร์ติดต่อใหม่",
+    "args": {
+     "phone": {
+      "type": "string"
+     }
+    },
+    "url": "{API_BASE}/AEON/update_phone",
+    "method": "POST"
+   }
+  ],
+  "validation": {
+   "date_format": "YYYY-MM-DD (Weekday)",
+   "payment_channels": [
+    "atm",
+    "bank_transfer",
+    "branch",
+    "counter_service",
+    "mobile_app",
+    "other"
+   ],
+   "case_status_gates": {
+    "pending_review": "account_under_review",
+    "closed": "account_closed"
+   },
+   "result_codes": [
+    "ptp",
+    "refused",
+    "unreachable",
+    "reached",
+    "tcb",
+    "tin"
+   ]
+  }
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_verify"
+    }
+   ],
+   "note": "reply ทักทาย+ยืนยันชื่อก่อน ยังไม่เรียก tool ใดๆ",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "no_input",
+     "to": "verify_retry"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    }
+   ]
+  },
+  {
+   "id": "verify_retry",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "verify_name"
+    }
+   ],
+   "note": "ถามยืนยันชื่อซ้ำ — อนุญาตเฉพาะกรณี NO-INPUT เท่านั้น",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "inferred": true,
+     "note": "เงียบซ้ำรอบสอง → ปิดสาย unreachable",
+     "spec_note": "ไม่ระบุตรงๆ ใน v11 instruction; อนุมานจาก production behavior"
+    }
+   ]
+  },
+  {
+   "id": "third_party",
+   "phase": "opening",
+   "templates": [
+    {
+     "any_of": [
+      "third_party",
+      "third_party_know"
+     ]
+    }
+   ],
+   "note": "คนอื่นรับสาย — ขอเบอร์/ฝากติดต่อ ห้ามเปิดเผยยอดหนี้",
+   "on": [
+    {
+     "event": "gives_new_phone",
+     "tools": [
+      "update_phone"
+     ],
+     "to": "close_new_phone"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    },
+    {
+     "event": "refuses",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "disclose_ask",
+   "phase": "main",
+   "templates": [
+    {
+     "any_of": [
+      "disclose_balance",
+      "ask_pay_today"
+     ],
+     "note": "ประโยคเดียวแจ้งยอดและถามพร้อมกัน — ทั้งสองกลุ่มทำครบในตัว"
+    }
+   ],
+   "note": "แจ้งยอด+ขั้นต่ำ+วันครบกำหนด (ครั้งเดียวต่อสาย) แล้วถามสะดวกชำระวันนี้ไหม — นับเป็นการขอให้จ่ายครั้งที่ 1",
+   "counts_as": "pay_ask",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture",
+     "note": "ตอบรับจ่ายวันนี้ → ปิด ptp ทันที ห้ามถามวัน/ช่องทางซ้ำ"
+    },
+    {
+     "event": "already_paid",
+     "to": "close_paid"
+    },
+    {
+     "event": "hardship_lost_job",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_sick",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_other",
+     "to": "convince"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close",
+     "tools": [
+      "callback_datetime"
+     ]
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    },
+    {
+     "event": "offers_below_min",
+     "to": "below_min_floor"
+    }
+   ]
+  },
+  {
+   "id": "convince",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "convince_lost_job",
+     "when_event": "hardship_lost_job"
+    },
+    {
+     "fine_state": "convince_sick",
+     "when_event": "hardship_sick"
+    },
+    {
+     "when_event": "hardship_other",
+     "any_of": [
+      "convince_other",
+      "convince_pay"
+     ]
+    },
+    {
+     "fine_state": "probe_hardship",
+     "optional": true,
+     "note": "ใช้ถามอุปสรรคเมื่อเหตุไม่ชัด ก่อนเลือก convince variant"
+    }
+   ],
+   "note": "โน้มน้าวตามเหตุ ทำได้ครั้งเดียว — นับเป็นการขอให้จ่ายครั้งที่ 2 (ครั้งสุดท้าย)",
+   "counts_as": "pay_ask",
+   "max_visits": 1,
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "refuses",
+     "to": "close_refused"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close",
+     "tools": [
+      "callback_datetime"
+     ]
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    },
+    {
+     "event": "offers_below_min",
+     "to": "below_min_floor"
+    }
+   ]
+  },
+  {
+   "id": "ptp_capture",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    }
+   ],
+   "entry_tools": [
+    "get_current_datetime",
+    "record_verbal_commitment",
+    "payment_date",
+    "record_outcome"
+   ],
+   "outcome": {
+    "result": "ptp",
+    "reasons": [
+     "ptp",
+     "minimum"
+    ]
+   },
+   "note": "จับ PTP กรณีจ่ายวันนี้: **เรียก get_current_datetime ก่อนเสมอ** → ใช้ค่า today ที่ได้เป็น date (ไม่ถามวันจากลูกค้า), channel เว้นว่าง (ไม่ถามช่องทาง) → record_verbal_commitment(amount, date=today) → payment_date(...) → record_outcome(ptp) → **ปิดด้วย text 1047 (close) ตรงๆ ไม่ต้องถาม 'ได้รับข้อมูลครบถ้วน' — 1052 ใช้เฉพาะเคสลูกค้าชำระไปแล้ว**. ถามวัน/ช่องทางเฉพาะเคสจ่ายวันอื่น หรือลูกค้าบอกจ่ายไปแล้ว",
+   "terminal": true
+  },
+  {
+   "id": "close_paid",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close_paid"
+    }
+   ],
+   "outcome": {
+    "result": "ptp",
+    "reasons": [
+     "paid"
+    ]
+   },
+   "note": "ลูกค้าแจ้งชำระแล้ว — ขอบคุณ+ปิดสาย",
+   "terminal": true,
+   "spec_note": "result ptp/paid ตาม v11 outcome mapping",
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "close_refused",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close_credit_notice"
+    }
+   ],
+   "outcome": {
+    "result": "refused",
+    "reasons": []
+   },
+   "note": "ครบโควตาขอให้จ่าย 2 ครั้ง หรือเจอ stop_signal → record_outcome(refused) แล้วปิดทันที ห้ามโน้มน้าวครั้งที่ 3",
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "callback_close",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "offer_callback"
+    }
+   ],
+   "entry_tools": [
+    "get_current_datetime",
+    "callback_datetime",
+    "record_outcome"
+   ],
+   "outcome": {
+    "result": "tcb",
+    "reasons": [
+     "callback"
+    ]
+   },
+   "terminal": true,
+   "note": "ลูกค้าขอเลื่อน/ให้โทรกลับ → **ต้องเรียก callback_datetime(date) เพื่อบันทึกนัดโทรกลับ** (เรียก get_current_datetime ก่อนถ้านัดเป็นวันอื่น; ถ้าลูกค้าไม่ระบุวันชัดใช้ค่าที่เหมาะสม) → record_outcome(tcb, callback) → พูด offer_callback (1051) ปิดสาย. **ห้ามแค่พูดลอยๆ โดยไม่เรียก tool และห้ามถามเบอร์** (มีเบอร์ลูกค้าอยู่แล้ว ไม่ใช่ third_party)"
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    },
+    {
+     "fine_state": "apology"
+    }
+   ],
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "other_person",
+     "wrong_number",
+     "no_input"
+    ]
+   },
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "close_confirm_info",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    }
+   ],
+   "outcome": {
+    "result": "reached",
+    "reasons": [
+     "no_input"
+    ],
+    "inferred": true,
+    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้รับข้อมูลครบถ้วนแล้ว ปิดสาย; result 'reached' อนุมาน (v11 ระบุแค่ retry_predue → close)"
+   },
+   "terminal": true,
+   "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้แจ้งข้อมูลครบถ้วนแล้ว ปิดสายสุภาพ",
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "below_min_floor",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "below_minimum"
+    }
+   ],
+   "max_visits": 1,
+   "note": "ลูกค้าเสนอจ่ายต่ำกว่ายอดขั้นต่ำ → แจ้งขั้นต่ำ [minimum_payment] ขอให้ชำระอย่างน้อยขั้นต่ำ **หนึ่งครั้งเดียว** (below_minimum 1131) — ห้าม record commitment ที่ต่ำกว่าขั้นต่ำ. การแจ้ง floor นี้เป็น refer step ไม่นับโควตาขอให้จ่าย (ดู max_pay_asks)",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture",
+     "note": "ยอมจ่าย ≥ ขั้นต่ำ → จับ PTP ตามปกติ"
+    },
+    {
+     "event": "offers_below_min",
+     "to": "close_below_min",
+     "note": "ยังยืนยันจำนวนต่ำกว่าขั้นต่ำ → refer + ปิด refused"
+    },
+    {
+     "event": "refuses",
+     "to": "close_refused"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ]
+  },
+  {
+   "id": "close_new_phone",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "ack_new_phone"
+    },
+    {
+     "any_of": [
+      "apology_close",
+      "apology"
+     ]
+    }
+   ],
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "other_person"
+    ]
+   },
+   "terminal": true,
+   "note": "ได้รับเบอร์ใหม่จากบุคคลที่สาม: เรียก update_phone แล้ว reply ขอบคุณ+แจ้งบันทึกเบอร์ (ack_new_phone 1133) ตามด้วย apology_close (1054) ในเทิร์นเดียว → record_outcome(\"unreachable\", other_person) — ห้ามเปิดเผยยอดหนี้",
+   "on": [],
+   "entry_tools": [
+    "update_phone",
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "close_below_min",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "refer_below_min"
+    }
+   ],
+   "outcome": {
+    "result": "refused",
+    "reasons": [
+     "ขอจ่ายน้อยกว่าขั้นต่ำ"
+    ]
+   },
+   "terminal": true,
+   "note": "ลูกค้ายืนยันจ่ายต่ำกว่าขั้นต่ำหลังแจ้ง floor แล้ว → reply refer_below_min (1134: แนะนำติดต่อกลับมาปรึกษาที่ [company_phone]) แล้วค่อย record_outcome(\"refused\", reason: \"ขอจ่ายน้อยกว่าขั้นต่ำ\") — **ห้าม**เรียก record_verbal_commitment/payment_date",
+   "on": [],
+   "entry_tools": [
+    "record_outcome"
+   ]
+  }
+ ],
+ "faq_routing": {
+  "note": "แทรกได้จากทุก state ที่ไม่ terminal — ตอบด้วย template ที่ตรง intent แล้ว resume state เดิม (ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ) เว้นแต่ระบุ terminal",
+  "routes": [
+   {
+    "intent": "company",
+    "desc": "อิอ้อนคือบริษัทอะไร",
+    "templates": [
+     {
+      "fine_state": "faq_company"
+     }
+    ],
+    "then": "resume",
+    "note": "ถามนิยาม/ประเภทบริษัท → 1116 (อธิบายว่าเป็นผู้ให้บริการการเงิน/บัตรเครดิต) ไม่ใช่ 1114/1013"
+   },
+   {
+    "intent": "debt_type",
+    "desc": "เป็นหนี้อะไร/หนี้เรื่องอะไร",
+    "templates": [
+     {
+      "fine_state": "faq_debt_type"
+     }
+    ],
+    "then": "resume",
+    "note": "ยังไม่ยืนยันตัวตน → ตอบ verify_first (1118) ก่อน ไม่บอกรายละเอียดหนี้ · ยืนยันแล้ว → ตอบ faq_debt_type ตามปกติ"
+   },
+   {
+    "intent": "caller",
+    "desc": "โทรมาจากไหน",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "bot",
+    "desc": "เป็นบอท/AI ใช่ไหม",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "hold",
+    "desc": "สักครู่/แป๊บนึง",
+    "templates": [
+     {
+      "fine_state": "faq_hold"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "repeat",
+    "desc": "อะไรนะ/พูดอีกที",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "agent",
+    "desc": "ขอคุยกับเจ้าหน้าที่คนจริง",
+    "templates": [
+     {
+      "fine_state": "handoff_refuse"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "tcb",
+      "reasons": [
+       "agent"
+      ]
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "scam",
+    "desc": "มิจฉาชีพรึเปล่า",
+    "templates": [
+     {
+      "fine_state": "faq_scam"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "annoyed",
+    "desc": "รำคาญ/ไม่ต้องโทรมา",
+    "templates": [
+     {
+      "fine_state": "faq_annoyed"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "channel",
+    "desc": "จ่ายที่ไหน/ยังไง",
+    "templates": [
+     {
+      "fine_state": "offer_channel_only"
+     }
+    ],
+    "then": "resume",
+    "note": "ตอบช่องทางอย่างเดียว ห้ามแจ้งยอด/วันครบกำหนดซ้ำ"
+   },
+   {
+    "intent": "amount",
+    "desc": "ยอดเท่าไหร่",
+    "templates": [
+     {
+      "fine_state": "faq_amount"
+     }
+    ],
+    "then": "resume",
+    "note": "ยังไม่ยืนยันตัวตน → ตอบ verify_first (1118) ก่อน ไม่บอกยอด · ยืนยันแล้ว → ตอบ faq_amount ตามปกติ"
+   },
+   {
+    "intent": "due",
+    "desc": "ต้องจ่ายเมื่อไหร่",
+    "templates": [
+     {
+      "fine_state": "faq_due"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "wrong_name",
+    "desc": "เรียกชื่อผิด",
+    "templates": [
+     {
+      "fine_state": "faq_wrong_name"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "tin",
+      "reasons": [
+       "wrong_name"
+      ]
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "mourning",
+    "desc": "เจ้าของชื่อเสียชีวิต",
+    "templates": [
+     {
+      "fine_state": "faq_mourning"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "result": "reached",
+      "reasons": [
+       "mourning"
+      ],
+      "inferred": true,
+      "note": "v11 ระบุแค่ 'เสียใจ+บันทึก ปิดสุภาพ' — result อนุมาน"
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "out_of_scope",
+    "desc": "นอกขอบเขต: card_available/bill_missing/apply_loan/ask_balance/outstanding_balance/change_due/change_acc_owner/credit_limit/reduce_balance/check_interest/withdraw_after_paid",
+    "templates": [
+     {
+      "fine_state": "faq_faq_referral"
+     }
+    ],
+    "then": "resume",
+    "note": "แนะนำติดต่อ {company_phone} แล้วกลับเข้า flow"
+   },
+   {
+    "intent": "overpay",
+    "desc": "ถามว่าจ่ายมากกว่ายอด/เกินขั้นต่ำได้ไหม (คำถามเรื่องความสามารถจ่ายเกิน — ไม่ใช่การเสนอจ่ายจำนวนเฉพาะ/บางส่วน)",
+    "templates": [
+     {
+      "fine_state": "confirm_overpay"
+     }
+    ],
+    "then": "resume",
+    "note": "ยืนยันว่าจ่ายเกินได้ ใช้ 1130 เติม {pay_amount}=ยอดที่ลูกค้าบอก แล้วเดินหน้าจับ PTP ตามยอดนั้น"
+   }
+  ]
+ },
+ "auxiliary_templates": {
+  "note": "template ที่ไม่ผูกกับ state เดียว — ใช้ได้ตามบริบทใน phase ที่ตรง",
+  "allowed": [
+   {
+    "fine_state": "offer_channel",
+    "desc": "บอกช่องทางชำระประกอบการตกลงจ่าย"
+   },
+   {
+    "fine_state": "ask_channel",
+    "desc": "ถามเฉพาะช่องทาง เมื่อทราบวัน/วันนี้แล้ว (ไม่ถามวันซ้ำ)"
+   },
+   {
+    "fine_state": "apology",
+    "desc": "ขออภัยตามบริบท"
+   },
+   {
+    "fine_state": "ai_disclosure",
+    "desc": "แนะนำตัวว่าเป็นระบบอัตโนมัติ เมื่อถูกถามหรือเปิดสาย"
+   },
+   {
+    "fine_state": "verify_first",
+    "desc": "ตอบก่อนยืนยันตัวตน — ห้ามแจ้งยอดจนกว่าจะยืนยันชื่อ"
+   },
+   {
+    "fine_state": "below_minimum",
+    "desc": "อ้างถึงในกฎของ spec — ต้องเลือกได้จริง"
+   },
+   {
+    "fine_state": "ask_phone_again",
+    "desc": "ขอเบอร์ติดต่ออีกครั้งเมื่อฟังไม่ชัด"
+   },
+   {
+    "fine_state": "ask_callback_time",
+    "desc": "ถามเวลาที่สะดวกให้ติดต่อกลับ"
+   },
+   {
+    "fine_state": "ai_disclosure_verify"
+   },
+   {
+    "fine_state": "ask_convenient"
+   },
+   {
+    "fine_state": "ack_hold"
+   },
+   {
+    "fine_state": "give_phone"
+   },
+   {
+    "fine_state": "thank_close"
+   },
+   {
+    "fine_state": "apology_contact"
+   },
+   {
+    "fine_state": "apology_close"
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลำดับบังคับ:** ต้องแจ้งยอดด้วย disclose_balance (1018) ก่อนถามชำระด้วย ask_pay_today (1020/1021/1023/1028/1039/1066) เสมอ — **ห้ามใช้ ask_pay_today ก่อนที่ยอดจะถูกแจ้งด้วย 1018**"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**KYC gate:** ห้ามเปิดเผยจำนวนหนี้/รายละเอียดหนี้ (disclose_balance, faq_amount 1077, faq_debt_type 1117) ก่อนลูกค้ายืนยันตัวตนชัดเจน. ถ้าลูกค้าถามยอด/ถามว่าเป็นหนี้อะไร **ก่อน verify → ตอบ verify_first (1118) ขอยืนยันตัวตนก่อน ห้ามบอกยอด/รายละเอียด**. (คำถามทั่วไป 'อิอ้อนคืออะไร' = faq_company ตอบได้ เป็นข้อมูลสาธารณะ ไม่ใช่ข้อมูลหนี้) การยืนยันตัวตนที่ชัดเจน = ลูกค้าตอบรับตรงๆ ว่า 'ใช่ / ใช่ครับ / ใช่ค่ะ / ถูกต้อง / ผมเอง / ดิฉันเอง' เท่านั้น — คำรับสั้นๆ กำกวมอย่าง 'ครับ / ค่ะ / อือ / อ๋อ / โอเค / okay' **ไม่นับว่ายืนยันตัวตน** ให้ถาม verify_first ต่อ ห้ามแจ้งยอด"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ลูกค้ารับปากจ่ายยอดขั้นต่ำ \"วันนี้\" (agrees_to_pay) → วันที่ชำระคือวันนี้อยู่แล้ว **ห้ามถามวันที่ชำระ และห้ามถามช่องทางชำระซ้ำ**. ลำดับ: **get_current_datetime ก่อนเสมอ (แม้จ่ายวันนี้ กัน date_format_invalid — ห้าม record ก่อนขอวันที่)** → record_verbal_commitment(amount=ยอดขั้นต่ำ, date=today) → payment_date(...) → ปิดด้วย close (text 1047) ทันทีในเทิร์นเดียว — **ห้ามใช้ 1052** เพราะลูกค้ายังไม่ได้ชำระ เพียงรับปาก — ไม่ต้องใช้ confirm_info (1109) (channel เป็น optional เว้นว่างได้). ถามช่องทาง/วันเฉพาะเคสลูกค้าบอกจ่ายไปแล้ว (readback) หรือ นัดจ่ายวันอื่น"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ลูกค้าขอให้ติดต่อกลับ/ขอเลื่อน (reschedule_request) → **ต้องเรียก callback_datetime (silent) บันทึกนัดโทรกลับก่อนเสมอ** แล้ว record_outcome(tcb, callback) ปิดสายด้วย offer_callback (1051) — ห้ามพูดลอยๆ โดยไม่เรียก tool, ห้ามถามเบอร์, ห้าม mis-route ไปสาย third_party"
+  },
+  {
+   "id": "max_pay_asks",
+   "type": "max_occurrences",
+   "counts": "pay_ask",
+   "max": 2,
+   "on_exceed": {
+    "to": "close_refused"
+   },
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ขอให้จ่ายได้สูงสุด 2 ครั้งต่อสาย (ask_pay_today 1 + convince 1) นับทุกเหตุผลที่ลูกค้าให้ ครบแล้วยังไม่รับปาก → refused ปิดทันที"
+  },
+  {
+   "id": "disclose_once",
+   "type": "once_per_call",
+   "template_fine_state": "disclose_balance",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่"
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ถามคำถามเดิมซ้ำได้เฉพาะกรณีลูกค้าเงียบ (NO-INPUT) เท่านั้น — การปฏิเสธ/บอกจ่ายไม่ได้คือ input ชัดเจน ห้ามถามซ้ำ"
+  },
+  {
+   "id": "no_reverify_after_confirm",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "template_fine_states": [
+    "greet_verify",
+    "verify_name"
+   ],
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ยืนยันชื่อแล้วห้ามถามชื่อซ้ำ — check_account_status แล้วแจ้งยอดทันที"
+  },
+  {
+   "id": "answered_no_repeat",
+   "type": "no_repeat_answered_request",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ลูกค้าตอบ request แล้ว (จ่ายไม่ได้/ให้วันมา/ปฏิเสธ) = เดินหน้าต่อ ห้ามยิงคำถามเดิมซ้ำ"
+  },
+  {
+   "id": "stop_signal_immediate_close",
+   "type": "immediate_transition_on",
+   "event": "stop_signal",
+   "to": "close_refused",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "เจอสัญญาณหยุด → record_outcome(refused) ปิดทันที ไม่ต้องรอครบโควตาโน้มน้าว"
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "template = หนึ่ง turn เต็ม เลือก 1 อัน/turn — ห้าม chain เนื้อซ้ำ (ยกเว้น state ที่ประกาศเป็น chain)"
+  },
+  {
+   "id": "faq_resume",
+   "type": "resume_after_interrupt",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ตอบ FAQ แล้วกลับเข้า flow จากจุดเดิม — ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ"
+  },
+  {
+   "id": "overdue_future_ptp_is_refusal",
+   "type": "outcome_precondition",
+   "when": {
+    "crm": {
+     "due_status": "overdue"
+    },
+    "last_payment_date": "future"
+   },
+   "reject": {
+    "result": "ptp"
+   },
+   "require_instead": {
+    "result": "refused"
+   },
+   "enforce": [
+    "backend"
+   ],
+   "desc": "บัญชี overdue และวันจ่ายที่บันทึกไว้เป็นอนาคต → ระบบไม่รับ ptp ให้บันทึก refused แทน (หรือเจรจาให้ชำระวันนี้ก่อนบันทึก)",
+   "source_ref": "Miro §1.1/§3.2 — enforced in backend.record_outcome"
+  },
+  {
+   "id": "busy_voicemail_preconnection_only",
+   "type": "outcome_precondition",
+   "when": {
+    "after_tool": "check_account_status"
+   },
+   "reject": {
+    "reasons": [
+     "busy",
+     "voice_mail"
+    ]
+   },
+   "enforce": [
+    "backend"
+   ],
+   "desc": "busy/voice_mail ใช้ได้เฉพาะสายที่ไม่เคยติด — ถ้าเรียก check_account_status แล้วถือว่าสายติด ให้บันทึกตามที่เกิดจริง (reached/refused)",
+   "source_ref": "Miro §3.1 — enforced in backend.record_outcome"
+  },
+  {
+   "id": "commitment_pair",
+   "type": "tool_pair",
+   "first": "record_verbal_commitment",
+   "second": "payment_date",
+   "args_must_match": true,
+   "enforce": [
+    "backend"
+   ],
+   "desc": "payment_date ต้องมี record_verbal_commitment ค่าตรงกัน (amount/date; ส่วน channel เป็น optional — ถ้าระบุต้องตรงกัน ถ้าไม่ระบุก็ผ่าน) มาก่อน ไม่งั้นถูก reject",
+   "source_ref": "3-Element Enforcer — enforced in backend.payment_date"
+  },
+  {
+   "id": "faq_company_explain",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ถ้าลูกค้าถามว่า 'อิอ้อนคือบริษัทอะไร / อิอ้อนทำธุรกิจอะไร / เป็นบริษัทประเภทไหน' (ถามนิยาม/ประเภทของบริษัท ไม่ใช่ถามว่าโทรมาจากไหน) → ต้องตอบด้วย faq_company (1116) ที่อธิบายว่าอิอ้อนเป็นผู้ให้บริการทางการเงินและบัตรเครดิต ห้ามใช้ 1013 (ai_disclosure) หรือ 1114 (faq_caller) เพราะไม่ได้อธิบายว่าบริษัททำธุรกิจอะไร"
+  },
+  {
+   "id": "partial_payment_floor",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ลูกค้าเสนอจ่าย**จำนวนเฉพาะ** (เช่น 'ขอจ่าย 3000 ได้ไหม', 'จ่ายแค่ 500'): **เทียบกับยอดขั้นต่ำ ({minimum_payment}) ก่อนเสมอ**. ถ้า **≥ ขั้นต่ำ** → ถือเป็น agrees_to_pay: ตอบรับสั้นๆ แล้วเข้า ptp_capture ทันที (get_current_datetime → record_verbal_commitment(amount=จำนวนที่ลูกค้าบอก, date=today) → payment_date → close 1047). **ห้ามใช้ 1130** (1130 ใช้เฉพาะคำถาม 'จ่ายเกินยอดเต็มได้ไหม'). ถ้า **< ขั้นต่ำ** → **ห้ามรับ ห้าม record** ใช้ below_minimum (1131) แจ้งขั้นต่ำ {minimum_payment} ขอให้ชำระอย่างน้อยขั้นต่ำ"
+  },
+  {
+   "id": "preverify_faq_persistence",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ก่อน name_confirmed: ลูกค้าถามยอด/วันครบกำหนด/เรื่องหนี้ **ซ้ำกี่รอบก็ตาม** → ตอบ verify_first (1118) ทุกรอบ (1118 จบด้วยคำถามยืนยันชื่อ = เป็นการพยายาม verify ต่อในตัว) ห้ามหยุดถามยืนยันชื่อ ห้ามสลับไปตอบ FAQ ห้ามเปิดเผยยอด/รายละเอียด"
+  },
+  {
+   "id": "verify_before_disclose",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "inverted": true,
+   "template_fine_states": [
+    "disclose_balance",
+    "faq_amount",
+    "faq_due",
+    "faq_debt_type"
+   ],
+   "enforce": [
+    "prompt",
+    "session"
+   ],
+   "desc": "ก่อนลูกค้ายืนยันตัวตน (name_confirmed) ห้ามเปิดเผยยอด/วันครบกำหนด/ประเภทหนี้ — session layer BLOCK template กลุ่มนี้ + ทุก template ที่มี slot อ่อนไหว จนกว่า verification จะสำเร็จ (blocked_reply_ids)"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "id": "drive_to_terminal",
+   "desc": "**ขับทุกสายให้ถึง terminal:** หลังตอบ FAQ/edge (mourning 1074, wrong_name 1075, repeat 1076, third_party) ให้กลับมาที่เป้าหมายทวงถามและเดินไปปิดสายที่เหมาะสม — ห้ามค้างที่ intermediate state. ถ้าลูกค้าไม่ตอบต่อ/สายจบ ให้เลือก close state ที่ตรงสถานการณ์ (unreachable/reached/refused/tcb) แล้ว record_outcome ปิดทันที."
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "id": "refused_close_credit_notice",
+   "desc": "**refused ต้องปิดด้วย close_credit_notice (1132):** เมื่อลูกค้าปฏิเสธ/ไม่มีเงิน/ขู่ฟ้อง → ประโยคปิดสาย**ต้องเป็น close_credit_notice (1132)** ที่แจ้งว่าหากยังไม่ชำระอาจมีการบันทึกประวัติค้างชำระต่อเครดิตบูโร (แบบ factual) + ช่องทางติดต่อ. **ห้ามใช้ประโยคปิดทั่วไป close (1047) กับเคส refused** — 1047 ใช้กับเคสที่ตกลง/จบดีเท่านั้น."
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**เลือกประโยคปิดสายให้ตรงกับสิ่งที่เกิดขึ้นจริง:** `close_paid` (1052 'ขอบคุณสำหรับการชำระเงิน') ใช้ได้เฉพาะเมื่อลูกค้าบอกว่า**ชำระไปแล้ว** (already_paid) เท่านั้น · ลูกค้าเพียง**รับปากว่าจะชำระ** (agrees_to_pay → ptp_capture) ให้ปิดด้วย `close` (1047) — ห้ามใช้ 1052 เพราะเงินยังไม่เข้า"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าเสนอจ่ายน้อยกว่าขั้นต่ำ:** ห้ามรับเป็น PTP → พูด `below_minimum` (1131) ขอให้ชำระอย่างน้อยขั้นต่ำก่อน · ถ้ายังยืนยันยอดเดิม → ปิดด้วย `refer_below_min` (1134) แนะนำติดต่อ [company_phone] เพื่อหาแนวทางชำระ และบันทึกผลเป็น refused"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**บุคคลที่สามให้เบอร์ใหม่:** เรียก `update_phone` แล้วปิดด้วย `ack_new_phone` (1133) ตามด้วย `apology_close` (1054) ในเทิร์นเดียว บันทึกผลเป็น unreachable"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าถามว่าเป็นบอท/AI/คนจริงหรือเปล่า** → ตอบ `ai_disclosure` (1013) ครั้งเดียว แล้วกลับเข้า flow จุดเดิมทันที — ห้ามข้าม ห้ามตอบเลี่ยง ห้ามอ้างว่าเป็นเจ้าหน้าที่จริง"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าถามช่องทางชำระ ('จ่ายที่ไหน/ยังไง')** → ตอบ `offer_channel_only` (1110) ที่บอกช่องทางอย่างเดียว แล้วกลับมาถามรับปากชำระต่อ — **ห้ามแจ้งยอด/วันครบกำหนดซ้ำ**"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าถามว่าจ่ายมากกว่ายอดขั้นต่ำได้ไหม** (ถามความสามารถ ไม่ใช่เสนอจำนวน) → ตอบ `confirm_overpay` (1130) ยืนยันว่าจ่ายเกินได้ แล้วจับ PTP ตามยอดที่ลูกค้าบอก"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าถามยอดซ้ำหลังยืนยันตัวตนแล้ว** → ตอบ `faq_amount` (1077) ที่ทวนยอดสั้นๆ — **ห้ามใช้ disclose_balance (1018) ซ้ำ** เพราะแจ้งยอดพูดได้ครั้งเดียวต่อสาย"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าแจ้งเหตุติดขัด (ตกงาน/ป่วย/เงินช็อต/ยังไม่มีเงิน) → ต้องพูด convince ก่อนเสมอ** (convince_lost_job / convince_sick / convince_other ตามเหตุ) แล้วรอคำตอบ — **ห้ามข้ามไป record_verbal_commitment และห้ามปิดสาย** จนกว่าลูกค้าจะรับปากชำระเอง การบันทึกคำมั่นที่ลูกค้าไม่ได้ให้ถือว่าผิดร้ายแรง"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าขอคุยกับเจ้าหน้าที่ที่เป็นคน** → ประโยคที่ต้องพูดคือ `handoff_refuse` (1017) ที่แจ้งว่ายังโอนสายไม่ได้ พร้อมเบอร์ [company_phone] · **ห้ามใช้ close (1047) หรือ apology_close (1054) แทน** เพราะสองอันนั้นไม่ได้ตอบเรื่องขอเจ้าหน้าที่ · บันทึกผลเป็น tcb reason=agent"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าบอกว่าเรียกชื่อผิด / ไม่ได้ชื่อนั้น** (ต่างจากลูกค้าถามยอดก่อนยืนยันตัวตน) → ประโยคที่ต้องพูดคือ `faq_wrong_name` (1075) ขอให้ยืนยันชื่ออีกครั้ง · **ห้ามใช้ verify_first (1118)** เพราะ 1118 ใช้เมื่อลูกค้า*ถามข้อมูล*ก่อนยืนยันตัวตน ไม่ใช่เมื่อลูกค้า*ปฏิเสธชื่อ* · บันทึกผลเป็น tin reason=wrong_name"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ปลายสายบอกว่าไม่รู้จักชื่อที่เรียก (โทรผิดเบอร์)** → เข้าเส้นทาง third_party: ถามว่ามีเบอร์ติดต่ออีกไหม (`third_party`/`third_party_know`) · ถ้าไม่มี → ปิดด้วย `close`+`apology` และบันทึกผลเป็น unreachable reason=wrong_number · **ห้ามถามยืนยันชื่อซ้ำ (verify_name)** เพราะปลายสายบอกแล้วว่าไม่ใช่คนนั้น"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ทุก state ปิดสายต้องเรียก `record_outcome` ก่อน reply ปิด** รวมถึงเส้นทางบุคคลที่สาม (close_new_phone / close_unreachable) — สายที่จบโดยไม่บันทึกผลถือว่าไม่สมบูรณ์"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ความเงียบไม่ใช่การตกลง:** ลูกค้าตอบว่า '...' / '(เงียบ)' / ตอบไม่เป็นคำพูดที่ตีความได้ = เหตุการณ์ `no_input` เท่านั้น — **ห้ามถือเป็น agrees_to_pay ห้ามเรียก record_verbal_commitment / payment_date และห้ามบันทึกผลเป็น ptp** ให้เดินตาม transition ของ no_input ใน state ปัจจุบัน (ถามซ้ำ หรือปิดสายตามที่ flow กำหนด) การบันทึกคำมั่นจากความเงียบถือว่าผิดร้ายแรงเทียบเท่ากับบันทึกคำมั่นที่ลูกค้าไม่ได้ให้"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**`handoff_refuse` ใช้ได้เฉพาะเมื่อลูกค้าขอคุยกับเจ้าหน้าที่ที่เป็นคนเท่านั้น** — ลูกค้าเงียบ ถามยอด หรือถามเรื่องอื่น **ห้ามตอบด้วย handoff_refuse** เพราะไม่ได้ตอบสิ่งที่ถาม ให้เดินตาม flow ของ state ปัจจุบันแทน"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าเงียบหลังได้รับข้อมูลครบแล้ว (no_input ที่ disclose_ask/convince)** → ปิดด้วย `confirm_info` ที่ทวนว่าได้รับข้อมูลครบถ้วนแล้ว และบันทึกผลเป็น reached — **ห้ามปิดด้วย close/close_paid** และห้ามบันทึกเป็น ptp"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**เส้นทางจ่ายต่ำกว่าขั้นต่ำต้องปิดด้วย `refer_below_min` (1134)** ที่แนะนำให้ติดต่อ [company_phone] — **ห้ามปิดด้วย close_credit_notice (1132)** เพราะลูกค้าไม่ได้ปฏิเสธชำระ เพียงจ่ายเต็มขั้นต่ำไม่ไหว"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**หลังตอบ `offer_channel_only` (1110) ให้กลับเข้า flow เดิมทันที** — ถามรับปากชำระต่อ หรือปิดสายตามสถานะ · **ห้ามตอบ faq_repeat (1076) ต่อท้าย** เพราะลูกค้าไม่ได้ขอให้พูดซ้ำ"
+  }
+ ],
+ "outcomes": {
+  "required_at_close": true,
+  "results": {
+   "ptp": {
+    "reasons": [
+     "ptp",
+     "paid",
+     "minimum"
+    ],
+    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
+   },
+   "refused": {
+    "reasons": [],
+    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
+   },
+   "unreachable": {
+    "reasons": [
+     "other_person",
+     "wrong_number",
+     "busy",
+     "voice_mail",
+     "no_input"
+    ],
+    "desc": "ไม่ถึงตัวลูกหนี้"
+   },
+   "reached": {
+    "reasons": [
+     "mourning",
+     "no_input"
+    ],
+    "desc": "ถึงตัวแต่จบแบบอื่น",
+    "inferred": true
+   },
+   "tcb": {
+    "reasons": [
+     "agent",
+     "callback"
+    ],
+    "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
+   },
+   "tin": {
+    "reasons": [
+     "wrong_name"
+    ],
+    "desc": "incorrect name"
+   }
+  }
+ },
+ "session_init": {
+  "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ ไม่มี mapping. เปลี่ยน endpoint ที่ env AAX6_API_BASE ไม่ต้องแก้ spec",
+  "url": "{API_BASE}/AEON/init",
+  "method": "GET",
+  "timeout": 8
+ },
+ "catalog_inline": [
+  {
+   "company": "AEON",
+   "text_id": 1000,
+   "intent_name": "opening_greet_verify",
+   "category": "A",
+   "state": "opening",
+   "template": "สวัสดี{suffix} ติดต่อจากบริษัทอิอ้อน กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_verify",
+   "_real_count": 20194
+  },
+  {
+   "company": "AEON",
+   "text_id": 1001,
+   "intent_name": "opening_verify_name",
+   "category": "B",
+   "state": "opening",
+   "template": "ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "verify_name",
+   "_real_count": 13522,
+   "hint": "ยืนยันชื่อ — สลับกับ 1065 ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1004,
+   "intent_name": "third_party_know",
+   "category": "B",
+   "state": "opening",
+   "template": "คุณรู้จักคุณ {customer_name} หรือไม่{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "third_party_know",
+   "_real_count": 607,
+   "hint": "ถามคนอื่นว่ารู้จักเจ้าตัวไหม — สลับกับ 1006 ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1005,
+   "intent_name": "opening_third_party",
+   "category": "B",
+   "state": "opening",
+   "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ {customer_name} หรือไม่{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "third_party",
+   "_real_count": 287,
+   "hint": "ขอเบอร์ครั้งแรก — สุภาพเต็ม ขึ้นต้นด้วยขออภัยที่รบกวน"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1006,
+   "intent_name": "third_party_know",
+   "category": "B",
+   "state": "opening",
+   "template": "คุณรู้จักคุณ {customer_name} หรือเปล่า{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "third_party_know",
+   "_real_count": 267,
+   "hint": "ถามคนอื่นว่ารู้จักเจ้าตัวไหม — สลับกับ 1004 ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1007,
+   "intent_name": "ai_disclosure_verify",
+   "category": "B",
+   "state": "opening",
+   "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ai_disclosure_verify",
+   "_real_count": 149,
+   "hint": "บอกว่าเป็น AI แล้วยืนยันว่าปลายสายคือเจ้าตัว"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1008,
+   "intent_name": "opening_third_party",
+   "category": "B",
+   "state": "opening",
+   "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ {customer_name} มั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "third_party",
+   "_real_count": 121,
+   "hint": "ขอเบอร์ครั้งแรก (ใช้แทน 1005 ได้)"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1010,
+   "intent_name": "opening_third_party",
+   "category": "B",
+   "state": "opening",
+   "template": "ไม่ทราบว่า มีเบอร์ติดต่อคุณ {customer_name} มั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "third_party",
+   "_real_count": 99,
+   "hint": "ขอเบอร์แบบสั้น"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1011,
+   "intent_name": "opening_third_party",
+   "category": "B",
+   "state": "opening",
+   "template": "รบกวนขอเบอร์ติดต่อคุณ {customer_name} ด้วย{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "third_party",
+   "_real_count": 88,
+   "hint": "ขอเบอร์ตรงๆ — ใช้เมื่อถามแล้วยังไม่ได้คำตอบ"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1013,
+   "intent_name": "opening_ai_disclosure",
+   "category": "A",
+   "state": "opening",
+   "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "ai_disclosure",
+   "_real_count": 39
+  },
+  {
+   "company": "AEON",
+   "text_id": 1014,
+   "intent_name": "opening_third_party",
+   "category": "B",
+   "state": "opening",
+   "template": "ไม่ทราบว่า มีเบอร์ติดต่อคุณ {customer_name} มั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "third_party",
+   "_real_count": 35,
+   "hint": "ขอเบอร์แบบสั้น (ใช้แทน 1010 ได้)"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1015,
+   "intent_name": "ai_disclosure_verify",
+   "category": "B",
+   "state": "opening",
+   "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} คุณรู้จักคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ai_disclosure_verify",
+   "_real_count": 31,
+   "hint": "บอกว่าเป็น AI แล้วถามคนอื่นว่ารู้จักเจ้าตัวไหม"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1016,
+   "intent_name": "ask_convenient",
+   "category": "B",
+   "state": "opening",
+   "template": "ไม่ทราบสะดวกคุยสายหรือยัง{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_convenient",
+   "_real_count": 31
+  },
+  {
+   "company": "AEON",
+   "text_id": 1017,
+   "intent_name": "opening_verify_name",
+   "category": "B",
+   "state": "opening",
+   "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "handoff_refuse",
+   "_real_count": 22,
+   "hint": "ปฏิเสธการโอนสาย — 1017/1031/1040 ข้อความเหมือนกัน ใช้อันไหนก็ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1018,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "template": "บริษัทขอแจ้งยอด {amount} บาท สามารถชำระขั้นต่ำได้ {minimum_payment} บาท {{if due_upcoming}}จะถึงกำหนดชำระ {due_date} {{else}}ครบกำหนดชำระ {due_date} {{/if}}{suffix} ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหม{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "disclose_balance",
+   "_real_count": 16415
+  },
+  {
+   "company": "AEON",
+   "text_id": 1020,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "template": "ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด {amount} บาท สามารถชำระขั้นต่ำได้ {minimum_payment} บาท {{if due_upcoming}}จะถึงกำหนดชำระ {due_date} {{else}}ครบกำหนดชำระ {due_date} {{/if}}{suffix} ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหม{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_pay_today",
+   "_real_count": 2718,
+   "hint": "ขอครั้งแรก — ทวนยอดรวม + ขั้นต่ำ + วันครบกำหนด ครบในประโยคเดียว"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1021,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "template": "ไม่ทราบว่า ถ้าเป็นยอดขั้นต่ำ ลูกค้าสะดวกชำระภายในวันนี้เลยมั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_pay_today",
+   "_real_count": 2139,
+   "_flow_id": "retry_remind_ptp_01",
+   "hint": "เสนอลดเหลือยอดขั้นต่ำ เมื่อลูกค้าลังเลกับยอดเต็ม"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1023,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "template": "คุณลูกค้าชำระยอดขั้นต่ำเข้ามา ภายในวันนี้ก่อนได้ไหม{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_pay_today",
+   "_real_count": 1309,
+   "hint": "ขอซ้ำแบบสั้น — แจ้งยอดไปแล้ว"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1025,
+   "intent_name": "negotiation_offer_channel",
+   "category": "B",
+   "state": "negotiation",
+   "template": "ไม่ทราบว่า คุณลูกค้าชำระวันที่เท่าไหร่ ผ่านช่องทางไหน{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "offer_channel",
+   "_real_count": 436
+  },
+  {
+   "company": "AEON",
+   "text_id": 1028,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "template": "ไม่ทราบว่าคุณลูกค้าสะดวกชำระภายในวันนี้มั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_pay_today",
+   "_real_count": 169,
+   "hint": "ขอซ้ำแบบสั้นที่สุด ไม่ระบุยอด"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1030,
+   "intent_name": "ack_hold",
+   "category": "B",
+   "state": "negotiation",
+   "template": "ได้{suffix} ถ้าสะดวกแล้วแจ้งนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "ack_hold",
+   "_real_count": 56
+  },
+  {
+   "company": "AEON",
+   "text_id": 1031,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "closing",
+   "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "handoff_refuse",
+   "_real_count": 47,
+   "hint": "ปฏิเสธการโอนสาย — 1017/1031/1040 ข้อความเหมือนกัน ใช้อันไหนก็ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1032,
+   "intent_name": "give_phone",
+   "category": "B",
+   "state": "negotiation",
+   "template": "{company_phone}{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "give_phone",
+   "_real_count": 45
+  },
+  {
+   "company": "AEON",
+   "text_id": 1035,
+   "intent_name": "thank_close",
+   "category": "B",
+   "state": "negotiation",
+   "template": "ขอบคุณสำหรับข้อมูลนะ{q_suffix} สวัสดี{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_close",
+   "_real_count": 39
+  },
+  {
+   "company": "AEON",
+   "text_id": 1036,
+   "intent_name": "apology_contact",
+   "category": "B",
+   "state": "closing",
+   "template": "ขออภัยในความไม่สะดวกด้วย{suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "apology_contact",
+   "_real_count": 38
+  },
+  {
+   "company": "AEON",
+   "text_id": 1038,
+   "intent_name": "ask_callback_time",
+   "category": "B",
+   "state": "negotiation",
+   "template": "สะดวกให้ติดต่อกลับมาอีกครั้ง เวลาไหนดี{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "ask_callback_time",
+   "_real_count": 29,
+   "hint": "ถามเวลาโทรกลับ แบบสั้น"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1039,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "template": "รอบบิลการชำระของคุณลูกค้า ครบกำหนดชำระ {due_date}{suffix} ไม่ทราบว่า ถ้าเป็นยอดขั้นต่ำ ลูกค้าสะดวกชำระภายในวันนี้เลยมั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_pay_today",
+   "_real_count": 28,
+   "hint": "ขอครั้งแรกแบบสั้น — ทวนแค่วันครบกำหนด"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1040,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "closing",
+   "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "handoff_refuse",
+   "_real_count": 20,
+   "hint": "ปฏิเสธการโอนสาย — 1017/1031/1040 ข้อความเหมือนกัน ใช้อันไหนก็ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1041,
+   "intent_name": "convince_pay",
+   "category": "A",
+   "state": "hardship",
+   "template": "{pronoun}เข้าใจในสถานการณ์ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ {minimum_payment} บาท ผ่านทางอิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App store{suffix} คุณลูกค้าชำระยอดขั้นต่ำเข้ามา ภายในวันนี้ก่อนได้ไหม{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "convince_pay",
+   "_real_count": 5267,
+   "hint": "โน้มน้าวครั้งแรกหลังถูกปฏิเสธ — บอกช่องทางชำระครบ"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1042,
+   "intent_name": "hardship_probe_hardship",
+   "category": "A",
+   "state": "hardship",
+   "template": "รบกวนสอบถามเพิ่มเติมว่า ติดปัญหาด้านใดหรือเปล่า{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "probe_hardship",
+   "_real_count": 3308
+  },
+  {
+   "company": "AEON",
+   "text_id": 1043,
+   "intent_name": "convince_pay",
+   "category": "A",
+   "state": "hardship",
+   "template": "{pronoun}เข้าใจในสถานการณ์ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} ยอด {amount} บาท คุณลูกค้าชำระยอดขั้นต่ำเข้ามาภายในวันนี้ก่อนได้มั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "convince_pay",
+   "_real_count": 793,
+   "hint": "โน้มน้าวแบบสั้น ทวนยอดรวม — ใช้เมื่อบอกช่องทางไปแล้ว"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1044,
+   "intent_name": "convince_pay",
+   "category": "A",
+   "state": "hardship",
+   "template": "{pronoun}เข้าใจในสถานการณ์{suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ {minimum_payment} บาท ผ่านทางอิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App storeนะ{q_suffix} คุณลูกค้าชำระยอดขั้นต่ำเข้ามา ภายในวันนี้เลยได้ไหม{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "convince_pay",
+   "_real_count": 141,
+   "hint": "โน้มน้าวครั้งแรกหลังถูกปฏิเสธ (ใช้แทน 1041 ได้)"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1047,
+   "intent_name": "closing_close",
+   "category": "A",
+   "state": "closing",
+   "template": "ขอขอบคุณที่ใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดี{suffix}",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "close",
+   "_real_count": 12628
+  },
+  {
+   "company": "AEON",
+   "text_id": 1051,
+   "intent_name": "closing_offer_callback",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัย{suffix} ขออนุญาตติดต่อใหม่ภายหลังนะ{q_suffix} ขอบคุณ{suffix}",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "offer_callback",
+   "_real_count": 680
+  },
+  {
+   "company": "AEON",
+   "text_id": 1052,
+   "intent_name": "closing_close",
+   "category": "A",
+   "state": "closing",
+   "template": "ขอบคุณสำหรับการชำระเงิน และใช้บริการอิอ้อนด้วยดีเสมอมา สวัสดี{suffix}",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "close_paid",
+   "_real_count": 350
+  },
+  {
+   "company": "AEON",
+   "text_id": 1054,
+   "intent_name": "apology_close",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัยที่รบกวน สวัสดี{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "apology_close",
+   "_real_count": 133
+  },
+  {
+   "company": "AEON",
+   "text_id": 1055,
+   "intent_name": "closing_apology",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัยที่รบกวน{suffix} {pronoun}ขออนุญาตติดต่อกลับอีกครั้งภายหลัง สวัสดี{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "apology",
+   "_real_count": 108,
+   "hint": "ขออภัย + จะติดต่อกลับ — สลับกับ 1059 ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1056,
+   "intent_name": "closing_apology",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัยที่รบกวนเวลา ขออนุญาตสอบถามเวลาที่คุณลูกค้าสะดวกให้ติดต่อกลับด้วยนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "ask_callback_time",
+   "_real_count": 55,
+   "hint": "ถามเวลาโทรกลับ แบบสุภาพเต็ม"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1059,
+   "intent_name": "closing_apology",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัยที่รบกวน{suffix} ขออนุญาตติดต่อกลับอีกครั้งภายหลัง สวัสดี{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "apology",
+   "_real_count": 39,
+   "hint": "ขออภัย + จะติดต่อกลับ — สลับกับ 1055 ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1061,
+   "intent_name": "closing_apology",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัย{suffix} {pronoun}น่าจะได้ยินหมายเลขได้ไม่ครบถ้วน รบกวนช่วยแจ้งเบอร์อีกสักครั้งนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "ask_phone_again",
+   "_real_count": 37
+  },
+  {
+   "company": "AEON",
+   "text_id": 1063,
+   "intent_name": "closing_apology",
+   "category": "A",
+   "state": "closing",
+   "template": "ขออภัยที่รบกวนเวลา{suffix} ขออนุญาตสอบถามเวลาที่คุณลูกค้าสะดวกให้ติดต่อกลับด้วย{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "ask_callback_time",
+   "_real_count": 23,
+   "hint": "ถามเวลาโทรกลับ แบบสุภาพเต็ม (ใช้แทน 1056 ได้)"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1065,
+   "intent_name": "opening_verify_name",
+   "category": "B",
+   "state": "opening",
+   "template": "ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} หรือเปล่า{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "verify_name",
+   "_flow_id": "opening_01_r1",
+   "_real_count": 0,
+   "hint": "ยืนยันชื่อ — สลับกับ 1001 ได้"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1066,
+   "intent_name": "negotiation_ask_pay_today",
+   "category": "B",
+   "state": "negotiation",
+   "template": "คุณลูกค้าชำระยอดขั้นต่ำเข้ามาภายในวันนี้ก่อนได้มั้ย{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_pay_today",
+   "_flow_id": "retry_convince_02",
+   "_real_count": 0,
+   "hint": "ขอซ้ำแบบสั้น (ใช้แทน 1023 ได้)"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1067,
+   "intent_name": "hardship_convince_lost_job",
+   "category": "A",
+   "state": "hardship",
+   "template": "{pronoun}เข้าใจในสถานการณ์ในสภาวะเช่นนี้{suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "convince_lost_job",
+   "_flow_id": "convince_01_1",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1068,
+   "intent_name": "hardship_convince_sick",
+   "category": "A",
+   "state": "hardship",
+   "template": "{pronoun}เข้าใจในสถานการณ์และขอให้คุณลูกค้ามีสุขภาพดีขึ้นโดยเร็วนะ{q_suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "convince_sick",
+   "_flow_id": "convince_01_2",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1069,
+   "intent_name": "hardship_convince_other",
+   "category": "A",
+   "state": "hardship",
+   "template": "{pronoun}เข้าใจในสถานการณ์{suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "convince_other",
+   "_flow_id": "convince_01_3",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1071,
+   "intent_name": "faq_hold",
+   "category": "A",
+   "state": "opening",
+   "template": "ได้{suffix} ถ้าสะดวกแล้วแจ้งนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_hold",
+   "_flow_id": "faq_hold",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1072,
+   "intent_name": "faq_scam",
+   "category": "A",
+   "state": "opening",
+   "template": "{pronoun}เข้าใจในความกังวลนะ{q_suffix} {pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อนจริงๆ {suffix} ไม่ใช่มิจฉาชีพ หากไม่มั่นใจ รบกวนติดต่อกลับที่ {company_phone} ได้{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_scam",
+   "_flow_id": "faq_scam",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1073,
+   "intent_name": "faq_annoyed",
+   "category": "A",
+   "state": "opening",
+   "template": "ขออภัยที่รบกวนนะ{q_suffix} {pronoun}ขออนุญาตแจ้งเรื่องสำคัญสั้นๆ {suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_annoyed",
+   "_flow_id": "faq_annoyed",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1074,
+   "intent_name": "faq_mourning",
+   "category": "A",
+   "state": "closing",
+   "template": "ขอแสดงความเสียใจด้วยนะ{q_suffix} {pronoun}ขออนุญาตบันทึกเรื่องและให้เจ้าหน้าที่ติดต่อกลับภายหลังนะ{q_suffix}",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_mourning",
+   "_flow_id": "faq_mourning",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1075,
+   "intent_name": "faq_wrong_name",
+   "category": "A",
+   "state": "opening",
+   "template": "ขออภัยด้วยนะ{q_suffix} หากเรียนชื่อไม่ถูกต้อง รบกวนคุณลูกค้าช่วยยืนยันชื่ออีกครั้งได้ไหม{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_wrong_name",
+   "_flow_id": "faq_wrong_name",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1076,
+   "intent_name": "faq_repeat",
+   "category": "A",
+   "state": "negotiation",
+   "template": "ขออภัย{suffix} {pronoun}ขออนุญาตแจ้งอีกครั้งนะ{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_repeat",
+   "_flow_id": "faq_repeat",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1077,
+   "intent_name": "faq_amount",
+   "category": "A",
+   "state": "negotiation",
+   "template": "ยอดค้างชำระทั้งหมด {amount} บาท ยอดชำระขั้นต่ำ {minimum_payment} บาท{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_amount",
+   "_flow_id": "faq_amount",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1078,
+   "intent_name": "faq_due",
+   "category": "A",
+   "state": "negotiation",
+   "template": "ครบกำหนดชำระ{due_date} {suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_due",
+   "_flow_id": "faq_due",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1079,
+   "intent_name": "faq_faq_referral",
+   "category": "A",
+   "state": "closing",
+   "template": "เรื่องนี้รบกวนติดต่อสอบถามรายละเอียดเพิ่มเติมที่ {company_phone} ได้{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_faq_referral",
+   "_flow_id": "faq_faq_referral",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1109,
+   "intent_name": "closing_confirm_info",
+   "category": "A",
+   "state": "closing",
+   "template": "คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะ{q_suffix}",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "confirm_info",
+   "_real_count": 0,
+   "_flow_id": "retry_predue_01"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1110,
+   "intent_name": "negotiation_offer_channel_only",
+   "category": "A",
+   "state": "negotiation",
+   "template": "คุณลูกค้าสามารถชำระผ่านอิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อนได้เลย{suffix} ดาวน์โหลดแอปได้ที่ Google Play Store หรือ App Store {suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "offer_channel_only",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1114,
+   "intent_name": "faq_caller",
+   "category": "A",
+   "state": "opening",
+   "template": "{pronoun}ติดต่อจากบริษัทอิอ้อน{suffix} เป็นผู้ช่วยอัตโนมัติ ติดต่อเรื่องบัญชีของคุณลูกค้า{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_caller",
+   "_flow_id": "faq_caller",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1115,
+   "intent_name": "ask_channel",
+   "category": "A",
+   "state": "ask",
+   "template": "ไม่ทราบว่าคุณลูกค้าจะชำระผ่านช่องทางไหน{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_channel"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1116,
+   "intent_name": "faq_company",
+   "category": "A",
+   "state": "opening",
+   "template": "บริษัทอิอ้อนเป็นผู้ให้บริการทางการเงินและบัตรเครดิต{suffix} วันนี้ติดต่อเรื่องบัญชีของคุณลูกค้า{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_company",
+   "_flow_id": "faq_caller",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1117,
+   "intent_name": "faq_debt_type",
+   "category": "A",
+   "state": "negotiation",
+   "template": "เป็นยอดค้างชำระบัตรเครดิตของบริษัทอิอ้อน{suffix} หากต้องการรายละเอียดเพิ่มเติม รบกวนติดต่อ {company_phone}{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "faq_debt_type",
+   "_flow_id": "faq_caller",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1118,
+   "intent_name": "faq_verify_first",
+   "category": "A",
+   "state": "kyc",
+   "template": "ขออนุญาตยืนยันตัวตนก่อนนะ{q_suffix} ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "verify_first",
+   "_flow_id": "faq_caller",
+   "_real_count": 0
+  },
+  {
+   "company": "AEON",
+   "text_id": 1130,
+   "intent_name": "confirm_overpay",
+   "category": "A",
+   "state": "negotiation",
+   "template": "สามารถชำระมากกว่ายอดขั้นต่ำ {minimum_payment} บาทได้{suffix}",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": false,
+   "_fine_state": "confirm_overpay",
+   "_flow_id": "confirm_overpay"
+  },
+  {
+   "company": "AEON",
+   "text_id": 1131,
+   "intent_name": "below_minimum",
+   "category": "B",
+   "state": "negotiation",
+   "template": "ยอดชำระขั้นต่ำอยู่ที่ {minimum_payment} บาท{suffix} รบกวนคุณลูกค้าชำระอย่างน้อยขั้นต่ำได้ไหม{q_suffix}",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "below_minimum",
+   "_flow_id": "below_minimum"
+  },
+  {
+   "text_id": 1132,
+   "template": "ไม่เป็นไร{suffix} หากยังไม่ได้ชำระตามกำหนด อาจมีการบันทึกประวัติค้างชำระต่อเครดิตบูโรตามระบบ{suffix} หากต้องการความช่วยเหลือ ติดต่อ [company_phone] ได้{suffix} สวัสดี{suffix}",
+   "_fine_state": "close_credit_notice"
+  },
+  {
+   "text_id": 1133,
+   "template": "ขอบคุณสำหรับข้อมูล{suffix} ขออนุญาตบันทึกเบอร์ติดต่อใหม่ไว้ในระบบ เพื่อให้เจ้าหน้าที่ติดต่อกลับตามเบอร์ดังกล่าวนะ{q_suffix}",
+   "_fine_state": "ack_new_phone"
+  },
+  {
+   "text_id": 1134,
+   "template": "คุณลูกค้าสามารถติดต่อกลับมาปรึกษาอิอ้อนได้ที่เบอร์ [company_phone] เพื่อหาแนวทางการชำระที่เหมาะสมนะ{q_suffix} ขอบคุณ{suffix} สวัสดี{suffix}",
+   "_fine_state": "refer_below_min"
+  }
+ ]
+}
