@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from demo.server.flow.flowspec import load_flow_spec, validate_flow_spec, is_chain_state
+from demo.server.flow.flowspec import derive_outcomes, load_flow_spec, validate_flow_spec, is_chain_state
 
 RENDER_VERSION = "v12"
 
@@ -229,12 +229,20 @@ def render_instruction(spec: dict) -> str:
     sec.append("\n".join(faq))
 
     # --- outcomes summary ---
-    _closer, _cargs = _closing_tool(spec)
-    oc = [f"## Outcome (จบสายต้องเรียก `{_closer}({', '.join(_cargs)})` เสมอ)"]
-    for result, info in spec.get("outcomes", {}).get("results", {}).items():
-        reasons = "/".join(info.get("reasons", [])) or "-"
-        oc.append(f"- `{result}` (reason: {reasons}) — {info.get('desc', '')}")
-    sec.append("\n".join(oc))
+    results = derive_outcomes(spec)
+    if results:
+        try:
+            _closer, _cargs = _closing_tool(spec)
+            head = f"## Outcome (จบสายต้องเรียก `{_closer}({', '.join(_cargs)})` เสมอ)"
+        except ValueError:
+            # a flow may record nothing — say what the results mean without promising a
+            # call that does not exist
+            head = "## Outcome"
+        oc = [head]
+        for result, info in results.items():
+            reasons = "/".join(info.get("reasons", [])) or "-"
+            oc.append(f"- `{result}` (reason: {reasons}) — {info.get('desc', '')}")
+        sec.append("\n".join(oc))
 
     # --- pre-script overview (fine_states only; full catalog appended at runtime) ---
     ov = ["## Available Pre-Scripts",

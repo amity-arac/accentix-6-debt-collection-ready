@@ -113,23 +113,31 @@ def lint(spec: dict, catalog: list[dict]) -> list[tuple[str, str, str]]:
             err("unreachable_state", f"states[{sid}] cannot be reached from `{initial[0]}`")
 
     # --- closing ------------------------------------------------------------
+    # A flow need not record anything — a notification call ends when it has been said.
+    # What is not allowed is TWO closers, or a closer that some ending forgets to call.
     closers = [n for n, d in decls.items() if (d.get("gating") or {}).get("required_at") == "end_of_call"]
-    if len(closers) != 1:
-        err("closing_tool", f"exactly one tool must declare gating.required_at: end_of_call (found {closers})")
-    else:
+    if len(closers) > 1:
+        err("closing_tool", f"at most one tool may declare gating.required_at: end_of_call (found {closers})")
+    elif closers:
         for s in states:
             if (s.get("terminal") or s.get("phase") == "close") and closers[0] not in (s.get("entry_tools") or []):
                 err("terminal_records_nothing",
                     f"states[{s['id']}] ends the call without `{closers[0]}` in entry_tools")
 
     # --- outcomes ------------------------------------------------------------
-    declared = set((spec.get("outcomes") or {}).get("results") or {})
-    if not declared:
-        err("no_outcomes", "outcomes.results is empty — a flow that declares no result can close with none")
+    # Results come from the states now, so there is no list to be absent from. What is
+    # worth reporting is a result recorded with reasons that contradict another state's
+    # for the same code, and a code declared in the legacy block that nothing records.
+    from collections import defaultdict
+    seen_reasons: dict[str, set] = defaultdict(set)
     for s in states:
-        r = (s.get("outcome") or {}).get("result")
-        if r and r not in declared:
-            err("outcome_not_declared", f"states[{s['id']}] closes with `{r}`, not in outcomes.results")
+        o = s.get("outcome") or {}
+        if o.get("result"):
+            seen_reasons[o["result"]].update(o.get("reasons") or [])
+    for code in ((spec.get("outcomes") or {}).get("results") or {}):
+        if code not in seen_reasons:
+            warn("outcome_unreachable",
+                 f"outcomes declares `{code}` but no state or FAQ route records it")
 
     # --- tool argument contracts --------------------------------------------
     for name, d in decls.items():

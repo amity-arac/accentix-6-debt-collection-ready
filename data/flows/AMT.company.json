@@ -311,7 +311,8 @@
     "result": "confirmed",
     "reasons": [
      "confirmed"
-    ]
+    ],
+    "desc": "ผู้ป่วยยืนยันเข้าตามนัดเดิม"
    },
    "templates": [
     {
@@ -332,7 +333,8 @@
     "result": "rescheduled",
     "reasons": [
      "rescheduled"
-    ]
+    ],
+    "desc": "ผู้ป่วยขอเลื่อนนัด (แพทย์คนเดิมวันที่เข้าเวร / หรือเปลี่ยนเป็นแพทย์ท่านอื่นในวันที่ผู้ป่วยสะดวก)"
    },
    "templates": [
     {
@@ -353,7 +355,8 @@
     "result": "rescheduled",
     "reasons": [
      "other_doctor"
-    ]
+    ],
+    "desc": "ผู้ป่วยขอเลื่อนนัด (แพทย์คนเดิมวันที่เข้าเวร / หรือเปลี่ยนเป็นแพทย์ท่านอื่นในวันที่ผู้ป่วยสะดวก)"
    },
    "templates": [
     {
@@ -426,7 +429,8 @@
     "result": "cancelled",
     "reasons": [
      "patient_request"
-    ]
+    ],
+    "desc": "ผู้ป่วยขอยกเลิกนัด"
    }
   },
   {
@@ -446,7 +450,8 @@
     "result": "unreachable",
     "reasons": [
      "wrong_number"
-    ]
+    ],
+    "desc": "ติดต่อผู้ป่วยไม่ได้ (ผิดคน / ไม่มีการตอบ)"
    }
   },
   {
@@ -466,7 +471,8 @@
     "result": "unreachable",
     "reasons": [
      "no_input"
-    ]
+    ],
+    "desc": "ติดต่อผู้ป่วยไม่ได้ (ผิดคน / ไม่มีการตอบ)"
    }
   },
   {
@@ -486,7 +492,8 @@
     "result": "unresolved",
     "reasons": [
      "no_slot_agreed"
-    ]
+    ],
+    "desc": "ตกลงวันนัดไม่ได้ในสายนี้ — ส่งต่อเจ้าหน้าที่จัดคิว"
    }
   }
  ],
@@ -610,43 +617,6 @@
    "desc": "**ความเงียบไม่ใช่การตกลง:** ลูกค้าตอบว่า '...' / '(เงียบ)' / ตอบไม่เป็นคำพูดที่ตีความได้ = เหตุการณ์ `no_input` เท่านั้น — **ห้ามถือเป็น agrees_to_pay ห้ามเรียก record_verbal_commitment / payment_date และห้ามบันทึกผลเป็น ptp** ให้เดินตาม transition ของ no_input ใน state ปัจจุบัน (ถามซ้ำ หรือปิดสายตามที่ flow กำหนด) การบันทึกคำมั่นจากความเงียบถือว่าผิดร้ายแรงเทียบเท่ากับบันทึกคำมั่นที่ลูกค้าไม่ได้ให้"
   }
  ],
- "outcomes": {
-  "required_at_close": true,
-  "results": {
-   "confirmed": {
-    "reasons": [
-     "confirmed"
-    ],
-    "desc": "ผู้ป่วยยืนยันเข้าตามนัดเดิม"
-   },
-   "rescheduled": {
-    "reasons": [
-     "rescheduled",
-     "other_doctor"
-    ],
-    "desc": "ผู้ป่วยขอเลื่อนนัด (แพทย์คนเดิมวันที่เข้าเวร / หรือเปลี่ยนเป็นแพทย์ท่านอื่นในวันที่ผู้ป่วยสะดวก)"
-   },
-   "cancelled": {
-    "reasons": [
-     "patient_request"
-    ],
-    "desc": "ผู้ป่วยขอยกเลิกนัด"
-   },
-   "unreachable": {
-    "reasons": [
-     "wrong_number",
-     "no_input"
-    ],
-    "desc": "ติดต่อผู้ป่วยไม่ได้ (ผิดคน / ไม่มีการตอบ)"
-   },
-   "unresolved": {
-    "reasons": [
-     "no_slot_agreed"
-    ],
-    "desc": "ตกลงวันนัดไม่ได้ในสายนี้ — ส่งต่อเจ้าหน้าที่จัดคิว"
-   }
-  }
- },
  "compliance": {
   "note": "spec-declared beat roles for compliance gating (was hardcoded regex in env.py). Auto-derived to preserve behavior.",
   "verify_fine_states": [],

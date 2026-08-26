@@ -245,13 +245,19 @@ def tool_responses(decl: dict, crm: dict) -> list[dict]:
     # Rules come first so Mockoon matches them before the default.
     mock = decl.get("mock") or {}
     if mock:
+        # Every response echoes the call's own args back, which is how a template speaks
+        # a value the customer just gave: the model captures and normalises it into an
+        # arg, the API validates, and the echo puts the validated value in the render
+        # context. A spec-declared `mock` used to REPLACE the body and lose that echo,
+        # so `[new_date]` went out to the caller as literal brackets.
+        echo = _echo(decl)
         for rule in mock.get("rules", []):
             w = rule.get("when") or {}
-            out.append(_resp(rule["body"], default=False,
+            out.append(_resp({**echo, **rule["body"]}, default=False,
                              label=rule.get("label", "match"),
                              rules=[_body_regex(f"args.{w['arg']}", w["matches"])]))
         if mock.get("default") is not None:
-            out.append(_resp(mock["default"], default=True, label="default"))
+            out.append(_resp({**echo, **mock["default"]}, default=True, label="default"))
             return out
 
     if name.startswith("check_account"):

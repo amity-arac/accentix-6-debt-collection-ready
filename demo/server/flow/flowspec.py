@@ -63,7 +63,6 @@ CONSTRAINT_TYPES = frozenset({
     "max_templates_per_reply",
     "resume_after_interrupt",
     "require_tool_before_end",
-    "outcome_precondition",
     "tool_pair",
 })
 
@@ -71,7 +70,7 @@ CONSTRAINT_TYPES = frozenset({
 # from the filename, which is the one place they cannot disagree with. `spec_version` is
 # implied by the shape the loader accepts.
 _REQUIRED_TOP_KEYS = (
-    "events", "tools", "states", "faq_routing", "constraints", "outcomes",
+    "events", "tools", "states", "faq_routing", "constraints",
 )
 
 
@@ -92,14 +91,14 @@ TOP_KEYS = frozenset({
     # what the agent knows about the customer
     "crm_fields", "crm_labels", "session_init",
     # what it can say, and when
-    "catalog", "events", "states", "faq_routing", "constraints", "outcomes",
+    "catalog", "events", "states", "faq_routing", "constraints",
     "auxiliary_templates", "fallback_fine_state",
     # what it can do
     "tools",
     # which beats count as verify / disclose / close (the training env reads this)
     "compliance",
     # accepted from the older shape so an existing file still loads
-    "spec_version", "company", "flow_id", "catalog_inline",
+    "spec_version", "company", "flow_id", "catalog_inline", "outcomes",
 })
 STATE_KEYS = frozenset({
     "id", "phase", "initial", "terminal", "templates", "on", "entry_tools",
@@ -174,6 +173,48 @@ def load_flow_spec(path: str | Path) -> dict:
         p = FLOWS_DIR / f"{p.name}.json"
     with open(p, encoding="utf-8") as f:
         return json.load(f)
+
+
+def derive_outcomes(spec: dict) -> dict:
+    """The call results this flow can actually produce — assembled from the states.
+
+    A state that ends the call already says what it records; a terminal FAQ route says
+    the same. A separate top-level `outcomes` block was an index of that, and being a
+    copy it drifted: AEON's block listed `refused` with no reasons while its own state
+    named three, and both AEON and KBANK listed `busy` / `voice_mail`, which no state
+    can reach. It also forced every flow to HAVE call results — a notification call or
+    a survey had to invent them to pass validation.
+
+    `desc` (a note to the model about what a result means) has nowhere to be derived
+    from, so it rides on the state's own `outcome`. A spec that still carries the old
+    block keeps working: its entries fill in what the states did not say.
+    """
+    out: dict[str, dict] = {}
+
+    def add(o: dict) -> None:
+        if not o or not o.get("result"):
+            return
+        e = out.setdefault(o["result"], {"reasons": [], "desc": ""})
+        for r in o.get("reasons") or []:
+            if r not in e["reasons"]:
+                e["reasons"].append(r)
+        if o.get("desc") and not e["desc"]:
+            e["desc"] = o["desc"]
+
+    for st in spec.get("states", []):
+        add(st.get("outcome") or {})
+    for route in ((spec.get("faq_routing") or {}).get("routes") or []):
+        then = route.get("then")
+        if isinstance(then, dict):
+            add(then.get("outcome") or {})
+    for code, info in ((spec.get("outcomes") or {}).get("results") or {}).items():
+        e = out.setdefault(code, {"reasons": [], "desc": ""})
+        for r in (info or {}).get("reasons") or []:
+            if r not in e["reasons"]:
+                e["reasons"].append(r)
+        if not e["desc"]:
+            e["desc"] = (info or {}).get("desc", "")
+    return out
 
 
 def load_tenant_spec(path: "Path | str") -> dict:
@@ -275,7 +316,7 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
 
     # instruction-grounded outcome vocab: this spec's own declared results, and only
     # those. A flow that declares none can emit none.
-    valid_results = set((spec.get("outcomes") or {}).get("results", {}).keys())
+    valid_results = set(derive_outcomes(spec))
     events = set(spec["events"].keys())
     state_ids = [st.get("id") for st in spec["states"]]
     state_set = set(state_ids)
@@ -411,9 +452,11 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
                 errors.append(f"constraint {cid}: references non-enabled tool: {tool}")
 
     # --- outcomes ---
-    for result in spec["outcomes"].get("results", {}):
+    # Results now come FROM the states, so there is no list to cross-check against —
+    # what remains worth saying is when a result code is declared and unreachable.
+    for result in ((spec.get("outcomes") or {}).get("results") or {}):
         if result not in valid_results:
-            errors.append(f"outcomes: invalid result code: {result}")
+            warnings.append(f"outcomes: `{result}` is declared but no state or FAQ route records it")
 
     # --- catalog cross-check ---
     if catalog is not None:
@@ -484,6 +527,7 @@ __all__ = [
     "FLOWS_DIR",
     "KNOWN_IMPLS",
     "load_tenant_spec",
+    "derive_outcomes",
     "CONSTRAINT_TYPES",
     "load_flow_spec",
     "load_catalog",

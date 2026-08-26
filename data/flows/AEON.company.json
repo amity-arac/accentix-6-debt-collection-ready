@@ -644,7 +644,8 @@
     "reasons": [
      "ptp",
      "minimum"
-    ]
+    ],
+    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
    },
    "note": "จับ PTP กรณีจ่ายวันนี้: **เรียก get_current_datetime ก่อนเสมอ** → ใช้ค่า today ที่ได้เป็น date (ไม่ถามวันจากลูกค้า), channel เว้นว่าง (ไม่ถามช่องทาง) → record_verbal_commitment(amount, date=today) → payment_date(...) → record_outcome(ptp) → **ปิดด้วย text 1047 (close) ตรงๆ ไม่ต้องถาม 'ได้รับข้อมูลครบถ้วน' — 1052 ใช้เฉพาะเคสลูกค้าชำระไปแล้ว**. ถามวัน/ช่องทางเฉพาะเคสจ่ายวันอื่น หรือลูกค้าบอกจ่ายไปแล้ว",
    "terminal": true
@@ -661,7 +662,8 @@
     "result": "ptp",
     "reasons": [
      "paid"
-    ]
+    ],
+    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
    },
    "note": "ลูกค้าแจ้งชำระแล้ว — ขอบคุณ+ปิดสาย",
    "terminal": true,
@@ -686,7 +688,8 @@
     "reason_by_event": {
      "refuses": "ลูกค้าแจ้งไม่มีเงิน",
      "stop_signal": "ลูกค้าไม่ต้องการให้โทรมา ขู่ฟ้อง"
-    }
+    },
+    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
    },
    "note": "ครบโควตาขอให้จ่าย 2 ครั้ง หรือเจอ stop_signal → record_outcome(refused) แล้วปิดทันที ห้ามโน้มน้าวครั้งที่ 3",
    "terminal": true,
@@ -711,7 +714,8 @@
     "result": "tcb",
     "reasons": [
      "callback"
-    ]
+    ],
+    "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
    },
    "terminal": true,
    "note": "ลูกค้าขอเลื่อน/ให้โทรกลับ → **ต้องเรียก callback_datetime(date) เพื่อบันทึกนัดโทรกลับ** (เรียก get_current_datetime ก่อนถ้านัดเป็นวันอื่น; ถ้าลูกค้าไม่ระบุวันชัดใช้ค่าที่เหมาะสม) → record_outcome(tcb, callback) → พูด offer_callback (1051) ปิดสาย. **ห้ามแค่พูดลอยๆ โดยไม่เรียก tool และห้ามถามเบอร์** (มีเบอร์ลูกค้าอยู่แล้ว ไม่ใช่ third_party)"
@@ -733,7 +737,8 @@
      "other_person",
      "wrong_number",
      "no_input"
-    ]
+    ],
+    "desc": "ไม่ถึงตัวลูกหนี้"
    },
    "terminal": true,
    "entry_tools": [
@@ -754,7 +759,8 @@
      "no_input"
     ],
     "inferred": true,
-    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้รับข้อมูลครบถ้วนแล้ว ปิดสาย; result 'reached' อนุมาน (v11 ระบุแค่ retry_predue → close)"
+    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้รับข้อมูลครบถ้วนแล้ว ปิดสาย; result 'reached' อนุมาน (v11 ระบุแค่ retry_predue → close)",
+    "desc": "ถึงตัวแต่จบแบบอื่น"
    },
    "terminal": true,
    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้แจ้งข้อมูลครบถ้วนแล้ว ปิดสายสุภาพ",
@@ -815,7 +821,8 @@
     "result": "unreachable",
     "reasons": [
      "other_person"
-    ]
+    ],
+    "desc": "ไม่ถึงตัวลูกหนี้"
    },
    "terminal": true,
    "note": "ได้รับเบอร์ใหม่จากบุคคลที่สาม: เรียก update_phone แล้ว reply ขอบคุณ+แจ้งบันทึกเบอร์ (ack_new_phone 1133) ตามด้วย apology_close (1054) ในเทิร์นเดียว → record_outcome(\"unreachable\", other_person) — ห้ามเปิดเผยยอดหนี้",
@@ -837,7 +844,8 @@
     "result": "refused",
     "reasons": [
      "ขอจ่ายน้อยกว่าขั้นต่ำ"
-    ]
+    ],
+    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
    },
    "terminal": true,
    "note": "ลูกค้ายืนยันจ่ายต่ำกว่าขั้นต่ำหลังแจ้ง floor แล้ว → reply refer_below_min (1134: แนะนำติดต่อกลับมาปรึกษาที่ [company_phone]) แล้วค่อย record_outcome(\"refused\", reason: \"ขอจ่ายน้อยกว่าขั้นต่ำ\") — **ห้าม**เรียก record_verbal_commitment/payment_date",
@@ -925,7 +933,8 @@
       "result": "tcb",
       "reasons": [
        "agent"
-      ]
+      ],
+      "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
      },
      "terminal": true
     }
@@ -995,7 +1004,8 @@
       "result": "tin",
       "reasons": [
        "wrong_name"
-      ]
+      ],
+      "desc": "incorrect name"
      },
      "terminal": true
     }
@@ -1015,7 +1025,8 @@
        "mourning"
       ],
       "inferred": true,
-      "note": "v11 ระบุแค่ 'เสียใจ+บันทึก ปิดสุภาพ' — result อนุมาน"
+      "note": "v11 ระบุแค่ 'เสียใจ+บันทึก ปิดสุภาพ' — result อนุมาน",
+      "desc": "ถึงตัวแต่จบแบบอื่น"
      },
      "terminal": true
     }
@@ -1159,45 +1170,6 @@
     "reward"
    ],
    "desc": "ตอบ FAQ แล้วกลับเข้า flow จากจุดเดิม — ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ"
-  },
-  {
-   "id": "overdue_future_ptp_is_refusal",
-   "type": "outcome_precondition",
-   "when": {
-    "crm": {
-     "due_status": "overdue"
-    },
-    "last_payment_date": "future"
-   },
-   "reject": {
-    "result": "ptp"
-   },
-   "require_instead": {
-    "result": "refused"
-   },
-   "enforce": [
-    "backend"
-   ],
-   "desc": "บัญชี overdue และวันจ่ายที่บันทึกไว้เป็นอนาคต → ระบบไม่รับ ptp ให้บันทึก refused แทน (หรือเจรจาให้ชำระวันนี้ก่อนบันทึก)",
-   "source_ref": "Miro §1.1/§3.2 — enforced in backend.record_outcome"
-  },
-  {
-   "id": "busy_voicemail_preconnection_only",
-   "type": "outcome_precondition",
-   "when": {
-    "after_tool": "check_account_status"
-   },
-   "reject": {
-    "reasons": [
-     "busy",
-     "voice_mail"
-    ]
-   },
-   "enforce": [
-    "backend"
-   ],
-   "desc": "busy/voice_mail ใช้ได้เฉพาะสายที่ไม่เคยติด — ถ้าเรียก check_account_status แล้วถือว่าสายติด ให้บันทึกตามที่เกิดจริง (reached/refused)",
-   "source_ref": "Miro §3.1 — enforced in backend.record_outcome"
   },
   {
    "id": "commitment_pair",
@@ -1383,54 +1355,6 @@
    "desc": "**หลังตอบ `offer_channel_only` (1110) ให้กลับเข้า flow เดิมทันที** — ถามรับปากชำระต่อ หรือปิดสายตามสถานะ · **ห้ามตอบ faq_repeat (1076) ต่อท้าย** เพราะลูกค้าไม่ได้ขอให้พูดซ้ำ"
   }
  ],
- "outcomes": {
-  "required_at_close": true,
-  "results": {
-   "ptp": {
-    "reasons": [
-     "ptp",
-     "paid",
-     "minimum"
-    ],
-    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
-   },
-   "refused": {
-    "reasons": [],
-    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
-   },
-   "unreachable": {
-    "reasons": [
-     "other_person",
-     "wrong_number",
-     "busy",
-     "voice_mail",
-     "no_input"
-    ],
-    "desc": "ไม่ถึงตัวลูกหนี้"
-   },
-   "reached": {
-    "reasons": [
-     "mourning",
-     "no_input"
-    ],
-    "desc": "ถึงตัวแต่จบแบบอื่น",
-    "inferred": true
-   },
-   "tcb": {
-    "reasons": [
-     "agent",
-     "callback"
-    ],
-    "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
-   },
-   "tin": {
-    "reasons": [
-     "wrong_name"
-    ],
-    "desc": "incorrect name"
-   }
-  }
- },
  "auxiliary_templates": {
   "note": "template ที่ไม่ผูกกับ state เดียว — ใช้ได้ตามบริบทใน phase ที่ตรง",
   "allowed": [

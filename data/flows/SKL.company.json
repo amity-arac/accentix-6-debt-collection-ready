@@ -470,7 +470,8 @@
     "reasons": [
      "ptp",
      "minimum"
-    ]
+    ],
+    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
    },
    "note": "จับ PTP: บันทึกคำมั่น→payment_date→record_outcome(ptp) แล้วปิดสายในเทิร์นเดียว — พูด ptp_record (ยืนยันบันทึกนัดชำระ+เก็บใบเสร็จ) ต่อด้วย close (ขอบคุณ+สวัสดี) โดยเรียก reply(text_ids=[ptp_record, close])",
    "terminal": true
@@ -487,7 +488,8 @@
     "result": "ptp",
     "reasons": [
      "paid"
-    ]
+    ],
+    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
    },
    "note": "ลูกค้าแจ้งชำระแล้ว — ขอบคุณ+ปิดสาย",
    "terminal": true,
@@ -505,7 +507,8 @@
    ],
    "outcome": {
     "result": "refused",
-    "reasons": []
+    "reasons": [],
+    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
    },
    "note": "ครบโควตาขอให้จ่าย 2 ครั้ง หรือเจอ stop_signal → record_outcome(refused) แล้วปิดทันที ห้ามโน้มน้าวครั้งที่ 3",
    "terminal": true,
@@ -531,7 +534,8 @@
      "callback"
     ],
     "inferred": true,
-    "note": "v11 ไม่ระบุ outcome ของ callback ตรงๆ; tcb=transfer-to-callback ตาม v10 flow map"
+    "note": "v11 ไม่ระบุ outcome ของ callback ตรงๆ; tcb=transfer-to-callback ตาม v10 flow map",
+    "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
    },
    "terminal": true
   },
@@ -549,7 +553,8 @@
      "other_person",
      "wrong_number",
      "no_input"
-    ]
+    ],
+    "desc": "ไม่ถึงตัวลูกหนี้"
    },
    "terminal": true,
    "entry_tools": [
@@ -573,7 +578,8 @@
      "no_input"
     ],
     "inferred": true,
-    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้รับข้อมูลครบถ้วนแล้ว ปิดสาย; result 'reached' อนุมาน (v11 ระบุแค่ retry_predue → close)"
+    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้รับข้อมูลครบถ้วนแล้ว ปิดสาย; result 'reached' อนุมาน (v11 ระบุแค่ retry_predue → close)",
+    "desc": "ถึงตัวแต่จบแบบอื่น"
    },
    "terminal": true,
    "note": "ลูกค้าเงียบหลังแจ้งยอด → ยืนยันว่าได้แจ้งข้อมูลครบถ้วนแล้ว ปิดสายสุภาพ",
@@ -638,7 +644,8 @@
       "result": "tcb",
       "reasons": [
        "agent"
-      ]
+      ],
+      "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
      },
      "terminal": true
     }
@@ -707,7 +714,8 @@
       "result": "tin",
       "reasons": [
        "wrong_name"
-      ]
+      ],
+      "desc": "incorrect name"
      },
      "terminal": true
     }
@@ -727,7 +735,8 @@
        "mourning"
       ],
       "inferred": true,
-      "note": "v11 ระบุแค่ 'เสียใจ+บันทึก ปิดสุภาพ' — result อนุมาน"
+      "note": "v11 ระบุแค่ 'เสียใจ+บันทึก ปิดสุภาพ' — result อนุมาน",
+      "desc": "ถึงตัวแต่จบแบบอื่น"
      },
      "terminal": true
     }
@@ -854,45 +863,6 @@
    "desc": "จบสายต้อง record_outcome(result, reason, remark) เสมอ ครั้งเดียว"
   },
   {
-   "id": "overdue_future_ptp_is_refusal",
-   "type": "outcome_precondition",
-   "when": {
-    "crm": {
-     "due_status": "overdue"
-    },
-    "last_payment_date": "future"
-   },
-   "reject": {
-    "result": "ptp"
-   },
-   "require_instead": {
-    "result": "refused"
-   },
-   "enforce": [
-    "backend"
-   ],
-   "desc": "บัญชี overdue และวันจ่ายที่บันทึกไว้เป็นอนาคต → ระบบไม่รับ ptp ให้บันทึก refused แทน (หรือเจรจาให้ชำระวันนี้ก่อนบันทึก)",
-   "source_ref": "Miro §1.1/§3.2 — enforced in backend.record_outcome"
-  },
-  {
-   "id": "busy_voicemail_preconnection_only",
-   "type": "outcome_precondition",
-   "when": {
-    "after_tool": "check_account_status"
-   },
-   "reject": {
-    "reasons": [
-     "busy",
-     "voice_mail"
-    ]
-   },
-   "enforce": [
-    "backend"
-   ],
-   "desc": "busy/voice_mail ใช้ได้เฉพาะสายที่ไม่เคยติด — ถ้าเรียก check_account_status แล้วถือว่าสายติด ให้บันทึกตามที่เกิดจริง (reached/refused)",
-   "source_ref": "Miro §3.1 — enforced in backend.record_outcome"
-  },
-  {
    "id": "commitment_pair",
    "type": "tool_pair",
    "first": "record_verbal_commitment",
@@ -964,54 +934,6 @@
    "desc": "**ลูกค้าเงียบหลังได้รับข้อมูลครบแล้ว (no_input ที่ disclose_ask/convince)** → ปิดด้วย `confirm_info` ที่ทวนว่าได้รับข้อมูลครบถ้วนแล้ว และบันทึกผลเป็น reached — **ห้ามปิดด้วย close/close_paid** และห้ามบันทึกเป็น ptp"
   }
  ],
- "outcomes": {
-  "required_at_close": true,
-  "results": {
-   "ptp": {
-    "reasons": [
-     "ptp",
-     "paid",
-     "minimum"
-    ],
-    "desc": "รับปากจ่าย / จ่ายแล้ว / จ่ายขั้นต่ำ"
-   },
-   "refused": {
-    "reasons": [],
-    "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
-   },
-   "unreachable": {
-    "reasons": [
-     "other_person",
-     "wrong_number",
-     "busy",
-     "voice_mail",
-     "no_input"
-    ],
-    "desc": "ไม่ถึงตัวลูกหนี้"
-   },
-   "reached": {
-    "reasons": [
-     "mourning",
-     "no_input"
-    ],
-    "desc": "ถึงตัวแต่จบแบบอื่น",
-    "inferred": true
-   },
-   "tcb": {
-    "reasons": [
-     "agent",
-     "callback"
-    ],
-    "desc": "transfer-to-callback: ขอเจ้าหน้าที่ / นัดโทรกลับ"
-   },
-   "tin": {
-    "reasons": [
-     "wrong_name"
-    ],
-    "desc": "incorrect name"
-   }
-  }
- },
  "compliance": {
   "note": "spec-declared beat roles for compliance gating (was hardcoded regex in env.py). Auto-derived to preserve behavior.",
   "verify_fine_states": [

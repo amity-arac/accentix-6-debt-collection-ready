@@ -120,6 +120,10 @@
      "max_extend_days": {
       "type": "number",
       "desc": "เลื่อนได้ไม่เกินกี่วัน"
+     },
+     "new_date": {
+      "type": "string",
+      "desc": "วันที่ผ่านการตรวจแล้ว — ชื่อเดียวกับ slot ในประโยค"
      }
     },
     "mock": {
@@ -134,7 +138,8 @@
         "valid_dates": [
          "{{body 'args.date'}}"
         ],
-        "max_extend_days": 7
+        "max_extend_days": 7,
+        "new_date": "{{body 'args.date'}}"
        },
        "label": "in range (stand-in: Aug/Sep 2026)"
       }
@@ -143,7 +148,8 @@
       "in_range": false,
       "valid_dates": [],
       "max_extend_days": 7,
-      "note": "เกินเกณฑ์ที่ร้านรับได้"
+      "note": "เกินเกณฑ์ที่ร้านรับได้",
+      "new_date": ""
      }
     }
    },
@@ -312,7 +318,8 @@
     "result": "confirmed",
     "reasons": [
      "confirmed"
-    ]
+    ],
+    "desc": "ยืนยันจะชำระตามวันเดิม"
    }
   },
   {
@@ -331,7 +338,8 @@
     "result": "rescheduled",
     "reasons": [
      "rescheduled"
-    ]
+    ],
+    "desc": "เลื่อนวันชำระและยืนยันวันใหม่แล้ว"
    }
   },
   {
@@ -350,7 +358,8 @@
     "result": "paid_claimed",
     "reasons": [
      "paid_claimed"
-    ]
+    ],
+    "desc": "ลูกค้าอ้างว่าชำระแล้ว — รอ backend ตรวจสอบ"
    }
   },
   {
@@ -371,7 +380,8 @@
      "asks_human",
      "out_of_scope",
      "no_input"
-    ]
+    ],
+    "desc": "ส่งต่อเจ้าหน้าที่ (ขอคุยคน / นอกขอบเขต / ติดต่อไม่ได้)"
    }
   }
  ],
@@ -443,43 +453,6 @@
    "desc": "บอกว่าเลื่อนได้ไม่เกินกี่วันได้สูงสุด 2 ครั้งต่อสาย — ครบแล้วลูกค้ายังเสนอวันที่เกินเกณฑ์ ให้ปิดด้วย close_handoff (9008) ส่งต่อเจ้าหน้าที่"
   }
  ],
- "outcomes": {
-  "required_at_close": true,
-  "results": {
-   "confirmed": {
-    "reasons": [
-     "confirmed"
-    ],
-    "desc": "ยืนยันจะชำระตามวันเดิม"
-   },
-   "rescheduled": {
-    "reasons": [
-     "rescheduled"
-    ],
-    "desc": "เลื่อนวันชำระและยืนยันวันใหม่แล้ว"
-   },
-   "paid_claimed": {
-    "reasons": [
-     "paid_claimed"
-    ],
-    "desc": "ลูกค้าอ้างว่าชำระแล้ว — รอ backend ตรวจสอบ"
-   },
-   "handoff": {
-    "reasons": [
-     "asks_human",
-     "out_of_scope",
-     "no_input"
-    ],
-    "desc": "ส่งต่อเจ้าหน้าที่ (ขอคุยคน / นอกขอบเขต / ติดต่อไม่ได้)"
-   },
-   "unreachable": {
-    "reasons": [
-     "no_input"
-    ],
-    "desc": "ติดต่อไม่ได้"
-   }
-  }
- },
  "catalog": [
   {
    "text_id": 9001,
