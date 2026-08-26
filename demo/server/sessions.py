@@ -1328,7 +1328,6 @@ class FlowLiveSession:
             from demo.server.flow.flowspec_render import render_instruction
             from demo.server.flow.spec_backend import SpecBackend
         from agents.prescript import DateFormatError, build_script_catalog, fill_template
-        from simulator.config import COMPANY_NAMES, COMPANY_AGENT_NAMES, COMPANY_PHONES
         from simulator import datetime_utils
 
         self.session_id = uuid.uuid4().hex[:12]
@@ -1344,9 +1343,12 @@ class FlowLiveSession:
         self._company = self.case_id.split("-")[1]
 
         cd = dict(self._case["customer_data"])
-        cd.setdefault("company_phone", COMPANY_PHONES.get(self._company))
-        cd.setdefault("company_name", COMPANY_NAMES.get(self._company))
-        cd.setdefault("agent_name", COMPANY_AGENT_NAMES.get(self._company))
+        # A tenant's own name, phone and agent name come from its persona row and its
+        # `session_init` response — never from a table in here. The table this replaced
+        # held four debt companies, three of them retired, so a new tenant that forgot
+        # `company_phone` either got another company's number (if the codes happened to
+        # match) or a silent None that the template then spoke as an empty bracket.
+        # Leaving the field missing is the better failure: the placeholder audit names it.
         cd.setdefault("today", datetime_utils.today_iso())
         if cd.get("due_offset_days") is not None:  # resolve to a live date (now+N)
             cd["due_date"] = datetime_utils.future_date(cd["due_offset_days"])
