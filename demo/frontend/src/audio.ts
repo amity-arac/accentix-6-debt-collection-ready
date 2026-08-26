@@ -19,6 +19,31 @@
 
 import * as latency from "./latency";
 
+// Which Chirp 3 HD voice /api/tts should use — set once per session via
+// setVoiceGender() (see useSession.ts). Independent of the reply text's own
+// grammatical gender (ครับ/ค่ะ particles); this only picks who speaks it.
+let voiceGender: "M" | "F" = "F";
+// "Text" mode: skip synthesis entirely rather than synthesising and muting. A
+// muted clip still costs the round-trip and the wait, which is the whole reason
+// to turn it off when iterating on what the agent SAYS rather than how it sounds.
+let ttsEnabled = true;
+
+export function setVoiceGender(gender: "M" | "F"): void {
+  voiceGender = gender;
+}
+
+export function setTtsEnabled(on: boolean): void {
+  ttsEnabled = on;
+}
+
+export function isTtsEnabled(): boolean {
+  return ttsEnabled;
+}
+
+function ttsUrl(text: string): string {
+  return `/api/tts?text=${encodeURIComponent(text)}&gender=${voiceGender}`;
+}
+
 // Chirp 3 HD streams PCM at this rate (matches DEFAULT_SAMPLE_RATE server-side).
 const SAMPLE_RATE = 24000;
 // Small scheduler lead: schedule the first sample slightly ahead of the clock so
@@ -95,7 +120,7 @@ function settle(): void {
 export function prefetch(text: string): void {
   const trimmed = text.trim();
   if (!trimmed) return;
-  fetch(`/api/tts?text=${encodeURIComponent(trimmed)}`, { method: "GET" })
+  fetch(ttsUrl(trimmed), { method: "GET" })
     .then(async (r) => {
       const body = r.body;
       if (!body) return;
@@ -174,7 +199,7 @@ export function play(text: string): Promise<void> {
 
     void (async () => {
       try {
-        const res = await fetch(`/api/tts?text=${encodeURIComponent(trimmed)}`, {
+        const res = await fetch(ttsUrl(trimmed), {
           signal: abort.signal,
         });
         // Attribute TTS latency to a warm-cache hit vs a cold synth. The server

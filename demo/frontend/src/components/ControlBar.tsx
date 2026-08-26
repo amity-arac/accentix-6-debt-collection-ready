@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, Volume2, X } from "lucide-react";
+import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, Volume2, VolumeX, X } from "lucide-react";
 import { ThinkingDot } from "./ThinkingDot";
 import { LatencyMetrics } from "./LatencyMetrics";
 import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
+import type { VoiceMode } from "../api";
 import { fetchModels, type Engine, type VoiceGender } from "../api";
 
 // Preferred default checkpoint for the qwen picker (all local models live here).
@@ -29,10 +30,10 @@ type Props = {
   onAgentChange: (a: Engine) => void;
   model: string;
   onModelChange: (m: string) => void;
+  company: string | null;
   onBuildFlow?: () => void;
-  onEditFlow?: () => void;
-  voiceGender: VoiceGender;
-  onVoiceGenderChange: (g: VoiceGender) => void;
+  voiceMode: VoiceMode;
+  onVoiceGenderChange: (mode: VoiceMode) => void;
   micState: MicState;
   micSupported: boolean;
   micError: string;
@@ -60,9 +61,9 @@ export function ControlBar({
   onAgentChange,
   model,
   onModelChange,
+  company,
   onBuildFlow,
-  onEditFlow,
-  voiceGender,
+  voiceMode,
   onVoiceGenderChange,
   micState,
   micSupported,
@@ -83,7 +84,15 @@ export function ControlBar({
   const [typed, setTyped] = useState("");
   const [models, setModels] = useState<{ base: string[]; flow: string[] }>({ base: [], flow: [] });
 
-  useEffect(() => { void fetchModels().then(setModels).catch(() => {}); }, []);
+  // Poll the served model list so the version picker fills once vLLM is reachable
+  // (not just on mount — the tunnel/serve may come up after the page loads).
+  useEffect(() => {
+    let live = true;
+    const load = () => fetchModels().then((m) => { if (live) setModels(m); }).catch(() => {});
+    void load();
+    const t = setInterval(load, 8000);
+    return () => { live = false; clearInterval(t); };
+  }, []);
 
   // The list valid for the current engine, and a default pick if none is chosen yet.
   const modelList = agent === "qwen" ? models.base : [];
@@ -145,27 +154,42 @@ export function ControlBar({
           aria-label="Choose the TTS voice"
         >
           <span className="agent-segmented-label">
-            <Volume2 size={13} aria-hidden="true" /> Voice
+            {voiceMode === "OFF" ? (
+              <VolumeX size={13} aria-hidden="true" />
+            ) : (
+              <Volume2 size={13} aria-hidden="true" />
+            )}{" "}
+            Voice
           </span>
           <button
             type="button"
-            className={`agent-segmented-btn ${voiceGender === "F" ? "on" : ""}`}
+            className={`agent-segmented-btn ${voiceMode === "F" ? "on" : ""}`}
             onClick={() => onVoiceGenderChange("F")}
             disabled={starting}
-            aria-pressed={voiceGender === "F"}
+            aria-pressed={voiceMode === "F"}
             title="Female Chirp 3 HD voice (Despina)"
           >
             Female
           </button>
           <button
             type="button"
-            className={`agent-segmented-btn ${voiceGender === "M" ? "on" : ""}`}
+            className={`agent-segmented-btn ${voiceMode === "M" ? "on" : ""}`}
             onClick={() => onVoiceGenderChange("M")}
             disabled={starting}
-            aria-pressed={voiceGender === "M"}
+            aria-pressed={voiceMode === "M"}
             title="Male Chirp 3 HD voice (Puck)"
           >
             Male
+          </button>
+          <button
+            type="button"
+            className={`agent-segmented-btn ${voiceMode === "OFF" ? "on" : ""}`}
+            onClick={() => onVoiceGenderChange("OFF")}
+            disabled={starting}
+            aria-pressed={voiceMode === "OFF"}
+            title="ข้อความอย่างเดียว — ไม่สังเคราะห์เสียง เทสได้เร็วขึ้น"
+          >
+            Text
           </button>
         </div>
         {agent === "qwen" && onBuildFlow && (
@@ -177,17 +201,6 @@ export function ControlBar({
             title="สร้างบริษัทใหม่สำหรับ flow mode"
           >
             ＋ New company
-          </button>
-        )}
-        {agent === "qwen" && onEditFlow && (
-          <button
-            type="button"
-            className="btn"
-            onClick={onEditFlow}
-            disabled={starting}
-            title="แก้โครง flow (states/transitions) ของบริษัทที่เลือก"
-          >
-            Edit flow
           </button>
         )}
         <button

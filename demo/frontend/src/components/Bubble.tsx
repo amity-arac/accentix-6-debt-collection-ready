@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CornerDownRight, Mic, VolumeX, X as XIcon } from "lucide-react";
+import { Check, CornerDownRight, Mic, TriangleAlert, VolumeX, X as XIcon } from "lucide-react";
 import type { BubbleEntry } from "../hooks/useSession";
 import {
   describeTool,
@@ -23,12 +23,15 @@ const TOOL_COLOR: Record<string, string> = {
   record_verbal_commitment: "var(--tool-purple)",
   payment_date: "var(--tool-green)",
   callback_datetime: "var(--tool-green)",
+  update_phone: "var(--tool-green)",
+  record_outcome: "var(--tool-amber)",
 };
 
 const CATEGORY_COLOR: Record<string, string> = {
   KYC: "var(--tool-blue)",
   READ: "var(--tool-gray)",
   WRITE: "var(--tool-green)",
+  OUTCOME: "var(--tool-amber)",
 };
 
 const ARGS_WRAP_THRESHOLD = 50;
@@ -199,6 +202,21 @@ export function Bubble({ entry }: Props) {
             <TextIdsReveal ids={entry.text_ids} />
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (entry.kind === "warning") {
+    // `missing_tools` used to be the only detail a warning could carry, so this
+    // read was unguarded. Other gates now raise warnings of their own and none of
+    // them carry that field — an unguarded .join() on undefined took the whole UI
+    // down through the error boundary. Take whichever list is present, or nothing.
+    const details =
+      entry.missing_tools ?? entry.missing_beats ?? entry.beats ?? entry.empty_slots ?? [];
+    return (
+      <div className="bubble step-warning" title={details.join(", ")}>
+        <TriangleAlert size={14} aria-hidden="true" />
+        <span className="step-warning-text">{entry.text}</span>
       </div>
     );
   }

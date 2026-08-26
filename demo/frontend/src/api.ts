@@ -21,7 +21,22 @@ export type ReplyHop = {
   dynamic_vars: Record<string, unknown>;
 };
 
-export type Hop = ToolCallHop | ToolResultHop | ReplyHop;
+// Step-completeness gate: the model tried to reply for a state whose spec entry_tools
+// weren't all called yet (e.g. closed a PTP call without recording it) — surfaced
+// separately from tool_call/tool_result so the FE can flag it distinctly.
+export type WarningHop = {
+  kind: "warning";
+  text: string;
+  // Every detail list is optional: the backend raises warnings from several gates
+  // and each carries its own (missing tools, incomplete chain, too many beats,
+  // empty slots) — some carry none at all. `text` is the only guaranteed field.
+  missing_tools?: string[];
+  missing_beats?: string[];
+  beats?: string[];
+  empty_slots?: string[];
+};
+
+export type Hop = ToolCallHop | ToolResultHop | ReplyHop | WarningHop;
 
 export type CustomerData = {
   customer_name?: string;
@@ -70,6 +85,10 @@ export type PersonaCase = {
 };
 
 export type VoiceGender = "M" | "F";
+// What the voice control is set to. "OFF" is a UI-only mode — the server still
+// gets a real gender (the reply text's ครับ/ค่ะ particles depend on it); only
+// synthesis is skipped, so a text-only run costs no TTS round-trip.
+export type VoiceMode = VoiceGender | "OFF";
 
 /** Thai display names for known company codes (fallback = the code itself). */
 export const COMPANY_LABELS: Record<string, string> = {
@@ -160,6 +179,30 @@ export async function fetchFlowCompanies(): Promise<string[]> {
   const resp = await fetch("/api/flow/companies");
   if (!resp.ok) throw new Error(`/api/flow/companies ${resp.status}`);
   return (await resp.json()) as string[];
+}
+
+export type FlowCompanyMeta = {
+  company: string;
+  display_name: string;
+  /** Builder-created companies can be removed; the four shipped ones cannot. */
+  deletable: boolean;
+};
+
+/** Company code + label + whether the server will let it be deleted. */
+export async function fetchFlowCompaniesMeta(): Promise<FlowCompanyMeta[]> {
+  const resp = await fetch("/api/flow/companies/meta");
+  if (!resp.ok) throw new Error(`/api/flow/companies/meta ${resp.status}`);
+  return (await resp.json()) as FlowCompanyMeta[];
+}
+
+/** Remove a Builder-created company (spec, catalog, personas, registry entry). */
+export async function deleteFlowCompany(
+  company: string,
+): Promise<{ ok: boolean; removed?: string[]; errors?: string[] }> {
+  const resp = await fetch(`/api/flow/company/${encodeURIComponent(company)}`, {
+    method: "DELETE",
+  });
+  return (await resp.json()) as { ok: boolean; removed?: string[]; errors?: string[] };
 }
 
 export type FlowBeat = {
@@ -263,23 +306,54 @@ export async function createFlowCompany(body: {
   return (await resp.json()) as CreateFlowResult;
 }
 
+/** Author a new flow company from RAW spec+catalog JSON (JSON-editor path, no prefill). */
+export async function createFlowCompanyRaw(body: {
+  spec: unknown;
+  catalog: unknown;
+  display_name?: string;
+  agent_name?: string;
+}): Promise<CreateFlowResult> {
+  const resp = await fetch("/api/flow/company/raw", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return (await resp.json()) as CreateFlowResult;
+}
+
 export async function fetchModels(): Promise<{ base: string[]; flow: string[] }> {
   const resp = await fetch("/api/models");
   if (!resp.ok) throw new Error(`/api/models ${resp.status}`);
   return (await resp.json()) as { base: string[]; flow: string[] };
 }
 
+export async function fetchFlowVersions(
+  company: string,
+): Promise<{ versions: string[]; default: string }> {
+  const resp = await fetch(`/api/flow/versions?company=${encodeURIComponent(company)}`);
+  if (!resp.ok) throw new Error(`/api/flow/versions ${resp.status}`);
+  return (await resp.json()) as { versions: string[]; default: string };
+}
+
 export async function streamSession(
   handlers: StreamHandlers,
-  opts: { engine?: Engine; caseId?: string; voiceGender?: VoiceGender; model?: string } = {},
+  opts: {
+    engine?: Engine;
+    caseId?: string;
+    voiceGender?: VoiceGender;
+    model?: string;
+    instructionVersion?: string;
+  } = {},
 ): Promise<void> {
   const qs = new URLSearchParams();
-  // "flow" routes to the flow-interpreter session; qwen/gemini pick the agent.
-  if (opts.engine === "flow") qs.set("flow", "1");
+  // The Qwen agent is now a flow-regime GRPO model served via vLLM → route it through
+  // the FlowLiveSession (flow=1), same as "flow". Only Gemini uses the legacy agent path.
+  if (opts.engine === "flow" || opts.engine === "qwen") qs.set("flow", "1");
   else if (opts.engine) qs.set("agent", opts.engine);
   if (opts.caseId) qs.set("case_id", opts.caseId);
   if (opts.voiceGender) qs.set("gender", opts.voiceGender);
   if (opts.model) qs.set("model", opts.model);
+  if (opts.instructionVersion) qs.set("instruction_version", opts.instructionVersion);
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const resp = await fetch(`/api/session${suffix}`);
   await consumeNdjson(resp, handlers);
@@ -342,4 +416,24 @@ export async function saveTrajectory(
   if (resp.status === 400) return (await resp.json()) as SaveResult;
   if (!resp.ok) throw new Error(`/api/session/${sessionId}/save ${resp.status}`);
   return (await resp.json()) as SaveResult;
+}
+
+/* ทุก pre-script ของบริษัท + ผูกกับ state ไหน (หน้าอ่าน pre-script) */
+export type PrescriptEntry = {
+  text_id: number | string; fine_state: string; template: string;
+  state: string; phase: string; bound: boolean; intent_name?: string; category?: string;
+};
+export type PrescriptData = {
+  company: string; display_name: string; version: string;
+  catalog_file: string; spec_file: string;
+  states: { state: string; phase: string; note?: string; beats: string[] }[];
+  entries: PrescriptEntry[];
+  counts: { templates: number; bound: number; fine_states: number };
+};
+export async function fetchPrescripts(company: string, version?: string): Promise<PrescriptData> {
+  const qs = new URLSearchParams({ company });
+  if (version) qs.set("version", version);
+  const resp = await fetch(`/api/flow/prescripts?${qs}`);
+  if (!resp.ok) throw new Error(`/api/flow/prescripts ${resp.status}`);
+  return resp.json();
 }

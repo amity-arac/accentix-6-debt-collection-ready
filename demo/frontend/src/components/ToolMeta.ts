@@ -5,13 +5,15 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
   record_verbal_commitment: "Record verbal commitment (no CRM write yet)",
   payment_date: "Write payment commitment to CRM",
   callback_datetime: "Schedule callback",
+  record_outcome: "Record call disposition (v10)",
+  update_phone: "Record new contact number (v10)",
 };
 
 export function describeTool(name: string): string {
   return TOOL_DESCRIPTIONS[name] ?? name;
 }
 
-export type ToolCategory = "KYC" | "READ" | "WRITE";
+export type ToolCategory = "KYC" | "READ" | "WRITE" | "OUTCOME";
 
 export const TOOL_CATEGORY: Record<string, ToolCategory> = {
   verify_identity: "KYC",
@@ -20,6 +22,8 @@ export const TOOL_CATEGORY: Record<string, ToolCategory> = {
   record_verbal_commitment: "WRITE",
   payment_date: "WRITE",
   callback_datetime: "WRITE",
+  update_phone: "WRITE",
+  record_outcome: "OUTCOME",
 };
 
 export function toolCategory(name: string): ToolCategory | null {
@@ -37,6 +41,17 @@ const RESULT_REASON_LABEL: Record<string, string> = {
   category_lock: "Category lock",
   state_lock: "State mismatch",
   dispute_lock: "Disputed account — no payment recording",
+  invalid_result: "Invalid disposition code",
+  empty_number: "No phone number given",
+};
+
+const RESULT_CODE_LABEL: Record<string, string> = {
+  ptp: "Promise to pay",
+  refused: "Refused",
+  unreachable: "Unreachable",
+  reached: "Reached",
+  tcb: "Requested a human",
+  tin: "Wrong name",
 };
 
 export const RESULT_KEY_LABEL: Record<string, string> = {
@@ -66,6 +81,10 @@ export const RESULT_KEY_LABEL: Record<string, string> = {
   hint: "Hint",
   missing: "Missing",
   next_action: "Next action",
+  result: "Result",
+  remark: "Remark",
+  number: "Number",
+  valid: "Valid values",
 };
 
 /** Returns a friendly English summary for a backend tool result, or null. */
@@ -73,6 +92,10 @@ export function friendlyResultSummary(r: unknown): string | null {
   if (!r || typeof r !== "object") return null;
   const obj = r as Record<string, unknown>;
   if (obj.verified === true) return "Verified";
+  // record_outcome success: show the disposition code, not just "Recorded".
+  if (obj.recorded === true && typeof obj.result === "string") {
+    return `Recorded: ${RESULT_CODE_LABEL[obj.result] ?? obj.result}`;
+  }
   if (obj.recorded === true) return "Recorded";
   if (obj.recorded === false && typeof obj.reason === "string") {
     const label = RESULT_REASON_LABEL[obj.reason];

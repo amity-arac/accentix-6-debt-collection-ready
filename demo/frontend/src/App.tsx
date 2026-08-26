@@ -6,7 +6,7 @@ import { ControlBar } from "./components/ControlBar";
 import { ResetConfirmModal } from "./components/ResetConfirmModal";
 import { PersonaPickerModal } from "./components/PersonaPickerModal";
 import { FlowBuilderModal } from "./components/FlowBuilderModal";
-import { FlowEditorModal } from "./components/FlowEditorModal";
+import { FlowUploadModal } from "./components/FlowUploadModal";
 import { CompanySelect } from "./components/CompanySelect";
 import { ModeSelect } from "./components/ModeSelect";
 import { InstructionModal } from "./components/InstructionModal";
@@ -22,6 +22,8 @@ import { isChirpSupported } from "./sttSocket";
 import {
   fetchCases,
   fetchFlowCompanies,
+  fetchFlowCompaniesMeta,
+  deleteFlowCompany,
   saveTrajectory,
   type Engine,
   type PersonaCase,
@@ -31,7 +33,7 @@ import * as audio from "./audio";
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string };
 
 // Fallback flow-supported companies until /api/flow/companies responds.
-const FLOW_COMPANIES_DEFAULT = ["AEON", "JAI", "KS", "AIS"];
+const FLOW_COMPANIES_DEFAULT = ["AEON", "KBANK", "SKL", "AMT"];
 
 export default function App() {
   const {
@@ -60,8 +62,10 @@ export default function App() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [cases, setCases] = useState<PersonaCase[]>([]);
   const [flowCompanies, setFlowCompanies] = useState<string[]>(FLOW_COMPANIES_DEFAULT);
+  // which of them the server will let us delete (Builder-created only)
+  const [deletableCompanies, setDeletableCompanies] = useState<string[]>([]);
   const [builderOpen, setBuilderOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,6 +114,13 @@ export default function App() {
       })
       .catch(() => {
         /* keep the default flow-supported set */
+      });
+    void fetchFlowCompaniesMeta()
+      .then((rows) => {
+        if (!cancelled) setDeletableCompanies(rows.filter((r) => r.deletable).map((r) => r.company));
+      })
+      .catch(() => {
+        /* no delete affordance is the safe degradation */
       });
     return () => {
       cancelled = true;
@@ -164,6 +175,9 @@ export default function App() {
       setBuilderOpen(false);
       await Promise.all([
         fetchFlowCompanies().then((c) => c.length && setFlowCompanies(c)).catch(() => {}),
+        fetchFlowCompaniesMeta()
+          .then((r) => setDeletableCompanies(r.filter((x) => x.deletable).map((x) => x.company)))
+          .catch(() => {}),
         fetchCases().then(setCases).catch(() => {}),
       ]);
       setCompany(newCompany);
@@ -174,13 +188,6 @@ export default function App() {
     },
     [setAgent, handleSelectPersona],
   );
-
-  // After the structure editor saves: close it; a fresh session (next Start /
-  // re-select) picks up the new spec automatically.
-  const handleFlowSaved = useCallback(async () => {
-    setEditorOpen(false);
-    if (started && state.caseId) await handleSelectPersona(state.caseId);
-  }, [started, state.caseId, handleSelectPersona]);
 
   const canSave = started && state.bubbles.length > 0 && !state.busy;
 
@@ -336,8 +343,21 @@ export default function App() {
         <CompanySelect
           companies={flowCompanies}
           cases={cases}
+          deletable={deletableCompanies}
           onPick={(co) => { setCompany(co); setScreen("mode"); }}
-          onNew={() => setBuilderOpen(true)}
+          onNew={() => setUploadOpen(true)}
+          onDelete={async (co) => {
+            const res = await deleteFlowCompany(co);
+            if (!res.ok) {
+              window.alert(res.errors?.join("\n") ?? `ลบ ${co} ไม่สำเร็จ`);
+              return;
+            }
+            // the company is gone server-side; drop it from every list that named it
+            setFlowCompanies((prev) => prev.filter((c) => c !== co));
+            setDeletableCompanies((prev) => prev.filter((c) => c !== co));
+            setCases((prev) => prev.filter((c) => c.company !== co));
+            if (company === co) { setCompany(null); setScreen("company"); }
+          }}
         />
       )}
 
@@ -345,7 +365,6 @@ export default function App() {
         <ModeSelect
           company={company}
           onPlay={() => void enterPlayground(company)}
-          onEdit={() => setEditorOpen(true)}
           onView={() => setInstrOpen(true)}
           onBack={() => setScreen("company")}
         />
@@ -385,8 +404,8 @@ export default function App() {
             onAgentChange={handleEngineChange}
             model={state.model}
             onModelChange={setModel}
-            onEditFlow={() => setEditorOpen(true)}
-            voiceGender={state.voiceGender}
+            company={company}
+            voiceMode={state.voiceMode}
             onVoiceGenderChange={setVoiceGender}
             micState={micState}
             micSupported={mic.supported}
@@ -457,11 +476,13 @@ export default function App() {
         onClose={() => setBuilderOpen(false)}
         onCreated={(caseId, co) => void handleFlowCreated(caseId, co)}
       />
-      <FlowEditorModal
-        open={editorOpen}
-        company={company}
-        onClose={() => setEditorOpen(false)}
-        onSaved={() => void handleFlowSaved()}
+      <FlowUploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onCreated={(caseId, co) => {
+          setUploadOpen(false);
+          void handleFlowCreated(caseId, co);
+        }}
       />
       <InstructionModal
         open={instrOpen}

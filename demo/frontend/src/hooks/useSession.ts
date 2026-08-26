@@ -8,6 +8,7 @@ import {
   type CustomerData,
   type Hop,
   type VoiceGender,
+  type VoiceMode,
 } from "../api";
 import * as audio from "../audio";
 import * as latency from "../latency";
@@ -23,7 +24,17 @@ export type BubbleEntry =
       ttsFailed?: boolean;
     }
   | { id: number; kind: "tool_call"; name: string; args: Record<string, unknown> }
-  | { id: number; kind: "tool_result"; name: string; result: unknown };
+  | { id: number; kind: "tool_result"; name: string; result: unknown }
+  | {
+      id: number;
+      kind: "warning";
+      text: string;
+      // mirrors WarningHop: each gate carries its own detail list, or none
+      missing_tools?: string[];
+      missing_beats?: string[];
+      beats?: string[];
+      empty_slots?: string[];
+    };
 
 export type StreamError = { message: string; retry: () => void } | null;
 
@@ -35,7 +46,9 @@ export type SessionState = {
   agent: Engine;
   serverAgent: Engine | null;
   model: string;                   // "" = backend default (env)
-  voiceGender: VoiceGender;        // user's current pick
+  instructionVersion: string;      // "" = flow default (latest); A/B v11 vs v11.1
+  voiceGender: VoiceGender;        // what the server is told (ครับ/ค่ะ)
+  voiceMode: VoiceMode;            // what the control shows: F / M / OFF
   serverVoiceGender: VoiceGender | null;  // what the live session was actually built with
   customer: CustomerData;
   bubbles: BubbleEntry[];
@@ -57,7 +70,9 @@ export function useSession() {
     agent: "qwen",
     serverAgent: null,
     model: "",
+    instructionVersion: "",
     voiceGender: "F",
+    voiceMode: "F",
     serverVoiceGender: null,
     customer: {},
     bubbles: [],
@@ -79,6 +94,7 @@ export function useSession() {
   // voice speaks it (see audio.ts's setVoiceGender).
   const voiceGenderRef = useRef<VoiceGender>("F");
   const modelRef = useRef<string>("");
+  const instructionVersionRef = useRef<string>("");
 
   const setAgent = useCallback((agent: Engine) => {
     agentRef.current = agent;
@@ -90,10 +106,19 @@ export function useSession() {
     setState((s) => ({ ...s, model }));
   }, []);
 
-  const setVoiceGender = useCallback((voiceGender: VoiceGender) => {
+  const setInstructionVersion = useCallback((instructionVersion: string) => {
+    instructionVersionRef.current = instructionVersion;
+    setState((s) => ({ ...s, instructionVersion }));
+  }, []);
+
+  const setVoiceGender = useCallback((mode: VoiceMode) => {
+    // "OFF" keeps the last real voice for the server (it decides ครับ/ค่ะ) and
+    // only turns synthesis off, so switching back speaks in the same voice.
+    audio.setTtsEnabled(mode !== "OFF");
+    const voiceGender: VoiceGender = mode === "OFF" ? voiceGenderRef.current : mode;
     voiceGenderRef.current = voiceGender;
     audio.setVoiceGender(voiceGender);
-    setState((s) => ({ ...s, voiceGender }));
+    setState((s) => ({ ...s, voiceGender, voiceMode: mode }));
   }, []);
 
   // Hops arrive over the network at their own pace. Render each one the moment
@@ -148,6 +173,7 @@ export function useSession() {
         const next = audioQueueRef.current.shift();
         if (!next) continue;
         const { id, text } = next;
+        if (!audio.isTtsEnabled()) continue;   // Text mode: nothing to play
         setReplySpeaking(id, true);
         try {
           await audio.play(text);
@@ -188,6 +214,22 @@ export function useSession() {
           bubbles: [
             ...s.bubbles,
             { id: newId(), kind: "tool_call", name: hop.name, args: hop.args },
+          ],
+        }));
+      } else if (hop.kind === "warning") {
+        setState((s) => ({
+          ...s,
+          bubbles: [
+            ...s.bubbles,
+            {
+              id: newId(),
+              kind: "warning",
+              text: hop.text,
+              missing_tools: hop.missing_tools,
+              missing_beats: hop.missing_beats,
+              beats: hop.beats,
+              empty_slots: hop.empty_slots,
+            },
           ],
         }));
       } else {
@@ -279,6 +321,7 @@ export function useSession() {
           caseId: caseIdRef.current ?? undefined,
           voiceGender: voiceGenderRef.current,
           model: modelRef.current || undefined,
+          instructionVersion: instructionVersionRef.current || undefined,
         },
       );
     } catch (e: any) {
@@ -455,6 +498,7 @@ export function useSession() {
     start,
     setAgent,
     setModel,
+    setInstructionVersion,
     setVoiceGender,
     selectCase,
     fireOpening,

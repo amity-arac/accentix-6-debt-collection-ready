@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Play, Save } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Play, Save, X } from "lucide-react";
 
 type Props = {
   onRestart: () => void;
@@ -9,10 +9,16 @@ type Props = {
 
 export function EndOfCallCard({ onRestart, onSave, saving }: Props) {
   const btnRef = useRef<HTMLButtonElement | null>(null);
+  // The card used to sit dead centre and cover the transcript — the one thing you
+  // want in a screenshot of a finished call. It now docks to a corner and can be
+  // dismissed outright; the call is over either way, so nothing is lost by hiding it.
+  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     btnRef.current?.focus();
   }, []);
+
+  if (hidden) return null;
 
   return (
     <div
@@ -20,10 +26,18 @@ export function EndOfCallCard({ onRestart, onSave, saving }: Props) {
       role="dialog"
       aria-labelledby="end-of-call-title"
     >
+      <button
+        type="button"
+        className="end-of-call-dismiss"
+        onClick={() => setHidden(true)}
+        title="ซ่อน (สายจบแล้ว)"
+        aria-label="ซ่อนกล่องสายจบ"
+      >
+        <X size={14} aria-hidden="true" />
+      </button>
       <h2 id="end-of-call-title" className="end-of-call-title">
         Call ended
       </h2>
-      <p className="end-of-call-body">The session reached completion.</p>
       <div className="end-of-call-actions">
         <button
           type="button"
@@ -31,7 +45,7 @@ export function EndOfCallCard({ onRestart, onSave, saving }: Props) {
           onClick={onSave}
           disabled={saving}
         >
-          <Save size={16} aria-hidden="true" /> {saving ? "Saving…" : "Save conversation"}
+          <Save size={15} aria-hidden="true" /> {saving ? "Saving…" : "Save"}
         </button>
         <button
           ref={btnRef}
@@ -39,7 +53,7 @@ export function EndOfCallCard({ onRestart, onSave, saving }: Props) {
           className="btn end-of-call-action"
           onClick={onRestart}
         >
-          <Play size={16} aria-hidden="true" /> Start a new call
+          <Play size={15} aria-hidden="true" /> New call
         </button>
       </div>
     </div>
