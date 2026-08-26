@@ -528,6 +528,8 @@ class LiveSession:
 # The registry is file-backed so the Flow Builder can add companies at runtime
 # (write files + append here) without a code change or redeploy. The built-in
 # defaults seed it / act as a fallback if the file is missing.
+from demo.server.flow.flowspec import load_tenant_spec  # noqa: E402
+
 FLOW_DIR = REPO_ROOT / "data" / "flows"
 # The one artifact a tenant supplies. The suffix IS the contract: a file named this
 # way, holding a spec this app can validate, is a working outbound agent.
@@ -568,7 +570,7 @@ def load_flow_registry() -> dict[str, dict[str, str]]:
         if f.name.startswith("_"):
             continue                     # `_TEMPLATE.company.json` is the blank, not a tenant
         try:
-            spec = json.loads(f.read_text(encoding="utf-8"))
+            spec = load_tenant_spec(f)
         except (json.JSONDecodeError, OSError):
             log.warning("flow registry: skipping unreadable tenant file %s", f.name)
             continue
@@ -709,7 +711,7 @@ def flow_instruction(company: str) -> str:
     spec_path, cat_path = _flow_paths(company)
     if not spec_path.exists():
         return ""
-    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec = load_tenant_spec(spec_path)
     catalog = _read_catalog(spec, cat_path)
     from demo.server.flow.flowspec import normalize_catalog
     return (render_instruction(spec) + "\n\n"
@@ -728,7 +730,7 @@ def flow_prescripts(company: str, instruction_version: str | None = None) -> dic
     spec_path = _flow_spec_path(company, instruction_version)
     if not spec_path.exists():
         return {}
-    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec = load_tenant_spec(spec_path)
     # catalog ที่ spec เวอร์ชันนั้นประกาศไว้ (v14.1 → v14_aeon_flow_catalog) — อ่านเพื่อแสดงเท่านั้น
     cat_path = None
     if spec.get("catalog"):
@@ -793,7 +795,7 @@ def get_flow_spec(company: str) -> dict[str, Any]:
     spec_path, cat_path = _flow_paths(company)
     if not spec_path.exists():
         return {}
-    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec = load_tenant_spec(spec_path)
     fine_states: list[str] = []
     templates: dict[str, list[str]] = {}
     if cat_path.exists():
@@ -860,7 +862,7 @@ def save_flow_spec(
     if company not in reg:
         return {"ok": False, "errors": [f"ไม่รู้จักบริษัท {company}"]}
     spec_path, cat_path = _flow_paths(company)
-    spec_now = json.loads(spec_path.read_text(encoding="utf-8")) if spec_path.exists() else None
+    spec_now = load_tenant_spec(spec_path) if spec_path.exists() else None
     catalog = _read_catalog(spec_now, cat_path)
 
     # Templates authored/edited in the editor. A new fine_state is appended; an
@@ -965,7 +967,7 @@ BEAT_REQUIRED = {"greet_verify"}
 def _base_flow_bindings() -> "tuple[dict, list[str], dict, dict]":
     """(base_spec, ordered fine_states, {fs: hint}, {fs: phase}) from the base flow.
     phase ∈ {opening, main, close, faq, aux}."""
-    spec = json.loads(_FLOW_BASE_SPEC.read_text(encoding="utf-8"))
+    spec = load_tenant_spec(_FLOW_BASE_SPEC)
     hint: dict[str, str] = {}
     phase: dict[str, str] = {}
     order: list[str] = []
@@ -1101,7 +1103,7 @@ def create_flow_company(
         tid += 1
         to_bind.append((fs, phase))
 
-    spec = json.loads(_FLOW_BASE_SPEC.read_text(encoding="utf-8"))
+    spec = load_tenant_spec(_FLOW_BASE_SPEC)
     spec["company"] = company
     # keep the base's own flow kind (…-outbound-remind, …-outbound-appointment) so a
     # replaced base does not still label everything a reminder call
@@ -1365,7 +1367,7 @@ class FlowLiveSession:
 
         entry = load_flow_registry()[self._company]
         spec_path = _flow_spec_path(self._company, self._instruction_version)
-        self._spec = json.loads(spec_path.read_text(encoding="utf-8"))
+        self._spec = load_tenant_spec(spec_path)
         # A catalog only has to declare _fine_state + template; text_id, company,
         # state, intent_name and category are derived from the spec that binds it.
         # `resolve_catalog` takes the templates from the spec itself when it carries

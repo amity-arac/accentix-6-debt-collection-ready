@@ -67,9 +67,11 @@ CONSTRAINT_TYPES = frozenset({
     "tool_pair",
 })
 
+# `company` and `flow_id` are NOT required in the file: `load_tenant_spec` fills them
+# from the filename, which is the one place they cannot disagree with. `spec_version` is
+# implied by the shape the loader accepts.
 _REQUIRED_TOP_KEYS = (
-    "spec_version", "flow_id", "company", "events", "tools",
-    "states", "faq_routing", "constraints", "outcomes",
+    "events", "tools", "states", "faq_routing", "constraints", "outcomes",
 )
 
 
@@ -83,19 +85,31 @@ _REQUIRED_TOP_KEYS = (
 # locked if something refuses what is not in it.
 # --------------------------------------------------------------------------- #
 TOP_KEYS = frozenset({
-    "spec_version", "instruction_version", "flow_id", "company", "display_name", "description",
-    "role", "agent_role", "legal_note", "goal", "sources", "catalog", "crm_fields", "crm_labels",
-    "events", "tools", "states", "faq_routing", "auxiliary_templates",
-    "constraints", "outcomes", "session_init", "compliance", "test_cases",
-    "catalog_inline",
-    "fallback_fine_state",
+    # identity + presentation
+    "display_name",
+    # who the agent is, in the model's words
+    "role", "agent_role", "goal", "legal_note",
+    # what the agent knows about the customer
+    "crm_fields", "crm_labels", "session_init",
+    # what it can say, and when
+    "catalog", "events", "states", "faq_routing", "constraints", "outcomes",
+    "auxiliary_templates", "fallback_fine_state",
+    # what it can do
+    "tools",
+    # which beats count as verify / disclose / close (the training env reads this)
+    "compliance",
+    # accepted from the older shape so an existing file still loads
+    "spec_version", "company", "flow_id", "catalog_inline",
 })
 STATE_KEYS = frozenset({
     "id", "phase", "initial", "terminal", "templates", "on", "entry_tools",
     "outcome", "note", "spec_note", "counts_as", "max_visits", "inferred",
 })
 TEMPLATE_KEYS = frozenset({"fine_state", "any_of", "when_event", "optional",
-                           "note", "inferred"})
+                           "note", "inferred",
+                           # a template may opt out of its state's pay-ask count
+                           # (`counts_as: false`); aax6.core.flowspec reads it
+                           "counts_as"})
 # `inferred: true` marks policy this spec added that its source instruction did not
 # state — a design rule of this schema (see the module docstring), so it is valid
 # anywhere. `spec_note` is the same idea in prose.
@@ -162,6 +176,31 @@ def load_flow_spec(path: str | Path) -> dict:
         return json.load(f)
 
 
+def load_tenant_spec(path: "Path | str") -> dict:
+    """Read one tenant file and fill in the identity the filename already carries.
+
+    A spec used to repeat its own `company` and `flow_id`, which is data that can
+    disagree with the file it lives in — and did: the blank template said
+    `company: "YOURCO"` while sitting in `_TEMPLATE.company.json`. Deriving them here
+    means every reader downstream still sees a complete spec while the file on disk
+    says each fact once.
+
+    `<CODE>.company.json`  -> company = CODE
+    `<FLOW_ID>.json`       -> flow_id = FLOW_ID, company = the part before the first `-`
+    """
+    p = Path(path)
+    spec = json.loads(p.read_text(encoding="utf-8"))
+    stem = p.name[: -len(".company.json")] if p.name.endswith(".company.json") else p.stem
+    if p.name.endswith(".company.json"):
+        spec.setdefault("company", stem)
+        spec.setdefault("flow_id", f"{stem}-outbound-call")
+    else:
+        spec.setdefault("flow_id", stem)
+        spec.setdefault("company", stem.split("-")[0])
+    spec.setdefault("spec_version", 2)
+    return spec
+
+
 def resolve_catalog(spec: dict, flows_dir: Path | None = None) -> list[dict]:
     """The catalog for a spec, whichever layout it uses.
 
@@ -174,7 +213,10 @@ def resolve_catalog(spec: dict, flows_dir: Path | None = None) -> list[dict]:
     sides read the SAME two layouts. This is the one place that decides which, so
     every caller stays agnostic.
     """
+    if isinstance(spec.get("catalog"), list):
+        return spec["catalog"]                      # current shape: `catalog` IS the list
     if spec.get("catalog") == "__inline__" or spec.get("catalog_inline") is not None:
+        # older shape kept readable: `catalog: "__inline__"` + a separate `catalog_inline`
         cat = spec.get("catalog_inline")
         if not isinstance(cat, list):
             raise ValueError("catalog_inline ต้องเป็น list ของ template")
@@ -441,6 +483,7 @@ __all__ = [
     "is_chain_state",
     "FLOWS_DIR",
     "KNOWN_IMPLS",
+    "load_tenant_spec",
     "CONSTRAINT_TYPES",
     "load_flow_spec",
     "load_catalog",

@@ -208,7 +208,8 @@ def main() -> int:
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     a = ap.parse_args()
 
-    from demo.server.flow.flowspec import normalize_catalog, resolve_catalog, validate_strict
+    from demo.server.flow.flowspec import (normalize_catalog, resolve_catalog,
+                                            validate_flow_spec, validate_strict)
 
     worst, report = 0, {}
     for path in a.specs:
@@ -219,18 +220,22 @@ def main() -> int:
             print(f"  {path}: catalog unreadable — {e}")
             worst = 1
             continue
+        # BOTH validators: `validate_strict` locks the key names, `validate_flow_spec`
+        # checks the flow is executable. Only running the first let the blank template
+        # ship with seven tools whose `impl` no executor has.
         findings = [("ERROR", "schema", m) for m in (validate_strict(spec, catalog) or [])]
+        findings += [("ERROR", "flow", m) for m in (validate_flow_spec(spec, catalog)[0] or [])]
         findings += lint(spec, catalog)
         report[path] = findings
-        if any(lv == "ERROR" for lv, _, _ in findings):
-            worst = 1
+        has_error = any(lv == "ERROR" for lv, _, _ in findings)
+        worst |= has_error          # per-file status; `worst` is the exit code, not the mark
         if a.json:
             continue
-        co = spec.get("company", pathlib.Path(path).stem)
+        co = spec.get("company") or pathlib.Path(path).name.split(".")[0]
         if not findings:
             print(f"  ✅ {co:<10} ผ่านทุกเช็ค")
             continue
-        print(f"  {'❌' if worst else '⚠️ '} {co}")
+        print(f"  {'❌' if has_error else '⚠️ '} {co}")
         for lv, check, msg in findings:
             print(f"       {'ERROR' if lv == 'ERROR' else 'warn '} [{check}] {msg}")
     if a.json:

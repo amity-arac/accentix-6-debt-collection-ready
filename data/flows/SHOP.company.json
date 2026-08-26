@@ -1,9 +1,6 @@
 {
- "spec_version": 2,
- "company": "SHOP",
- "display_name": "ร้านค้า (Pre-Due Reminder)",
  "flow_id": "SHOP-outbound-predue",
- "description": "โทรแจ้งเตือนล่วงหน้า 1 วันก่อนครบกำหนดชำระค่างวด (T-1)",
+ "display_name": "ร้านค้า (Pre-Due Reminder)",
  "crm_fields": [
   "today",
   "customer_name",
@@ -26,49 +23,6 @@
   "timeout": 8,
   "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ"
  },
- "catalog": "__inline__",
- "catalog_inline": [
-  {
-   "text_id": 9001,
-   "_fine_state": "greet_remind",
-   "template": "สวัสดีค่ะ คุณ[customer_name] ทางร้าน[shop_name] ติดต่อมาเพื่อแจ้งเตือนนะคะ พรุ่งนี้วันที่ [due_date] จะครบกำหนดชำระค่างวดจำนวน [amount] บาทค่ะ สะดวกให้ทางร้านเช็ครายการโอนพรุ่งนี้ได้เลยไหมคะ"
-  },
-  {
-   "text_id": 9002,
-   "_fine_state": "close_confirmed",
-   "template": "ขอบคุณค่ะคุณ[customer_name] ทางร้านขอบันทึกไว้ว่าพรุ่งนี้จะได้รับยอด [amount] บาทนะคะ หากมีการเปลี่ยนแปลงสามารถโทรแจ้งได้เลยค่ะ สวัสดีค่ะ"
-  },
-  {
-   "text_id": 9003,
-   "_fine_state": "ask_new_date",
-   "template": "ได้ค่ะ ทางร้านขอสอบถามว่าสะดวกชำระวันไหนคะ"
-  },
-  {
-   "text_id": 9004,
-   "_fine_state": "confirm_new_date",
-   "template": "รับทราบค่ะ ทางร้านขอเลื่อนกำหนดชำระเป็นวันที่ [new_date] นะคะ ยืนยันตามนี้ได้เลยไหมคะ"
-  },
-  {
-   "text_id": 9005,
-   "_fine_state": "date_too_far",
-   "template": "ขออภัยค่ะ ทางร้านสามารถเลื่อนกำหนดให้ได้ไม่เกิน [max_extend_days] วันค่ะ สะดวกวันอื่นภายในนี้ไหมคะ"
-  },
-  {
-   "text_id": 9006,
-   "_fine_state": "close_rescheduled",
-   "template": "ขอบคุณค่ะ ทางร้านบันทึกกำหนดชำระใหม่เป็นวันที่ [new_date] เรียบร้อยนะคะ สวัสดีค่ะ"
-  },
-  {
-   "text_id": 9007,
-   "_fine_state": "close_paid_claim",
-   "template": "รับทราบค่ะ ทางร้านขอเวลาตรวจสอบยอดในระบบก่อนนะคะ หากไม่พบรายการจะติดต่อกลับไปอีกครั้งค่ะ ขอบคุณค่ะ"
-  },
-  {
-   "text_id": 9008,
-   "_fine_state": "close_handoff",
-   "template": "เดี๋ยวให้เจ้าหน้าที่ติดต่อกลับไปนะคะ ขอบคุณค่ะ"
-  }
- ],
  "events": {
   "confirms_pay": {
    "desc": "ลูกค้ายืนยันจะชำระตามวันเดิม ไม่มีเงื่อนไข",
@@ -421,43 +375,6 @@
    }
   }
  ],
- "outcomes": {
-  "required_at_close": true,
-  "results": {
-   "confirmed": {
-    "reasons": [
-     "confirmed"
-    ],
-    "desc": "ยืนยันจะชำระตามวันเดิม"
-   },
-   "rescheduled": {
-    "reasons": [
-     "rescheduled"
-    ],
-    "desc": "เลื่อนวันชำระและยืนยันวันใหม่แล้ว"
-   },
-   "paid_claimed": {
-    "reasons": [
-     "paid_claimed"
-    ],
-    "desc": "ลูกค้าอ้างว่าชำระแล้ว — รอ backend ตรวจสอบ"
-   },
-   "handoff": {
-    "reasons": [
-     "asks_human",
-     "out_of_scope",
-     "no_input"
-    ],
-    "desc": "ส่งต่อเจ้าหน้าที่ (ขอคุยคน / นอกขอบเขต / ติดต่อไม่ได้)"
-   },
-   "unreachable": {
-    "reasons": [
-     "no_input"
-    ],
-    "desc": "ติดต่อไม่ได้"
-   }
-  }
- },
  "faq_routing": {
   "routes": []
  },
@@ -524,6 +441,85 @@
     "reward"
    ],
    "desc": "บอกว่าเลื่อนได้ไม่เกินกี่วันได้สูงสุด 2 ครั้งต่อสาย — ครบแล้วลูกค้ายังเสนอวันที่เกินเกณฑ์ ให้ปิดด้วย close_handoff (9008) ส่งต่อเจ้าหน้าที่"
+  }
+ ],
+ "outcomes": {
+  "required_at_close": true,
+  "results": {
+   "confirmed": {
+    "reasons": [
+     "confirmed"
+    ],
+    "desc": "ยืนยันจะชำระตามวันเดิม"
+   },
+   "rescheduled": {
+    "reasons": [
+     "rescheduled"
+    ],
+    "desc": "เลื่อนวันชำระและยืนยันวันใหม่แล้ว"
+   },
+   "paid_claimed": {
+    "reasons": [
+     "paid_claimed"
+    ],
+    "desc": "ลูกค้าอ้างว่าชำระแล้ว — รอ backend ตรวจสอบ"
+   },
+   "handoff": {
+    "reasons": [
+     "asks_human",
+     "out_of_scope",
+     "no_input"
+    ],
+    "desc": "ส่งต่อเจ้าหน้าที่ (ขอคุยคน / นอกขอบเขต / ติดต่อไม่ได้)"
+   },
+   "unreachable": {
+    "reasons": [
+     "no_input"
+    ],
+    "desc": "ติดต่อไม่ได้"
+   }
+  }
+ },
+ "catalog": [
+  {
+   "text_id": 9001,
+   "_fine_state": "greet_remind",
+   "template": "สวัสดีค่ะ คุณ[customer_name] ทางร้าน[shop_name] ติดต่อมาเพื่อแจ้งเตือนนะคะ พรุ่งนี้วันที่ [due_date] จะครบกำหนดชำระค่างวดจำนวน [amount] บาทค่ะ สะดวกให้ทางร้านเช็ครายการโอนพรุ่งนี้ได้เลยไหมคะ"
+  },
+  {
+   "text_id": 9002,
+   "_fine_state": "close_confirmed",
+   "template": "ขอบคุณค่ะคุณ[customer_name] ทางร้านขอบันทึกไว้ว่าพรุ่งนี้จะได้รับยอด [amount] บาทนะคะ หากมีการเปลี่ยนแปลงสามารถโทรแจ้งได้เลยค่ะ สวัสดีค่ะ"
+  },
+  {
+   "text_id": 9003,
+   "_fine_state": "ask_new_date",
+   "template": "ได้ค่ะ ทางร้านขอสอบถามว่าสะดวกชำระวันไหนคะ"
+  },
+  {
+   "text_id": 9004,
+   "_fine_state": "confirm_new_date",
+   "template": "รับทราบค่ะ ทางร้านขอเลื่อนกำหนดชำระเป็นวันที่ [new_date] นะคะ ยืนยันตามนี้ได้เลยไหมคะ"
+  },
+  {
+   "text_id": 9005,
+   "_fine_state": "date_too_far",
+   "template": "ขออภัยค่ะ ทางร้านสามารถเลื่อนกำหนดให้ได้ไม่เกิน [max_extend_days] วันค่ะ สะดวกวันอื่นภายในนี้ไหมคะ"
+  },
+  {
+   "text_id": 9006,
+   "_fine_state": "close_rescheduled",
+   "template": "ขอบคุณค่ะ ทางร้านบันทึกกำหนดชำระใหม่เป็นวันที่ [new_date] เรียบร้อยนะคะ สวัสดีค่ะ"
+  },
+  {
+   "text_id": 9007,
+   "_fine_state": "close_paid_claim",
+   "template": "รับทราบค่ะ ทางร้านขอเวลาตรวจสอบยอดในระบบก่อนนะคะ หากไม่พบรายการจะติดต่อกลับไปอีกครั้งค่ะ ขอบคุณค่ะ"
+  },
+  {
+   "text_id": 9008,
+   "_fine_state": "close_handoff",
+   "template": "เดี๋ยวให้เจ้าหน้าที่ติดต่อกลับไปนะคะ ขอบคุณค่ะ"
   }
  ]
 }
