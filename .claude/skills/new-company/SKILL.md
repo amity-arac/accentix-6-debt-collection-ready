@@ -71,7 +71,7 @@ PYTHONPATH=. python3 .claude/skills/new-company/scripts/lint_spec.py data/flows/
 Runs `validate_strict` plus the checks that catch what it cannot see: name/id
 disagreement in prose, a state note prescribing another state's line, terminal states
 that record nothing, unreachable states, dangling transitions, undeclared events,
-outcomes outside the declared vocabulary, `one_of_from` pointing at a field no tool
+outcome codes nothing records, `one_of_from` pointing at a field no tool
 returns, conditions stated only in prose, sentences nothing can reach, and
 placeholders nothing supplies.
 
@@ -134,8 +134,17 @@ the result) fits most outbound work.
 
 ## Do not
 
-- Do not add a rule to fix behaviour that a **mechanism** should fix. If the agent
-  guesses a date, give it a tool; if it must not speak before a condition, gate it.
+- Do not add a rule to fix behaviour that a **mechanism** should fix — but know which
+  mechanisms exist. The platform supplies only what every tenant uses identically:
+  reply-by-id, slot filling, tool dispatch, and the gates that fall out of structure
+  every spec has (a state's templates are one turn; its `entry_tools` run first; an
+  argument contract is enforced). **It does not gate on your policy.** If the agent
+  guesses a date, give it a tool. If it must not *say* something before a condition, you
+  have two real places to put that: your own API can refuse the call that returns the
+  value, and the rule can be stated in `constraints` for the prompt and the reward. The
+  application will not withhold a sentence on your behalf, so a rule that only the model
+  enforces can be broken — decide, at authoring time, whether that is acceptable for the
+  rule in question.
 - Do not batch rule changes. One or two, then measure.
 - Do not put anything about the tenant in application code. If a check needs company
   knowledge, express it in the spec and teach the executor to read it.
