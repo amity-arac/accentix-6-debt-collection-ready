@@ -115,5 +115,20 @@
    "visit_time_end": "11:00"
   },
   "user_system_prompt": "<persona>ผู้ป่วยของโรงพยาบาล AMT ที่มีนัดพบแพทย์ตามกำหนด</persona>\n<situation>รับสายจากเจ้าหน้าที่โรงพยาบาลโทรมายืนยันนัดพบแพทย์</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
+ },
+ {
+  "id": "TC-SHOP-BUILD-001",
+  "customer_data": {
+   "customer_name": "สมชาย ใจดี",
+   "customer_phone": "081-234-5678",
+   "shop_name": "ร้านทองเจริญ",
+   "due_date": "2026-08-27 (Thursday)",
+   "amount": "3500",
+   "max_extend_days": "7",
+   "company_name": "ร้านทองเจริญ",
+   "agent_name": "น้องร้านทอง",
+   "company_phone": "02-111-2222",
+   "case_status": "normal"
+  }
  }
 ]

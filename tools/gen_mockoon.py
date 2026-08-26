@@ -69,9 +69,16 @@ COMPANY_EXTRAS: dict[str, dict] = {
 # Sources of truth
 # --------------------------------------------------------------------------- #
 def load_specs() -> dict[str, dict]:
-    reg = json.loads((FLOWS / "flow_registry.json").read_text(encoding="utf-8"))
-    return {c: json.loads((FLOWS / e["spec"]).read_text(encoding="utf-8"))
-            for c, e in reg.items()}
+    """One tenant = one `<CODE>.company.json`, the same derivation the app uses.
+    Reading an index file instead meant the mock could be generated for a company
+    whose spec was gone, or miss one that had just been dropped in."""
+    out: dict[str, dict] = {}
+    for f in sorted(FLOWS.glob("*.company.json")):
+        if f.name.startswith("_"):
+            continue                     # `_TEMPLATE.company.json` is the blank
+        spec = json.loads(f.read_text(encoding="utf-8"))
+        out[str(spec.get("company") or f.name.split(".")[0])] = spec
+    return out
 
 
 def persona_for(company: str) -> dict:
@@ -231,6 +238,21 @@ def tool_responses(decl: dict, crm: dict) -> list[dict]:
             {"error": f"invalid_{arg}", "got": "{{body 'args.%s'}}" % arg,
              "valid": values},
             rules=rules, label=f"{arg} out of vocabulary"))
+
+    # A tool may declare its own mock in the spec (`mock.rules` / `mock.default`).
+    # That is where a fake response belongs: the shape is the company's contract, and
+    # writing it here would put one tenant's business rule back into the platform.
+    # Rules come first so Mockoon matches them before the default.
+    mock = decl.get("mock") or {}
+    if mock:
+        for rule in mock.get("rules", []):
+            w = rule.get("when") or {}
+            out.append(_resp(rule["body"], default=False,
+                             label=rule.get("label", "match"),
+                             rules=[_body_regex(f"args.{w['arg']}", w["matches"])]))
+        if mock.get("default") is not None:
+            out.append(_resp(mock["default"], default=True, label="default"))
+            return out
 
     if name.startswith("check_account"):
         body = {k: crm[k] for k in

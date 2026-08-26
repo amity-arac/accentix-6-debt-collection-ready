@@ -1,0 +1,529 @@
+{
+ "spec_version": 2,
+ "company": "SHOP",
+ "display_name": "ร้านค้า (Pre-Due Reminder)",
+ "flow_id": "SHOP-outbound-predue",
+ "description": "โทรแจ้งเตือนล่วงหน้า 1 วันก่อนครบกำหนดชำระค่างวด (T-1)",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "shop_name",
+  "due_date",
+  "amount",
+  "max_extend_days"
+ ],
+ "crm_labels": {
+  "today": "วันนี้",
+  "customer_name": "ชื่อลูกค้า",
+  "shop_name": "ชื่อร้าน",
+  "due_date": "วันครบกำหนดเดิม",
+  "amount": "ยอดค่างวด",
+  "max_extend_days": "เลื่อนได้ไม่เกิน (วัน)"
+ },
+ "session_init": {
+  "url": "{API_BASE}/SHOP/init",
+  "method": "GET",
+  "timeout": 8,
+  "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ"
+ },
+ "catalog": "__inline__",
+ "catalog_inline": [
+  {
+   "text_id": 9001,
+   "_fine_state": "greet_remind",
+   "template": "สวัสดีค่ะ คุณ[customer_name] ทางร้าน[shop_name] ติดต่อมาเพื่อแจ้งเตือนนะคะ พรุ่งนี้วันที่ [due_date] จะครบกำหนดชำระค่างวดจำนวน [amount] บาทค่ะ สะดวกให้ทางร้านเช็ครายการโอนพรุ่งนี้ได้เลยไหมคะ"
+  },
+  {
+   "text_id": 9002,
+   "_fine_state": "close_confirmed",
+   "template": "ขอบคุณค่ะคุณ[customer_name] ทางร้านขอบันทึกไว้ว่าพรุ่งนี้จะได้รับยอด [amount] บาทนะคะ หากมีการเปลี่ยนแปลงสามารถโทรแจ้งได้เลยค่ะ สวัสดีค่ะ"
+  },
+  {
+   "text_id": 9003,
+   "_fine_state": "ask_new_date",
+   "template": "ได้ค่ะ ทางร้านขอสอบถามว่าสะดวกชำระวันไหนคะ"
+  },
+  {
+   "text_id": 9004,
+   "_fine_state": "confirm_new_date",
+   "template": "รับทราบค่ะ ทางร้านขอเลื่อนกำหนดชำระเป็นวันที่ [new_date] นะคะ ยืนยันตามนี้ได้เลยไหมคะ"
+  },
+  {
+   "text_id": 9005,
+   "_fine_state": "date_too_far",
+   "template": "ขออภัยค่ะ ทางร้านสามารถเลื่อนกำหนดให้ได้ไม่เกิน [max_extend_days] วันค่ะ สะดวกวันอื่นภายในนี้ไหมคะ"
+  },
+  {
+   "text_id": 9006,
+   "_fine_state": "close_rescheduled",
+   "template": "ขอบคุณค่ะ ทางร้านบันทึกกำหนดชำระใหม่เป็นวันที่ [new_date] เรียบร้อยนะคะ สวัสดีค่ะ"
+  },
+  {
+   "text_id": 9007,
+   "_fine_state": "close_paid_claim",
+   "template": "รับทราบค่ะ ทางร้านขอเวลาตรวจสอบยอดในระบบก่อนนะคะ หากไม่พบรายการจะติดต่อกลับไปอีกครั้งค่ะ ขอบคุณค่ะ"
+  },
+  {
+   "text_id": 9008,
+   "_fine_state": "close_handoff",
+   "template": "เดี๋ยวให้เจ้าหน้าที่ติดต่อกลับไปนะคะ ขอบคุณค่ะ"
+  }
+ ],
+ "events": {
+  "confirms_pay": {
+   "desc": "ลูกค้ายืนยันจะชำระตามวันเดิม ไม่มีเงื่อนไข",
+   "cues": [
+    "ได้ค่ะ พรุ่งนี้โอนให้",
+    "รับทราบครับ",
+    "โอเคค่ะ",
+    "จ่ายอยู่แล้วครับ",
+    "ตามนั้น"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "ยังยืนยันจะจ่าย แต่ขอเลื่อนวัน (ไม่ใช่การปฏิเสธหนี้)",
+   "cues": [
+    "พรุ่งนี้ยังไม่มีเลยครับ ขอเป็นวันศุกร์ได้ไหม",
+    "รอเงินเดือนออกก่อนนะ",
+    "เดี๋ยวลูกจ้างจ่ายมา ขอเลื่อนหน่อย"
+   ]
+  },
+  "gives_date": {
+   "desc": "ลูกค้าระบุวันที่จะชำระ",
+   "cues": [
+    "วันศุกร์นี้ได้ไหม",
+    "วันที่ 30 ครับ",
+    "อีก 3 วัน",
+    "ขอเดือนหน้าเลยได้ไหม",
+    "อีก 2 อาทิตย์นะ"
+   ]
+  },
+  "confirms_new_date": {
+   "desc": "ยืนยันวันใหม่ที่เสนอไป",
+   "cues": [
+    "ค่ะ",
+    "โอเคครับ ตามนั้น",
+    "ได้ครับ",
+    "ตกลง"
+   ]
+  },
+  "already_paid": {
+   "desc": "อ้างว่าชำระไปแล้ว — เป็นข้อโต้แย้งเรื่องสถานะ ไม่ใช่การปฏิเสธ",
+   "cues": [
+    "โอนไปตั้งแต่เมื่อวานแล้วนะ",
+    "จ่ายแล้วนี่ครับ",
+    "เช็คอีกทีนะ ผมโอนไปแล้ว"
+   ]
+  },
+  "asks_human": {
+   "desc": "ขอคุยเจ้าหน้าที่จริง หรือถามนอกขอบเขต flow การชำระ",
+   "cues": [
+    "ขอคุยกับคนได้ไหม",
+    "นี่หุ่นยนต์เหรอ",
+    "อยากเปลี่ยนรุ่นได้ไหม",
+    "มีโปรอะไรบ้าง"
+   ]
+  },
+  "no_input": {
+   "desc": "เงียบ หรือตอบไม่เป็นคำพูดที่ตีความได้",
+   "cues": [
+    "...",
+    "…",
+    "(เงียบ)",
+    "(ไม่ตอบ)",
+    "อือ..."
+   ]
+  }
+ },
+ "tools": {
+  "declarations": [
+   {
+    "name": "check_new_date",
+    "impl": "http",
+    "desc": "ตรวจว่าวันที่ลูกค้าขอเลื่อนไปอยู่ในเกณฑ์ของร้านไหม (ไม่เกิน max_extend_days จาก due_date) — คืน {in_range: bool, valid_dates: [...], max_extend_days: n} โดย valid_dates คือรายการวันที่รับได้ (มีวันที่ลูกค้าขอ ถ้า in_range=true) เรียกทุกครั้งที่ลูกค้าระบุวัน ห้ามตัดสินเอง",
+    "url": "{API_BASE}/SHOP/check_new_date",
+    "method": "POST",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "วันที่ลูกค้าบอก แปลงเป็นรูปแบบ canonical ก่อนส่ง"
+     }
+    },
+    "gating": {
+     "after_event": "gives_date",
+     "note": "เรียกเงียบๆ ก่อนตอบทุกครั้ง — การนับวันเป็นหน้าที่ของระบบ ไม่ใช่ของ agent"
+    },
+    "returns": {
+     "in_range": {
+      "type": "boolean",
+      "desc": "วันที่ขอมาอยู่ในเกณฑ์ไหม"
+     },
+     "valid_dates": {
+      "type": "array",
+      "desc": "วันที่รับได้ทั้งหมด (canonical)"
+     },
+     "max_extend_days": {
+      "type": "number",
+      "desc": "เลื่อนได้ไม่เกินกี่วัน"
+     }
+    },
+    "mock": {
+     "rules": [
+      {
+       "when": {
+        "arg": "date",
+        "matches": "^2026-0[89]-"
+       },
+       "body": {
+        "in_range": true,
+        "valid_dates": [
+         "{{body 'args.date'}}"
+        ],
+        "max_extend_days": 7
+       },
+       "label": "in range (stand-in: Aug/Sep 2026)"
+      }
+     ],
+     "default": {
+      "in_range": false,
+      "valid_dates": [],
+      "max_extend_days": 7,
+      "note": "เกินเกณฑ์ที่ร้านรับได้"
+     }
+    }
+   },
+   {
+    "name": "record_call_result",
+    "impl": "http",
+    "desc": "บันทึกผลสาย — เรียกก่อน reply ปิดสายเสมอ",
+    "url": "{API_BASE}/SHOP/record_call_result",
+    "method": "POST",
+    "args": {
+     "result": {
+      "type": "string",
+      "desc": "ผลของสายนี้",
+      "enum": [
+       "confirmed",
+       "rescheduled",
+       "paid_claimed",
+       "handoff",
+       "unreachable"
+      ]
+     },
+     "new_date": {
+      "type": "string",
+      "optional": true,
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "วันชำระใหม่ที่ลูกค้ายืนยัน — บังคับเมื่อ result=rescheduled ใช้ค่าที่ check_new_date คืนมา",
+      "required_when": {
+       "arg": "result",
+       "equals": "rescheduled"
+      },
+      "one_of_from": {
+       "tool": "check_new_date",
+       "field": "valid_dates"
+      }
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "returns": {
+     "recorded": {
+      "type": "boolean"
+     },
+     "result": {
+      "type": "string"
+     },
+     "new_date": {
+      "type": "string"
+     }
+    }
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_remind"
+    }
+   ],
+   "note": "แจ้งเตือนล่วงหน้า 1 วัน แล้วรอคำตอบ — ห้ามเรียก record_call_result ในเทิร์นแรก",
+   "on": [
+    {
+     "event": "confirms_pay",
+     "to": "close_confirmed"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "ask_new_date"
+    },
+    {
+     "event": "gives_date",
+     "to": "check_date",
+     "note": "ลูกค้าขอเลื่อนพร้อมบอกวันมาในประโยคเดียว — ข้ามการถามวัน"
+    },
+    {
+     "event": "already_paid",
+     "to": "close_paid_claim"
+    },
+    {
+     "event": "asks_human",
+     "to": "close_handoff"
+    },
+    {
+     "event": "no_input",
+     "to": "close_handoff",
+     "note": "เงียบตั้งแต่ต้น = ติดต่อไม่ได้ ให้เจ้าหน้าที่ตามต่อ"
+    }
+   ]
+  },
+  {
+   "id": "ask_new_date",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_new_date"
+    }
+   ],
+   "on": [
+    {
+     "event": "gives_date",
+     "to": "check_date"
+    },
+    {
+     "event": "asks_human",
+     "to": "close_handoff"
+    },
+    {
+     "event": "no_input",
+     "to": "close_handoff"
+    }
+   ]
+  },
+  {
+   "id": "check_date",
+   "phase": "main",
+   "templates": [
+    {
+     "any_of": [
+      "confirm_new_date",
+      "date_too_far"
+     ]
+    }
+   ],
+   "entry_tools": [
+    "check_new_date"
+   ],
+   "note": "เรียก check_new_date ก่อนเสมอ แล้วเลือกประโยคตามผล: in_range=true → confirm_new_date (9004) · in_range=false → date_too_far (9005) แล้วรอวันใหม่",
+   "on": [
+    {
+     "event": "confirms_new_date",
+     "to": "close_rescheduled"
+    },
+    {
+     "event": "gives_date",
+     "to": "check_date",
+     "note": "ลูกค้าเสนอวันใหม่ — ตรวจอีกรอบ"
+    },
+    {
+     "event": "asks_human",
+     "to": "close_handoff"
+    },
+    {
+     "event": "no_input",
+     "to": "close_handoff"
+    }
+   ]
+  },
+  {
+   "id": "close_confirmed",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_confirmed"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "result": "confirmed",
+    "reasons": [
+     "confirmed"
+    ]
+   }
+  },
+  {
+   "id": "close_rescheduled",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_rescheduled"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "result": "rescheduled",
+    "reasons": [
+     "rescheduled"
+    ]
+   }
+  },
+  {
+   "id": "close_paid_claim",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_paid_claim"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "result": "paid_claimed",
+    "reasons": [
+     "paid_claimed"
+    ]
+   }
+  },
+  {
+   "id": "close_handoff",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_handoff"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "result": "handoff",
+    "reasons": [
+     "asks_human",
+     "out_of_scope",
+     "no_input"
+    ]
+   }
+  }
+ ],
+ "outcomes": {
+  "required_at_close": true,
+  "results": {
+   "confirmed": {
+    "reasons": [
+     "confirmed"
+    ],
+    "desc": "ยืนยันจะชำระตามวันเดิม"
+   },
+   "rescheduled": {
+    "reasons": [
+     "rescheduled"
+    ],
+    "desc": "เลื่อนวันชำระและยืนยันวันใหม่แล้ว"
+   },
+   "paid_claimed": {
+    "reasons": [
+     "paid_claimed"
+    ],
+    "desc": "ลูกค้าอ้างว่าชำระแล้ว — รอ backend ตรวจสอบ"
+   },
+   "handoff": {
+    "reasons": [
+     "asks_human",
+     "out_of_scope",
+     "no_input"
+    ],
+    "desc": "ส่งต่อเจ้าหน้าที่ (ขอคุยคน / นอกขอบเขต / ติดต่อไม่ได้)"
+   },
+   "unreachable": {
+    "reasons": [
+     "no_input"
+    ],
+    "desc": "ติดต่อไม่ได้"
+   }
+  }
+ },
+ "faq_routing": {
+  "routes": []
+ },
+ "constraints": [
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ห้ามตัดสินเองว่าวันที่ลูกค้าขอเลื่อนอยู่ในเกณฑ์ไหม** — เรียก `check_new_date(date)` ทุกครั้งที่ลูกค้าระบุวัน แล้วอ่าน `in_range` และ `valid_dates` จากผลลัพธ์ · `in_range=true` → พูด `confirm_new_date` (9004) · `in_range=false` → พูด `date_too_far` (9005) การนับวันเป็นหน้าที่ของระบบ"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ยืนยันวันใหม่ก่อนบันทึกเสมอ** — หลัง `confirm_new_date` (9004) ต้องรอให้ลูกค้าตอบรับก่อน จึงเรียก `record_call_result(result=\"rescheduled\", new_date=…)` · **ห้ามบันทึกทันทีที่ลูกค้าเอ่ยวัน** เพราะวันนั้นยังไม่ผ่านการยืนยัน"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**`new_date` ต้องเป็นค่าที่ `check_new_date` คืนมา** ห้ามพิมพ์ตามที่ลูกค้าพูดดิบๆ และห้ามเว้นว่าง เมื่อ result=rescheduled"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าอ้างว่าจ่ายแล้ว** → พูด `close_paid_claim` (9007) บันทึก result=paid_claimed แล้วจบสาย · **ห้ามเถียง ห้ามขอหลักฐาน ห้ามทวงต่อ** เพราะการตรวจสอบเป็นงานของ backend"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าขอคุยเจ้าหน้าที่ หรือถามเรื่องนอก flow การชำระ** (เปลี่ยนรุ่น โปรโมชั่น ฯลฯ) → พูด `close_handoff` (9008) บันทึก result=handoff แล้วจบสาย · **ห้ามพยายามตอบเอง**"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ความเงียบไม่ใช่การตกลง** — ลูกค้าตอบ '...' / '(เงียบ)' = เหตุการณ์ `no_input` เท่านั้น ห้ามถือเป็น confirms_pay และห้ามบันทึก result=confirmed"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**พูดครั้งละหนึ่งประโยค** เลือกจาก catalog เท่านั้น ห้ามแต่งข้อความเอง ห้ามพูดยอดหรือวันครบกำหนดซ้ำ หลังแจ้งไปแล้วในประโยคเปิด"
+  },
+  {
+   "id": "max_date_retries",
+   "type": "max_occurrences",
+   "counts": "date_too_far",
+   "max": 2,
+   "on_exceed": {
+    "to": "close_handoff"
+   },
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "บอกว่าเลื่อนได้ไม่เกินกี่วันได้สูงสุด 2 ครั้งต่อสาย — ครบแล้วลูกค้ายังเสนอวันที่เกินเกณฑ์ ให้ปิดด้วย close_handoff (9008) ส่งต่อเจ้าหน้าที่"
+  }
+ ]
+}
