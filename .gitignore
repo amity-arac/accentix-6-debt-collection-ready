@@ -19,8 +19,11 @@ demo/frontend/dist/
 .idea/
 *.swp
 
-# NOTE: checkpoints/ is intentionally NOT ignored — the sft_v2 LoRA adapter
-# ships with the repo via git-LFS (see .gitattributes).
+# NOTE: checkpoints/ is intentionally NOT ignored — the adapters this deliverable
+# serves ship with the repo via git-LFS (see .gitattributes). Add a checkpoint here
+# only when the demo is meant to serve it: each one is ~240 MB against the LFS quota
+# and cannot be taken back out cheaply. Everything else stays on the training pod.
+checkpoints/sft_v10/
 
 # Saved demo conversations are runtime artifacts: keep the folder, ignore contents.
 #data/demo-saved-trajectory/*
