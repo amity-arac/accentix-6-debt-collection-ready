@@ -162,6 +162,42 @@ def run_scenario(company: str, scn: dict, by_id: dict, closer: str, reachable: s
             "unpassable_by_spec": bool(unreachable)}
 
 
+def _preflight() -> None:
+    """Refuse to score a model the app cannot reach.
+
+    Naming a model that is not being served does not error — every scenario dies on
+    `IncompleteRead` and the run reports 0/45, which is indistinguishable from a
+    catastrophic regression and was read as one. One session up front turns that into a
+    message.
+    """
+    try:
+        req = urllib.request.Request(
+            f"{BASE}/api/session?case_id={CASE['AEON']}&flow=1&model={MODEL}")
+        body = urllib.request.urlopen(req, timeout=120).read().decode()
+    except Exception as e:  # noqa: BLE001 — any failure here is the same advice
+        raise SystemExit(f"  เปิด session ไม่ได้ ({type(e).__name__}: {e})\n"
+                         f"  demo อยู่ที่ {BASE} จริงไหม (AAX6_DEMO_URL)")
+    sid = next((json.loads(ln)["session_id"] for ln in body.splitlines()
+                if ln.startswith("{") and json.loads(ln).get("session_id")), None)
+    if sid:
+        # A session opens for a model that is not served; the failure only surfaces when
+        # something has to generate. Play one turn.
+        try:
+            _post(f"/api/session/{sid}/opening", {})
+            hops = _post(f"/api/session/{sid}/turn", {"message": "สวัสดีครับ"})
+        except Exception as e:  # noqa: BLE001
+            raise SystemExit(f"  model={MODEL!r} เปิด session ได้ แต่ตอบไม่ได้"
+                             f" ({type(e).__name__}: {e})\n"
+                             f"  โมเดลนั้นถูก serve อยู่จริงไหม — ถ้าไม่"
+                             f" ทุกเคสจะตายแล้วรายงานเป็น 0/45")
+        if not hops:
+            raise SystemExit(f"  model={MODEL!r} ตอบว่างเปล่า — ถูก serve อยู่จริงไหม")
+    if not sid:
+        raise SystemExit(f"  demo ไม่คืน session สำหรับ model={MODEL!r}\n"
+                         f"  โมเดลนั้นถูก serve อยู่จริงไหม — ถ้าไม่ ทุกเคสจะตาย"
+                         f" แล้วรายงานเป็น 0/45")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--company", default="AEON,KBANK,SKL,AMT")
@@ -170,6 +206,7 @@ def main() -> None:
     a = ap.parse_args()
     global MODEL
     MODEL = a.model
+    _preflight()
 
     detail, tot, ok, blocked = {}, 0, 0, 0
     for co in a.company.split(","):
