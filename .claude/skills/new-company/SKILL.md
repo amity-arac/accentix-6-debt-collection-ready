@@ -9,9 +9,10 @@ One tenant is one file: `data/flows/<CODE>.company.json`. Dropping it in creates
 company; deleting it removes it. The platform holds no logic about any tenant, so
 **everything the agent does comes from this file**, and every defect in it ships.
 
-The format reference is [docs/SPEC_FORMAT.md](../../../docs/SPEC_FORMAT.md); the
-field-by-field authoring guide is [docs/NEW_COMPANY.md](../../../docs/NEW_COMPANY.md).
-This skill is the process around them.
+The format is locked and documented once, in
+[docs/SPEC_LOCKED.md](../../../docs/SPEC_LOCKED.md) — every key, what reads it, what
+values it takes, and which rules the runtime actually enforces. This skill is the
+process around it.
 
 ## Why the steps are in this order
 
@@ -48,7 +49,7 @@ assumption — record it, do not bury it.
 
 ## 2 · Author `<CODE>.company.json`
 
-Follow docs/NEW_COMPANY.md in its order. Two habits that prevent the known defects:
+Follow SPEC_LOCKED.md §10 in its order (states before catalog). Two habits that prevent the known defects:
 
 - **Never write a beat name next to a number that is not its id.** When a rule
   mentions a template, copy the id from the catalog in the same edit.
