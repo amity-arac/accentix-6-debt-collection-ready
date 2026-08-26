@@ -103,6 +103,22 @@ AAX6_VLLM_MODEL=sft_v2_2
 
 > Choosing a persona sets the company (the prefix after `TC-`, e.g. `AEON`) and the debtor's profile (name, debt amount, due date, the 4-digit ID for KYC). **All 152 personas** ship in `data/test-cases/personas_data.json` (≈38 per company across AEON / AIS / JAI / KS) and can be browsed and switched from the UI — see *Choosing a persona* below.
 
+### v10 (experimental — AEON only)
+
+v10 is a **verbatim clone of the real production bot** ("Outbound - Remind" flow) instead of a negotiation-tuned agent: no KYC digit check, no human handoff, and it never asks for anything the real bot's call logs never asked for. It ships its own catalog (`data/pre-scripts/v10_pre_script_database.json`) and its own `sft_v10` LoRA adapter, trained specifically for it. **Currently AEON only** — the catalog was extracted from AEON's real call logs and is not portable to the other three companies without redoing that extraction, so v10 will fail to load a non-AEON persona.
+
+```ini
+AAX6_V6_ACTIVE=1
+AAX6_PROMPT_VERSION=v10
+AAX6_DEMO_MODE=live
+AAX6_DEMO_AGENT=qwen
+AAX6_DEMO_CASE_ID=TC-AEON-AAX-025   # must be an AEON persona
+AAX6_VLLM_BASE_URL=http://localhost:8000/v1
+AAX6_VLLM_MODEL=sft_v10
+```
+
+Serve with `AAX6_VLLM_MODEL=sft_v10 bash scripts/serve_qwen.sh` (same script, different adapter). `sft_v2_2`/`sft_v2_3_1-h20` remain the default production adapters — v10 is opt-in via the two env vars above, not a replacement.
+
 ---
 
 ## Run
