@@ -30,8 +30,23 @@ RESULTS_FILE = "data/results.json"
 
 NATURAL_TTS = os.environ.get("AAX6_NATURAL_TTS", "").strip().lower() in ("1", "true", "yes", "on")
 
+# AAX6_PROMPT_VERSION selects the system-instruction MD (prompt_loader.py already
+# templates this generically). The pre-script CATALOG, however, was never
+# version-branched — it always resolved to the v6 DB regardless of prompt
+# version (v8/v9 intentionally reuse the v6 catalog). v10 introduces its OWN
+# catalog (verbatim-extracted from real AEON logs, currently AEON-only), so it
+# needs an explicit branch here or v10's templates/tool set never load.
+AAX6_PROMPT_VERSION = os.environ.get("AAX6_PROMPT_VERSION", "").strip().lower()
+
 PRE_SCRIPT_DB_FILE = (
-    "data/pre-scripts/v6_demo_pre_script_database.json"
+    # v11 = all 4 companies (AEON parameterized + JAI/KS/AIS shared-id), filtered
+    # by company at load time. AEON is fully-trained; JAI/KS/AIS are zero-shot
+    # (shared beats work, company-specific beats rough until the multi-company retrain).
+    "data/pre-scripts/v11_all_companies_catalog.json"
+    if V6_ACTIVE and AAX6_PROMPT_VERSION == "v11"
+    else "data/pre-scripts/v10_pre_script_database.json"
+    if V6_ACTIVE and AAX6_PROMPT_VERSION == "v10"
+    else "data/pre-scripts/v6_demo_pre_script_database.json"
     if V6_ACTIVE and NATURAL_TTS
     else "data/pre-scripts/v6_pre_script_database.json"
     if V6_ACTIVE
@@ -42,7 +57,10 @@ PRE_SCRIPT_DB_FILE = (
 MAX_TURNS = 20
 MAX_REPEATS = 3  # loop detection: N identical messages in a row → stop
 MAX_TOOL_HOPS = 6  # safety cap on non-reply tool calls per turn
-FILLER_TEXT = "รบกวนรอซักครู่ค่ะ"  # auto-inserted before final reply when any non-reply tool fires in the turn
+# v10 clones a real bot that never emits this filler as an opening line (it fires
+# check_account_status before the first reply, which made the filler the FIRST
+# thing the customer heard). Scoped off for v10 only — v8/v9 keep existing behavior.
+FILLER_TEXT = "" if AAX6_PROMPT_VERSION in ("v10", "v11") else "รบกวนรอซักครู่ค่ะ"  # auto-inserted before final reply when any non-reply tool fires in the turn
 
 COMPANY_PHONES = {
     "AEON": "02-035-6666",

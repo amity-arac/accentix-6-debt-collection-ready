@@ -149,7 +149,7 @@ class ZipformerSTTService:
 
     def __init__(self, server: str | None = None, hotwords: str | None = None,
                  boost: str | None = None) -> None:
-        server = (server or os.environ.get("AAX6_ZIPFORMER_URL", "ws://34.87.38.92:2997")).strip()
+        server = (server or os.environ.get("AAX6_ZIPFORMER_URL", "ws://34.177.82.136:2997")).strip()
         self.server = server.rstrip("/")
         self.hotwords = (hotwords if hotwords is not None
                          else os.environ.get("AAX6_ZIPFORMER_HOTWORDS", "")).strip()

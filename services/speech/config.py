@@ -16,7 +16,8 @@ DEFAULT_REGION = "us"
 DEFAULT_LANGUAGE_CODE = "th-TH"
 DEFAULT_STT_MODEL = "chirp_3"
 STT_MODEL_SHORT = "short"  # Traditional model — lower latency (~200-400ms), less accurate
-DEFAULT_TTS_VOICE = "Despina"  # Firm female; see full list in tts.py
+DEFAULT_TTS_VOICE = "Despina"  # Smooth female; see full list in tts.py
+MALE_TTS_VOICE = "Puck"  # Upbeat male
 DEFAULT_SAMPLE_RATE = 24000  # TTS output sample rate (Hz)
 DEFAULT_STT_SAMPLE_RATE = 16000  # STT input sample rate (Hz)
 
@@ -29,6 +30,11 @@ AVAILABLE_VOICES = [
     "Puck", "Rasalgethi", "Sadachbia", "Sadaltager", "Schedar",
     "Sulafat", "Umbriel", "Vindemiatrix", "Zephyr", "Zubenelgenubi",
 ]
+
+# Demo voice-picker: maps the user-facing gender toggle to a concrete Chirp 3
+# HD voice name. Independent of the agent's TEXT gender (ครับ/ค่ะ particles) —
+# this only picks which voice speaks the (already-rendered) reply text.
+VOICE_BY_GENDER = {"M": MALE_TTS_VOICE, "F": DEFAULT_TTS_VOICE}
 
 CLOUD_SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",

@@ -5,7 +5,7 @@
   "intent_name": "opening_greet_verify",
   "category": "A",
   "state": "opening",
-  "template": "สวัสดี{suffix} ติดต่อจากบริษัทอิอ้อน กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+  "template": "สวัสดี{suffix} ติดต่อจากบริษัทอิอ้อน กำลังเรียนสายอยู่กับคุณ [customer_name] ถูกต้องหรือไม่{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
@@ -19,29 +19,27 @@
   "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
-  "template": "ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+  "template": "ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ [customer_name] ถูกต้องหรือไม่{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "verify_name",
-  "_real_count": 13522,
-  "hint": "ยืนยันชื่อ — สลับกับ 1065 ได้"
+  "_real_count": 13522
  },
  {
   "company": "AEON",
   "text_id": 1004,
-  "intent_name": "third_party_know",
+  "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
-  "template": "คุณรู้จักคุณ {customer_name} หรือไม่{q_suffix}",
+  "template": "คุณรู้จักคุณ [customer_name] หรือไม่{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
-  "_fine_state": "third_party_know",
-  "_real_count": 607,
-  "hint": "ถามคนอื่นว่ารู้จักเจ้าตัวไหม — สลับกับ 1006 ได้"
+  "_fine_state": "verify_name",
+  "_real_count": 607
  },
  {
   "company": "AEON",
@@ -49,44 +47,41 @@
   "intent_name": "opening_third_party",
   "category": "B",
   "state": "opening",
-  "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ {customer_name} หรือไม่{q_suffix}",
+  "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ [customer_name] หรือไม่{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "third_party",
-  "_real_count": 287,
-  "hint": "ขอเบอร์ครั้งแรก — สุภาพเต็ม ขึ้นต้นด้วยขออภัยที่รบกวน"
+  "_real_count": 287
  },
  {
   "company": "AEON",
   "text_id": 1006,
-  "intent_name": "third_party_know",
+  "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
-  "template": "คุณรู้จักคุณ {customer_name} หรือเปล่า{q_suffix}",
+  "template": "คุณรู้จักคุณ [customer_name] หรือเปล่า{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
-  "_fine_state": "third_party_know",
-  "_real_count": 267,
-  "hint": "ถามคนอื่นว่ารู้จักเจ้าตัวไหม — สลับกับ 1004 ได้"
+  "_fine_state": "verify_name",
+  "_real_count": 267
  },
  {
   "company": "AEON",
   "text_id": 1007,
-  "intent_name": "ai_disclosure_verify",
+  "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
-  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ [customer_name] ถูกต้องหรือไม่{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
-  "_fine_state": "ai_disclosure_verify",
-  "_real_count": 149,
-  "hint": "บอกว่าเป็น AI แล้วยืนยันว่าปลายสายคือเจ้าตัว"
+  "_fine_state": "verify_name",
+  "_real_count": 149
  },
  {
   "company": "AEON",
@@ -94,14 +89,13 @@
   "intent_name": "opening_third_party",
   "category": "B",
   "state": "opening",
-  "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ {customer_name} มั้ย{q_suffix}",
+  "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ [customer_name] มั้ย{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "third_party",
-  "_real_count": 121,
-  "hint": "ขอเบอร์ครั้งแรก (ใช้แทน 1005 ได้)"
+  "_real_count": 121
  },
  {
   "company": "AEON",
@@ -109,14 +103,13 @@
   "intent_name": "opening_third_party",
   "category": "B",
   "state": "opening",
-  "template": "ไม่ทราบว่า มีเบอร์ติดต่อคุณ {customer_name} มั้ย{q_suffix}",
+  "template": "ไม่ทราบว่า มีเบอร์ติดต่อคุณ [customer_name] มั้ย{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "third_party",
-  "_real_count": 99,
-  "hint": "ขอเบอร์แบบสั้น"
+  "_real_count": 99
  },
  {
   "company": "AEON",
@@ -124,14 +117,13 @@
   "intent_name": "opening_third_party",
   "category": "B",
   "state": "opening",
-  "template": "รบกวนขอเบอร์ติดต่อคุณ {customer_name} ด้วย{suffix}",
+  "template": "รบกวนขอเบอร์ติดต่อคุณ [customer_name] ด้วย{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "third_party",
-  "_real_count": 88,
-  "hint": "ขอเบอร์ตรงๆ — ใช้เมื่อถามแล้วยังไม่ได้คำตอบ"
+  "_real_count": 88
  },
  {
   "company": "AEON",
@@ -139,7 +131,7 @@
   "intent_name": "opening_ai_disclosure",
   "category": "A",
   "state": "opening",
-  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix}",
+  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} ไม่ทราบว่า ถ้าเป็นยอดขั้นต่ำ ลูกค้าสะดวกชำระภายในวันนี้เลยมั้ย{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -153,34 +145,32 @@
   "intent_name": "opening_third_party",
   "category": "B",
   "state": "opening",
-  "template": "ไม่ทราบว่า มีเบอร์ติดต่อคุณ {customer_name} มั้ย{q_suffix}",
+  "template": "ไม่ทราบว่า มีเบอร์ติดต่อคุณ [customer_name] มั้ย{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "third_party",
-  "_real_count": 35,
-  "hint": "ขอเบอร์แบบสั้น (ใช้แทน 1010 ได้)"
+  "_real_count": 35
  },
  {
   "company": "AEON",
   "text_id": 1015,
-  "intent_name": "ai_disclosure_verify",
+  "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
-  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} คุณรู้จักคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+  "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อน{suffix} คุณรู้จักคุณ [customer_name] ถูกต้องหรือไม่{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
-  "_fine_state": "ai_disclosure_verify",
-  "_real_count": 31,
-  "hint": "บอกว่าเป็น AI แล้วถามคนอื่นว่ารู้จักเจ้าตัวไหม"
+  "_fine_state": "verify_name",
+  "_real_count": 31
  },
  {
   "company": "AEON",
   "text_id": 1016,
-  "intent_name": "ask_convenient",
+  "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
   "template": "ไม่ทราบสะดวกคุยสายหรือยัง{q_suffix}",
@@ -188,7 +178,7 @@
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
-  "_fine_state": "ask_convenient",
+  "_fine_state": "verify_name",
   "_real_count": 31
  },
  {
@@ -197,14 +187,13 @@
   "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
-  "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
+  "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ [company_phone]{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
-  "_fine_state": "handoff_refuse",
-  "_real_count": 22,
-  "hint": "ปฏิเสธการโอนสาย — 1017/1031/1040 ข้อความเหมือนกัน ใช้อันไหนก็ได้"
+  "_fine_state": "verify_name",
+  "_real_count": 22
  },
  {
   "company": "AEON",
@@ -212,7 +201,7 @@
   "intent_name": "negotiation_ask_pay_today",
   "category": "B",
   "state": "negotiation",
-  "template": "บริษัทขอแจ้งยอด {amount} บาท สามารถชำระขั้นต่ำได้ {minimum_payment} บาท {{if due_upcoming}}จะถึงกำหนดชำระ {due_date} {{else}}ครบกำหนดชำระ {due_date} {{/if}}{suffix} ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหม{q_suffix}",
+  "template": "บริษัทขอแจ้งยอด [amount] บาท สามารถชำระขั้นต่ำได้ [minimum_payment] บาท {{if due_upcoming}}ซึ่งจะครบกำหนดชำระ [due_date] {suffix} ไม่ทราบว่าคุณลูกค้าจะสะดวกชำระภายในกำหนดไหม{q_suffix}{{else}}ซึ่งขณะนี้ ได้เกินกำหนดชำระแล้ว{suffix} ไม่ทราบว่าคุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้ไหม{q_suffix}{{/if}}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": false,
@@ -226,14 +215,13 @@
   "intent_name": "negotiation_ask_pay_today",
   "category": "B",
   "state": "negotiation",
-  "template": "ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด {amount} บาท สามารถชำระขั้นต่ำได้ {minimum_payment} บาท {{if due_upcoming}}จะถึงกำหนดชำระ {due_date} {{else}}ครบกำหนดชำระ {due_date} {{/if}}{suffix} ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหม{q_suffix}",
+  "template": "ตามที่ท่านได้นัดชำระกับบริษัทไว้ ยอด [amount] บาท สามารถชำระขั้นต่ำได้ [minimum_payment] บาท {{if due_upcoming}}จะครบกำหนดชำระ [due_date] {suffix} ไม่ทราบว่าคุณลูกค้าจะสะดวกชำระภายในกำหนดไหม{q_suffix}{{else}}ขณะนี้เกินกำหนดชำระแล้ว{suffix} ไม่ทราบว่า คุณลูกค้าสะดวกชำระขั้นต่ำภายในวันนี้เลยไหม{q_suffix}{{/if}}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "ask_pay_today",
-  "_real_count": 2718,
-  "hint": "ขอครั้งแรก — ทวนยอดรวม + ขั้นต่ำ + วันครบกำหนด ครบในประโยคเดียว"
+  "_real_count": 2718
  },
  {
   "company": "AEON",
@@ -248,8 +236,7 @@
   "expects_response": true,
   "_fine_state": "ask_pay_today",
   "_real_count": 2139,
-  "_flow_id": "retry_remind_ptp_01",
-  "hint": "เสนอลดเหลือยอดขั้นต่ำ เมื่อลูกค้าลังเลกับยอดเต็ม"
+  "_flow_id": "retry_remind_ptp_01"
  },
  {
   "company": "AEON",
@@ -263,8 +250,7 @@
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "ask_pay_today",
-  "_real_count": 1309,
-  "hint": "ขอซ้ำแบบสั้น — แจ้งยอดไปแล้ว"
+  "_real_count": 1309
  },
  {
   "company": "AEON",
@@ -292,13 +278,12 @@
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "ask_pay_today",
-  "_real_count": 169,
-  "hint": "ขอซ้ำแบบสั้นที่สุด ไม่ระบุยอด"
+  "_real_count": 169
  },
  {
   "company": "AEON",
   "text_id": 1030,
-  "intent_name": "ack_hold",
+  "intent_name": "negotiation_other",
   "category": "B",
   "state": "negotiation",
   "template": "ได้{suffix} ถ้าสะดวกแล้วแจ้งนะ{q_suffix}",
@@ -306,7 +291,7 @@
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": false,
-  "_fine_state": "ack_hold",
+  "_fine_state": "other",
   "_real_count": 56
  },
  {
@@ -315,33 +300,32 @@
   "intent_name": "negotiation_ask_pay_today",
   "category": "B",
   "state": "closing",
-  "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
+  "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ [company_phone]{suffix}",
   "is_closer": false,
-  "is_demand": false,
+  "is_demand": true,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "handoff_refuse",
-  "_real_count": 47,
-  "hint": "ปฏิเสธการโอนสาย — 1017/1031/1040 ข้อความเหมือนกัน ใช้อันไหนก็ได้"
+  "_real_count": 47
  },
  {
   "company": "AEON",
   "text_id": 1032,
-  "intent_name": "give_phone",
+  "intent_name": "negotiation_other",
   "category": "B",
   "state": "negotiation",
-  "template": "{company_phone}{suffix}",
+  "template": "[company_phone]{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": false,
-  "_fine_state": "give_phone",
+  "_fine_state": "other",
   "_real_count": 45
  },
  {
   "company": "AEON",
   "text_id": 1035,
-  "intent_name": "thank_close",
+  "intent_name": "negotiation_other",
   "category": "B",
   "state": "negotiation",
   "template": "ขอบคุณสำหรับข้อมูลนะ{q_suffix} สวัสดี{suffix}",
@@ -349,27 +333,27 @@
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": false,
-  "_fine_state": "thank_close",
+  "_fine_state": "other",
   "_real_count": 39
  },
  {
   "company": "AEON",
   "text_id": 1036,
-  "intent_name": "apology_contact",
+  "intent_name": "negotiation_ask_pay_today",
   "category": "B",
   "state": "closing",
-  "template": "ขออภัยในความไม่สะดวกด้วย{suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
-  "is_closer": true,
-  "is_demand": false,
+  "template": "ขออภัยในความไม่สะดวกด้วย{suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ [company_phone]{suffix}",
+  "is_closer": false,
+  "is_demand": true,
   "is_acknowledgment": false,
-  "expects_response": false,
-  "_fine_state": "apology_contact",
+  "expects_response": true,
+  "_fine_state": "apology",
   "_real_count": 38
  },
  {
   "company": "AEON",
   "text_id": 1038,
-  "intent_name": "ask_callback_time",
+  "intent_name": "negotiation_other",
   "category": "B",
   "state": "negotiation",
   "template": "สะดวกให้ติดต่อกลับมาอีกครั้ง เวลาไหนดี{suffix}",
@@ -377,9 +361,8 @@
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": false,
-  "_fine_state": "ask_callback_time",
-  "_real_count": 29,
-  "hint": "ถามเวลาโทรกลับ แบบสั้น"
+  "_fine_state": "other",
+  "_real_count": 29
  },
  {
   "company": "AEON",
@@ -387,14 +370,13 @@
   "intent_name": "negotiation_ask_pay_today",
   "category": "B",
   "state": "negotiation",
-  "template": "รอบบิลการชำระของคุณลูกค้า ครบกำหนดชำระ {due_date}{suffix} ไม่ทราบว่า ถ้าเป็นยอดขั้นต่ำ ลูกค้าสะดวกชำระภายในวันนี้เลยมั้ย{q_suffix}",
+  "template": "รอบบิลการชำระของคุณลูกค้า ครบกำหนดชำระ วันที่ [due_date]{suffix} ไม่ทราบว่า ถ้าเป็นยอดขั้นต่ำ ลูกค้าสะดวกชำระภายในวันนี้เลยมั้ย{q_suffix}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "ask_pay_today",
-  "_real_count": 28,
-  "hint": "ขอครั้งแรกแบบสั้น — ทวนแค่วันครบกำหนด"
+  "_real_count": 28
  },
  {
   "company": "AEON",
@@ -402,29 +384,27 @@
   "intent_name": "negotiation_ask_pay_today",
   "category": "B",
   "state": "closing",
-  "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ {company_phone}{suffix}",
+  "template": "ขออภัยในความไม่สะดวก{suffix} ปัจจุบัน ยังไม่สามารถโอนสายไปยังเจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม คุณลูกค้าสามารถติดต่อ [company_phone]{suffix}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "handoff_refuse",
-  "_real_count": 20,
-  "hint": "ปฏิเสธการโอนสาย — 1017/1031/1040 ข้อความเหมือนกัน ใช้อันไหนก็ได้"
+  "_real_count": 20
  },
  {
   "company": "AEON",
   "text_id": 1041,
-  "intent_name": "convince_pay",
+  "intent_name": "hardship_probe_hardship",
   "category": "A",
   "state": "hardship",
-  "template": "{pronoun}เข้าใจในสถานการณ์ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ {minimum_payment} บาท ผ่านทางอิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App store{suffix} คุณลูกค้าชำระยอดขั้นต่ำเข้ามา ภายในวันนี้ก่อนได้ไหม{q_suffix}",
+  "template": "{pronoun}เข้าใจในสถานการณ์ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ [minimum_payment] ผ่านทางอิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App store{suffix} คุณลูกค้าชำระยอดขั้นต่ำเข้ามา ภายในวันนี้ก่อนได้ไหม{q_suffix}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": true,
   "expects_response": true,
-  "_fine_state": "convince_pay",
-  "_real_count": 5267,
-  "hint": "โน้มน้าวครั้งแรกหลังถูกปฏิเสธ — บอกช่องทางชำระครบ"
+  "_fine_state": "probe_hardship",
+  "_real_count": 5267
  },
  {
   "company": "AEON",
@@ -443,32 +423,30 @@
  {
   "company": "AEON",
   "text_id": 1043,
-  "intent_name": "convince_pay",
+  "intent_name": "hardship_probe_hardship",
   "category": "A",
   "state": "hardship",
-  "template": "{pronoun}เข้าใจในสถานการณ์ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} ยอด {amount} บาท คุณลูกค้าชำระยอดขั้นต่ำเข้ามาภายในวันนี้ก่อนได้มั้ย{q_suffix}",
+  "template": "{pronoun}เข้าใจในสถานการณ์ แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} ยอดเกินกำหนดชำระ [amount] บาท คุณลูกค้าชำระยอดขั้นต่ำเข้ามาภายในวันนี้ก่อนได้มั้ย{q_suffix}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": true,
   "expects_response": true,
-  "_fine_state": "convince_pay",
-  "_real_count": 793,
-  "hint": "โน้มน้าวแบบสั้น ทวนยอดรวม — ใช้เมื่อบอกช่องทางไปแล้ว"
+  "_fine_state": "probe_hardship",
+  "_real_count": 793
  },
  {
   "company": "AEON",
   "text_id": 1044,
-  "intent_name": "convince_pay",
+  "intent_name": "hardship_probe_hardship",
   "category": "A",
   "state": "hardship",
-  "template": "{pronoun}เข้าใจในสถานการณ์{suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ {minimum_payment} บาท ผ่านทางอิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App storeนะ{q_suffix} คุณลูกค้าชำระยอดขั้นต่ำเข้ามา ภายในวันนี้เลยได้ไหม{q_suffix}",
+  "template": "{pronoun}เข้าใจในสถานการณ์{suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่ายก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ [minimum_payment] บาท ผ่านทางอิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App storeนะ{q_suffix} คุณลูกค้าชำระยอดขั้นต่ำเข้ามา ภายในวันนี้เลยได้ไหม{q_suffix}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": true,
   "expects_response": true,
-  "_fine_state": "convince_pay",
-  "_real_count": 141,
-  "hint": "โน้มน้าวครั้งแรกหลังถูกปฏิเสธ (ใช้แทน 1041 ได้)"
+  "_fine_state": "probe_hardship",
+  "_real_count": 141
  },
  {
   "company": "AEON",
@@ -483,6 +461,20 @@
   "expects_response": false,
   "_fine_state": "close",
   "_real_count": 12628
+ },
+ {
+  "company": "AEON",
+  "text_id": 1049,
+  "intent_name": "closing_close",
+  "category": "A",
+  "state": "closing",
+  "template": "บริษัทเข้าใจ{suffix} เพื่อหลีกเลี่ยงค่าใช้จ่ายอื่นๆที่อาจเกิดขึ้นในอนาคต เช่น ค่าติดตามทวงถาม คุณลูกค้าลองพยายามหา สำรองจ่ายภายในวันนี้ดูก่อนนะ{q_suffix} หากต้องการสอบถาม หรือ ต้อง การความช่วยเหลือเพิ่มเติม ติดต่อได้ที่ [company_phone]{suffix} ขอขอบคุณที่ใช้บริการอิอ้อน สวัสดี{suffix}",
+  "is_closer": true,
+  "is_demand": false,
+  "is_acknowledgment": true,
+  "expects_response": false,
+  "_fine_state": "close",
+  "_real_count": 2589
  },
  {
   "company": "AEON",
@@ -509,13 +501,13 @@
   "is_demand": false,
   "is_acknowledgment": true,
   "expects_response": false,
-  "_fine_state": "close_paid",
+  "_fine_state": "close",
   "_real_count": 350
  },
  {
   "company": "AEON",
   "text_id": 1054,
-  "intent_name": "apology_close",
+  "intent_name": "closing_apology",
   "category": "A",
   "state": "closing",
   "template": "ขออภัยที่รบกวน สวัสดี{suffix}",
@@ -523,7 +515,7 @@
   "is_demand": false,
   "is_acknowledgment": true,
   "expects_response": false,
-  "_fine_state": "apology_close",
+  "_fine_state": "apology",
   "_real_count": 133
  },
  {
@@ -538,8 +530,7 @@
   "is_acknowledgment": true,
   "expects_response": false,
   "_fine_state": "apology",
-  "_real_count": 108,
-  "hint": "ขออภัย + จะติดต่อกลับ — สลับกับ 1059 ได้"
+  "_real_count": 108
  },
  {
   "company": "AEON",
@@ -552,9 +543,22 @@
   "is_demand": false,
   "is_acknowledgment": true,
   "expects_response": false,
-  "_fine_state": "ask_callback_time",
-  "_real_count": 55,
-  "hint": "ถามเวลาโทรกลับ แบบสุภาพเต็ม"
+  "_fine_state": "apology",
+  "_real_count": 55
+ },
+ {
+  "company": "AEON",
+  "text_id": 1058,
+  "intent_name": "closing_close",
+  "category": "A",
+  "state": "closing",
+  "template": "{pronoun}เข้าใจในสถานการณ์{suffix} แต่เพื่อเป็นการรักษาสิทธิประโยชน์ คุณลูกค้าพยายามสำรองจ่าย เมื่อถึงกำหนดก่อนนะ{q_suffix} สามารถชำระยอดขั้นต่ำ [minimum_payment]ผ่านทาง อิอ้อนไทยโมบาย หรือช่องทางรับชำระเงินอื่นๆของอิอ้อน{suffix} โดยตรวจสอบขั้นตอนการชำระได้ที่ อิอ้อนไทยโมบาย ดาวน์โหลดได้ที่ Google Play store หรือ App storeนะ{q_suffix} ขอขอบคุณที่ใช้บริการอิอ้อน สวัสดี{suffix}",
+  "is_closer": true,
+  "is_demand": false,
+  "is_acknowledgment": true,
+  "expects_response": false,
+  "_fine_state": "close",
+  "_real_count": 42
  },
  {
   "company": "AEON",
@@ -568,8 +572,21 @@
   "is_acknowledgment": true,
   "expects_response": false,
   "_fine_state": "apology",
-  "_real_count": 39,
-  "hint": "ขออภัย + จะติดต่อกลับ — สลับกับ 1055 ได้"
+  "_real_count": 39
+ },
+ {
+  "company": "AEON",
+  "text_id": 1060,
+  "intent_name": "closing_close",
+  "category": "A",
+  "state": "closing",
+  "template": "บริษัทเข้าใจ{suffix} เพื่อหลีกเลี่ยงค่าใช้จ่ายอื่นๆที่อาจเกิดขึ้นในอนาคต เช่น ค่าติดตามทวงถาม คุณลูกค้าลองพยายามหาสำรองจ่ายภายในวันนี้ดูก่อนนะ{q_suffix} หากต้องการสอบถามหรือต้องการความช่วยเหลือเพิ่มเติม ติดต่อได้ที่ [company_phone]{suffix} ขอขอบคุณที่ใช้บริการอิอ้อน สวัสดี{suffix}",
+  "is_closer": true,
+  "is_demand": false,
+  "is_acknowledgment": true,
+  "expects_response": false,
+  "_fine_state": "close",
+  "_real_count": 37
  },
  {
   "company": "AEON",
@@ -582,7 +599,7 @@
   "is_demand": false,
   "is_acknowledgment": true,
   "expects_response": false,
-  "_fine_state": "ask_phone_again",
+  "_fine_state": "apology",
   "_real_count": 37
  },
  {
@@ -596,9 +613,8 @@
   "is_demand": false,
   "is_acknowledgment": true,
   "expects_response": false,
-  "_fine_state": "ask_callback_time",
-  "_real_count": 23,
-  "hint": "ถามเวลาโทรกลับ แบบสุภาพเต็ม (ใช้แทน 1056 ได้)"
+  "_fine_state": "apology",
+  "_real_count": 23
  },
  {
   "company": "AEON",
@@ -606,15 +622,14 @@
   "intent_name": "opening_verify_name",
   "category": "B",
   "state": "opening",
-  "template": "ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} หรือเปล่า{q_suffix}",
+  "template": "ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ [customer_name] หรือเปล่า{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": false,
   "expects_response": true,
   "_fine_state": "verify_name",
   "_flow_id": "opening_01_r1",
-  "_real_count": 0,
-  "hint": "ยืนยันชื่อ — สลับกับ 1001 ได้"
+  "_real_count": 0
  },
  {
   "company": "AEON",
@@ -629,8 +644,7 @@
   "expects_response": true,
   "_fine_state": "ask_pay_today",
   "_flow_id": "retry_convince_02",
-  "_real_count": 0,
-  "hint": "ขอซ้ำแบบสั้น (ใช้แทน 1023 ได้)"
+  "_real_count": 0
  },
  {
   "company": "AEON",
@@ -698,7 +712,7 @@
   "intent_name": "faq_scam",
   "category": "A",
   "state": "opening",
-  "template": "{pronoun}เข้าใจในความกังวลนะ{q_suffix} {pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อนจริงๆ {suffix} ไม่ใช่มิจฉาชีพ หากไม่มั่นใจ รบกวนติดต่อกลับที่ {company_phone} ได้{suffix}",
+  "template": "{pronoun}เข้าใจในความกังวลนะ{q_suffix} {pronoun}เป็นผู้ช่วยอัตโนมัติจากบริษัทอิอ้อนจริงๆ {suffix} ไม่ใช่มิจฉาชีพ หากไม่มั่นใจ รบกวนติดต่อกลับที่ [company_phone] ได้{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -773,7 +787,7 @@
   "intent_name": "faq_amount",
   "category": "A",
   "state": "negotiation",
-  "template": "ยอดค้างชำระทั้งหมด {amount} บาท ยอดชำระขั้นต่ำ {minimum_payment} บาท{suffix}",
+  "template": "ยอดค้างชำระทั้งหมด [amount] บาท ยอดชำระขั้นต่ำ [minimum_payment] บาท{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -788,7 +802,7 @@
   "intent_name": "faq_due",
   "category": "A",
   "state": "negotiation",
-  "template": "ครบกำหนดชำระ{due_date} {suffix}",
+  "template": "ครบกำหนดชำระวันที่ [due_date] {suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -803,7 +817,7 @@
   "intent_name": "faq_faq_referral",
   "category": "A",
   "state": "closing",
-  "template": "เรื่องนี้รบกวนติดต่อสอบถามรายละเอียดเพิ่มเติมที่ {company_phone} ได้{suffix}",
+  "template": "เรื่องนี้รบกวนติดต่อสอบถามรายละเอียดเพิ่มเติมที่ [company_phone] ได้{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -875,7 +889,7 @@
   "intent_name": "faq_company",
   "category": "A",
   "state": "opening",
-  "template": "บริษัทอิอ้อนเป็นผู้ให้บริการทางการเงินและบัตรเครดิต{suffix} วันนี้ติดต่อเรื่องบัญชีของคุณลูกค้า{suffix}",
+  "template": "บริษัทอิอ้อนเป็นผู้ให้บริการทางการเงินและบัตรเครดิต{suffix} วันนี้ติดต่อเรื่องบัญชีของคุณลูกค้าค่ะ",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -890,7 +904,7 @@
   "intent_name": "faq_debt_type",
   "category": "A",
   "state": "negotiation",
-  "template": "เป็นยอดค้างชำระบัตรเครดิตของบริษัทอิอ้อน{suffix} หากต้องการรายละเอียดเพิ่มเติม รบกวนติดต่อ {company_phone}{suffix}",
+  "template": "เป็นยอดค้างชำระบัตรเครดิตของบริษัทอิอ้อน{suffix} หากต้องการรายละเอียดเพิ่มเติม รบกวนติดต่อ [company_phone]{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -905,7 +919,7 @@
   "intent_name": "faq_verify_first",
   "category": "A",
   "state": "kyc",
-  "template": "ขออนุญาตยืนยันตัวตนก่อนนะ{q_suffix} ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ {customer_name} ถูกต้องหรือไม่{q_suffix}",
+  "template": "ขออนุญาตยืนยันตัวตนก่อนนะ{q_suffix} ไม่ทราบว่า {pronoun}กำลังเรียนสายอยู่กับคุณ [customer_name] ถูกต้องหรือไม่{q_suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -920,7 +934,7 @@
   "intent_name": "confirm_overpay",
   "category": "A",
   "state": "negotiation",
-  "template": "สามารถชำระมากกว่ายอดขั้นต่ำ {minimum_payment} บาทได้{suffix}",
+  "template": "สามารถชำระมากกว่ายอดขั้นต่ำ [minimum_payment] บาทได้{suffix}",
   "is_closer": false,
   "is_demand": false,
   "is_acknowledgment": true,
@@ -934,7 +948,7 @@
   "intent_name": "below_minimum",
   "category": "B",
   "state": "negotiation",
-  "template": "ยอดชำระขั้นต่ำอยู่ที่ {minimum_payment} บาท{suffix} รบกวนคุณลูกค้าชำระอย่างน้อยขั้นต่ำได้ไหม{q_suffix}",
+  "template": "ยอดชำระขั้นต่ำอยู่ที่ [minimum_payment] บาท{suffix} รบกวนคุณลูกค้าชำระอย่างน้อยขั้นต่ำได้ไหม{q_suffix}",
   "is_closer": false,
   "is_demand": true,
   "is_acknowledgment": false,

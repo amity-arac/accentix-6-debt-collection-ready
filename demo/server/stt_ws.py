@@ -87,21 +87,35 @@ _engine_lock = threading.Lock()
 
 
 def _build_engines():
-    """Lazily build (ZipformerSTTService, VADService). Heavy imports (torch via the
-    VAD, numpy/websockets via the STT) happen here, off the import path. May block
-    (torch.hub.load + a short warmup connect) — call via asyncio.to_thread.
+    """Lazily build (STTService, VADService). Heavy imports (torch via the VAD,
+    numpy/websockets or google-cloud-speech via the STT) happen here, off the
+    import path. May block (torch.hub.load + a short warmup connect) — call via
+    asyncio.to_thread.
+
+    STT engine defaults to Zipformer (the customer's self-hosted server, production
+    default). Set AAX6_STT_ENGINE=chirp to temporarily swap in Google Cloud Chirp 3
+    instead (needs GOOGLE_CREDENTIALS_JSON / GOOGLE_CLOUD_PROJECT) — useful when the
+    customer's Zipformer server isn't reachable from wherever the demo is running.
+    Both expose the same transcribe_streaming_events(..., raw_pcm=True, ...) shape,
+    so nothing else in this module needs to change.
     """
     global _stt_singleton, _stt_warmed
+    engine = os.environ.get("AAX6_STT_ENGINE", "zipformer").strip().lower()
     with _engine_lock:
         if _stt_singleton is None:
-            from services.speech.zipformer_stt import ZipformerSTTService
+            if engine == "chirp":
+                from services.speech.stt import STTService
 
-            # URL + optional hotwords/boost are read from env inside the service
-            # (AAX6_ZIPFORMER_URL / _HOTWORDS / _BOOST).
-            _stt_singleton = ZipformerSTTService()
+                _stt_singleton = STTService()
+            else:
+                from services.speech.zipformer_stt import ZipformerSTTService
+
+                # URL + optional hotwords/boost are read from env inside the service
+                # (AAX6_ZIPFORMER_URL / _HOTWORDS / _BOOST).
+                _stt_singleton = ZipformerSTTService()
         stt = _stt_singleton
         if not _stt_warmed:
-            logger.info("[stt] warming up Zipformer connection...")
+            logger.info("[stt] warming up %s connection...", engine)
             stt.warmup(sample_rate=STT_SAMPLE_RATE)
             _stt_warmed = True
             logger.info("[stt] warmup done")

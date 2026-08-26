@@ -35,6 +35,8 @@ import os
 import threading
 from typing import AsyncIterator, Final, Iterator
 
+from functools import lru_cache
+
 from google.cloud import texttospeech
 
 from services.speech.config import (
@@ -44,25 +46,29 @@ from services.speech.config import (
     get_tts_client,
 )
 
-# Chirp 3 HD voice. `Kore` is the firm female default in services/speech.
-_FULL_VOICE_NAME: Final[str] = f"{DEFAULT_LANGUAGE_CODE}-Chirp3-HD-{DEFAULT_TTS_VOICE}"
 
-_STREAMING_CONFIG = texttospeech.StreamingSynthesizeConfig(
-    voice=texttospeech.VoiceSelectionParams(
-        name=_FULL_VOICE_NAME,
-        language_code=DEFAULT_LANGUAGE_CODE,
-    ),
-    streaming_audio_config=texttospeech.StreamingAudioConfig(
-        # PCM = headerless little-endian signed 16-bit (raw LINEAR16, NO WAV
-        # header). Streaming supports only PCM/ALAW/MULAW/OGG_OPUS; LINEAR16
-        # errors in streaming mode. The client plays these bytes directly via
-        # Web Audio (no container demux, no codec decode) for first-audio on
-        # arrival — see the module docstring.
-        audio_encoding=texttospeech.AudioEncoding.PCM,
-        sample_rate_hertz=DEFAULT_SAMPLE_RATE,
-        speaking_rate=1.2,
-    ),
-)
+@lru_cache(maxsize=8)
+def _streaming_config_for(voice_name: str) -> texttospeech.StreamingSynthesizeConfig:
+    """One StreamingSynthesizeConfig per Chirp 3 HD voice name, built lazily and
+    cached — lets /api/tts pick a voice per-request (e.g. the demo's Male/Female
+    toggle) instead of a single process-wide voice."""
+    full_name = f"{DEFAULT_LANGUAGE_CODE}-Chirp3-HD-{voice_name}"
+    return texttospeech.StreamingSynthesizeConfig(
+        voice=texttospeech.VoiceSelectionParams(
+            name=full_name,
+            language_code=DEFAULT_LANGUAGE_CODE,
+        ),
+        streaming_audio_config=texttospeech.StreamingAudioConfig(
+            # PCM = headerless little-endian signed 16-bit (raw LINEAR16, NO WAV
+            # header). Streaming supports only PCM/ALAW/MULAW/OGG_OPUS; LINEAR16
+            # errors in streaming mode. The client plays these bytes directly via
+            # Web Audio (no container demux, no codec decode) for first-audio on
+            # arrival — see the module docstring.
+            audio_encoding=texttospeech.AudioEncoding.PCM,
+            sample_rate_hertz=DEFAULT_SAMPLE_RATE,
+            speaking_rate=1.2,
+        ),
+    )
 
 # Raw PCM is not a self-describing media type; the client reads the body as
 # binary and feeds it to an AudioContext, so the MIME is cosmetic.
@@ -82,8 +88,11 @@ _BREAK_MARKERS: Final[tuple[str, ...]] = (
 _CHUNK_TARGET: Final[int] = int(os.environ.get("AAX6_TTS_CHUNK_TARGET", "30"))
 _CHUNK_MAX: Final[int] = 80
 
-# In-process cache keyed by exact text → concatenated PCM bytes.
-_CACHE: dict[str, bytes] = {}
+# In-process cache keyed by (exact text, voice name) → concatenated PCM bytes.
+# Voice is part of the key so switching the demo's Male/Female toggle doesn't
+# serve stale audio synthesized in the other voice.
+_CacheKey = tuple[str, str]
+_CACHE: dict[_CacheKey, bytes] = {}
 
 # Cache toggle (default ON). Set AAX6_TTS_CACHE=0 to disable the cross-turn text
 # cache AND prewarm, so every /api/tts request does a REAL cold synth. This is for
@@ -114,18 +123,18 @@ class _Broadcast:
         self.task: "asyncio.Task | None" = None
 
 
-# Text → in-flight broadcast. Present only while a synth is running; removed when
-# the producer finishes (the bytes then live in _CACHE).
-_INFLIGHT: dict[str, _Broadcast] = {}
+# (text, voice) → in-flight broadcast. Present only while a synth is running;
+# removed when the producer finishes (the bytes then live in _CACHE).
+_INFLIGHT: dict[_CacheKey, _Broadcast] = {}
 
 
-async def _produce(text: str, bc: _Broadcast) -> None:
+async def _produce(text: str, voice_name: str, key: _CacheKey, bc: _Broadcast) -> None:
     """Detached producer: drive ONE gRPC synth, append each chunk to `bc` and
     push it to every current subscriber, then cache the concatenation. Runs to
     completion independent of any subscriber (so barge-in still populates cache)."""
     loop = asyncio.get_running_loop()
     q: asyncio.Queue = asyncio.Queue()
-    threading.Thread(target=_run_grpc_stream, args=(text, loop, q), daemon=True).start()
+    threading.Thread(target=_run_grpc_stream, args=(text, voice_name, loop, q), daemon=True).start()
     try:
         while True:
             item = await q.get()
@@ -138,7 +147,7 @@ async def _produce(text: str, bc: _Broadcast) -> None:
             for sub in list(bc.subscribers):
                 sub.put_nowait(item)
         if bc.error is None and _CACHE_ENABLED:
-            _CACHE[text] = b"".join(bc.chunks)
+            _CACHE[key] = b"".join(bc.chunks)
     except Exception as e:  # noqa: BLE001 — surface to subscribers, don't crash the loop
         bc.error = e
     finally:
@@ -147,15 +156,15 @@ async def _produce(text: str, bc: _Broadcast) -> None:
         terminal: object = bc.error if bc.error is not None else _STREAM_DONE
         for sub in list(bc.subscribers):
             sub.put_nowait(terminal)
-        _INFLIGHT.pop(text, None)
+        _INFLIGHT.pop(key, None)
 
 
-def is_cached(text: str) -> bool:
-    """True if `text` is already synthesized in the in-process cache (→ a
-    /api/tts request emits instantly). The route uses this to tag the response's
-    cache state so the client can attribute TTS latency (hit ≈ 0 vs cold synth).
-    Always False when the cache is disabled (AAX6_TTS_CACHE=0)."""
-    return _CACHE_ENABLED and text.strip() in _CACHE
+def is_cached(text: str, voice_name: str = DEFAULT_TTS_VOICE) -> bool:
+    """True if `text` is already synthesized (in this voice) in the in-process
+    cache (→ a /api/tts request emits instantly). The route uses this to tag the
+    response's cache state so the client can attribute TTS latency (hit ≈ 0 vs
+    cold synth). Always False when the cache is disabled (AAX6_TTS_CACHE=0)."""
+    return _CACHE_ENABLED and (text.strip(), voice_name) in _CACHE
 
 
 def _chunk_text(text: str) -> Iterator[str]:
@@ -202,6 +211,7 @@ def _chunk_text(text: str) -> Iterator[str]:
 
 def _run_grpc_stream(
     text: str,
+    voice_name: str,
     loop: asyncio.AbstractEventLoop,
     q: "asyncio.Queue[bytes | object | Exception]",
 ) -> None:
@@ -209,11 +219,12 @@ def _run_grpc_stream(
     forward each `audio_content` payload onto the asyncio queue."""
     try:
         client = get_tts_client()
+        streaming_config = _streaming_config_for(voice_name)
 
         def request_generator() -> Iterator[texttospeech.StreamingSynthesizeRequest]:
             # First message: config only.
             yield texttospeech.StreamingSynthesizeRequest(
-                streaming_config=_STREAMING_CONFIG
+                streaming_config=streaming_config
             )
             # Subsequent messages: text chunks.
             for chunk in _chunk_text(text):
@@ -230,8 +241,9 @@ def _run_grpc_stream(
         loop.call_soon_threadsafe(q.put_nowait, e)
 
 
-async def stream_synth(text: str) -> AsyncIterator[bytes]:
-    """Yield audio chunks for `text`, SUBSCRIBING to a shared fan-out synth.
+async def stream_synth(text: str, voice_name: str = DEFAULT_TTS_VOICE) -> AsyncIterator[bytes]:
+    """Yield audio chunks for `text` in `voice_name`, SUBSCRIBING to a shared
+    fan-out synth keyed by (text, voice_name).
 
     Cache HIT → yield cached bytes (one chunk, ~instant).
     Otherwise → start the detached producer if this is the first caller, then
@@ -242,17 +254,18 @@ async def stream_synth(text: str) -> AsyncIterator[bytes]:
     text = text.strip()
     if not text:
         return
+    key: _CacheKey = (text, voice_name)
 
-    cached = _CACHE.get(text) if _CACHE_ENABLED else None
+    cached = _CACHE.get(key) if _CACHE_ENABLED else None
     if cached is not None:
         yield cached
         return
 
-    bc = _INFLIGHT.get(text)
+    bc = _INFLIGHT.get(key)
     if bc is None:
         bc = _Broadcast()
-        _INFLIGHT[text] = bc
-        bc.task = asyncio.get_running_loop().create_task(_produce(text, bc))
+        _INFLIGHT[key] = bc
+        bc.task = asyncio.get_running_loop().create_task(_produce(text, voice_name, key, bc))
 
     # Subscribe atomically: snapshot already-produced chunks and register our
     # queue with NO await between them, so the producer (same event loop) can't
@@ -285,28 +298,28 @@ async def stream_synth(text: str) -> AsyncIterator[bytes]:
             pass
 
 
-async def synth(text: str) -> bytes:
+async def synth(text: str, voice_name: str = DEFAULT_TTS_VOICE) -> bytes:
     """Non-streaming wrapper used by `prewarm` to populate the cache."""
     text = text.strip()
     if not text:
         return b""
-    cached = _CACHE.get(text) if _CACHE_ENABLED else None
+    cached = _CACHE.get((text, voice_name)) if _CACHE_ENABLED else None
     if cached is not None:
         return cached
     parts: list[bytes] = []
-    async for chunk in stream_synth(text):
+    async for chunk in stream_synth(text, voice_name):
         parts.append(chunk)
     return b"".join(parts)
 
 
-async def prewarm(texts: list[str]) -> None:
+async def prewarm(texts: list[str], voice_name: str = DEFAULT_TTS_VOICE) -> None:
     """Fire-and-forget pre-cache for a list of texts. No-op when the cache is
     disabled (AAX6_TTS_CACHE=0) — nothing would be stored, so don't burn a synth."""
     if not _CACHE_ENABLED:
         return
     for t in texts:
         try:
-            await synth(t)
+            await synth(t, voice_name)
         except Exception:
             # Demo-grade: a bad text shouldn't sink session creation.
             pass

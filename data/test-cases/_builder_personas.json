@@ -22,5 +22,98 @@
    "due_offset_days": 3
   },
   "user_system_prompt": "<persona>ลูกค้าบัตรอิอ้อน ยอดยังไม่ถึงกำหนด รับสายเตือนล่วงหน้า</persona>\n<situation>ยอด 45000 จะครบกำหนด 28 พ.ค. (ยังไม่เกิน) เจ้าหน้าที่โทรเตือนล่วงหน้า</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
+ },
+ {
+  "id": "TC-ABC-BUILD-001",
+  "topic": "เอบีซี — flow demo persona",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "customer_name": "สมมติ ทดสอบระบบ",
+   "loan_type": "สินเชื่อ",
+   "total_amount_due": 30000,
+   "minimum_payment_due": 3000,
+   "due_date": "2026-05-15 (Friday)",
+   "due_status": "overdue",
+   "customer_phone": "081-234-5678",
+   "msisdn": "081-234-5678",
+   "last_4_digits": "1234",
+   "case_status": "normal",
+   "case_status_note": null,
+   "company_name": "เอบีซี",
+   "agent_name": "น้องอัลฟา"
+  },
+  "user_system_prompt": "<persona>ลูกค้าของเอบีซี ที่มียอดค้างชำระ</persona>\n<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
+ },
+ {
+  "id": "TC-KBANK-BUILD-001",
+  "topic": "กสิกรไทย — flow demo persona",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "customer_name": "สมชาย ใจดี",
+   "loan_type": "บัตรเครดิต",
+   "total_amount_due": 30000,
+   "minimum_payment_due": 3000,
+   "due_date": "2026-05-15 (Friday)",
+   "due_status": "overdue",
+   "customer_phone": "081-234-5678",
+   "msisdn": "081-234-5678",
+   "last_4_digits": "1234",
+   "case_status": "normal",
+   "case_status_note": null,
+   "company_name": "กสิกรไทย",
+   "agent_name": "น้องKBANK"
+  },
+  "user_system_prompt": "<persona>ลูกค้าของกสิกรไทย ที่มียอดค้างชำระ</persona>\n<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
+ },
+ {
+  "id": "TC-SKL-BUILD-001",
+  "topic": "ส่งเสริมลีสซิ่ง — flow demo persona",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "customer_name": "สมชาย ใจดี",
+   "loan_type": "เช่าซื้อ",
+   "total_amount_due": 30000,
+   "minimum_payment_due": 3000,
+   "due_date": "2026-05-15 (Friday)",
+   "due_status": "overdue",
+   "customer_phone": "081-234-5678",
+   "msisdn": "081-234-5678",
+   "last_4_digits": "1234",
+   "case_status": "normal",
+   "case_status_note": null,
+   "company_name": "สยามคูโบต้าลีสซิ่ง",
+   "agent_name": "น้องSKL"
+  },
+  "user_system_prompt": "<persona>ลูกค้าของส่งเสริมลีสซิ่ง ที่มียอดค้างชำระ</persona>\n<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
+ },
+ {
+  "id": "TC-AMT-BUILD-001",
+  "topic": "โรงพยาบาล AMT — flow demo persona",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "customer_name": "สมชาย ใจดี",
+   "customer_phone": "081-234-5678",
+   "msisdn": "081-234-5678",
+   "last_4_digits": "1234",
+   "case_status": "normal",
+   "case_status_note": null,
+   "company_name": "โรงพยาบาล AMT",
+   "agent_name": "น้องAMT",
+   "doctor_name": "นพ.สมศักดิ์ รักษาดี",
+   "appointment_date": "2026-05-20 (Wednesday)",
+   "appointment_time": "10:00",
+   "doctor_schedule": "จันทร์-ศุกร์ 9:00-16:00",
+   "visit_time_start": "10:00",
+   "visit_time_end": "11:00"
+  },
+  "user_system_prompt": "<persona>ผู้ป่วยของโรงพยาบาล AMT ที่มีนัดพบแพทย์ตามกำหนด</persona>\n<situation>รับสายจากเจ้าหน้าที่โรงพยาบาลโทรมายืนยันนัดพบแพทย์</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  }
 ]

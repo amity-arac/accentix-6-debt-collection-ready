@@ -8,6 +8,7 @@ list is the hops the frontend should render in response to one user message).
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,10 @@ DEFAULT_RESULTS_FILE = (
     / "evaluation-results-gemini-prescript.json"
 )
 
-FILLER_TEXT = "รบกวนรอซักครู่ค่ะ"
+# v10 clones a real bot that never emits this filler as an opening line (it fires
+# check_account_status before the first reply, which made the filler the FIRST
+# thing the customer heard). Scoped off for v10 only — v8/v9 keep existing behavior.
+FILLER_TEXT = "" if os.environ.get("AAX6_PROMPT_VERSION", "").strip() in ("v10", "v11") else "รบกวนรอซักครู่ค่ะ"
 
 
 def load_case(case_id: str, results_file: Path | None = None) -> dict[str, Any]:

@@ -21,6 +21,11 @@ PORT="${PORT:-8000}"
 # Which LoRA adapter to serve. Defaults to sft_v2_3_1-h20 (v9-lineage adapter:
 # honest-AI disclosure + transfer_to_human_agent escalation). Override to serve a
 # different adapter:  AAX6_VLLM_MODEL=sft_v2_2 bash scripts/serve_qwen.sh
+# v10 (experimental, AEON-only — clones the real production bot verbatim,
+# no KYC/no-transfer): AAX6_VLLM_MODEL=sft_v10 bash scripts/serve_qwen.sh
+# The demo backend ALSO needs AAX6_PROMPT_VERSION=v10 (selects the v10 catalog +
+# system instruction + tool set) — this script only controls which adapter vLLM
+# serves, not which prompt/catalog the backend sends it.
 # The served LoRA module name == $MODEL_NAME, exactly what the backend must send
 # (AAX6_VLLM_MODEL) so the adapter is applied on top of the base model.
 MODEL_NAME="${AAX6_VLLM_MODEL:-sft_v2_3_1-h20}"

@@ -73,6 +73,7 @@ from agents.prescript import (
     build_script_catalog,
     fill_template,
     leaked_placeholders,
+    locked_gender_for_case,
     missing_required_dynamic_vars,
 )
 
@@ -161,6 +162,24 @@ def _coerce_text_ids(raw) -> list[int]:
 # Tool schemas
 # ---------------------------------------------------------------------------
 
+def _clone_reply_only() -> bool:
+    """True under v10/v11 (clone mode) — restrict the tool set (see _V10_CLONE_TOOLS).
+    v11 is the parameterized-catalog evolution of v10; same clone business logic."""
+    return os.environ.get("AAX6_PROMPT_VERSION", "").strip() in ("v10", "v11")
+
+
+# v10 clone tool set: the customer-visible reply + SILENT backend tools. Real logs
+# only capture spoken text, but a real collection system clearly does silent backend
+# work (it states exact CRM amounts → reads account status; it records promises/dates).
+# So clone KEEPS all silent tools and only EXCLUDES the two customer-visible actions
+# the transcripts prove real never does: verify_identity (4-digit KYC ask) and
+# transfer_to_human_agent (real refuses transfer). payment_date's KYC gate is relaxed
+# for v10 (require_kyc=False) so name-only clone can still record payment → PTP works.
+_V10_CLONE_TOOLS = {"reply", "check_account_status", "record_verbal_commitment",
+                    "payment_date", "callback_datetime", "get_current_datetime",
+                    "record_outcome", "update_phone"}
+
+
 def _openai_tool_schemas(valid_text_ids: list[int]) -> list[dict]:
     """Return the 5-tool OpenAI/Qwen tool schema list."""
     return [
@@ -242,7 +261,7 @@ def _openai_tool_schemas(valid_text_ids: list[int]) -> list[dict]:
             "type": "function",
             "function": {
                 "name": "payment_date",
-                "description": "Record the customer's promise to pay (amount + date + channel). Re-validates last_4_digits against CRM. Rejects with 'identity_mismatch' on KYC fail, 'account_under_review' on pending_review (use 1092→1096 / 2109→2112 / 3127→3131 chain instead), 'account_closed' on closed status, 'channel_required' if channel is missing (ask customer using template 1095/2111/3130 first), or 'channel_invalid' if outside the enum. Under v6 (Phase G): also rejects with 'verbal_commitment_missing_or_mismatch' if record_verbal_commitment was not called first OR if the (amount, date, channel) args do not match the prior verbal commitment. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
+                "description": "Record the customer's promise to pay (amount + date [+ channel]). Re-validates last_4_digits against CRM. Rejects with 'identity_mismatch' on KYC fail, 'account_under_review' on pending_review (use 1092→1096 / 2109→2112 / 3127→3131 chain instead), 'account_closed' on closed status, or 'channel_invalid' if a channel is given that is outside the enum. `channel` is OPTIONAL — for a plain 'pay minimum today' close you need NOT ask which channel; omit it. Under v6 (Phase G): also rejects with 'verbal_commitment_missing_or_mismatch' if record_verbal_commitment was not called first OR if the (amount, date) args — and channel, only when one was committed — do not match the prior verbal commitment. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -252,10 +271,10 @@ def _openai_tool_schemas(valid_text_ids: list[int]) -> list[dict]:
                         "channel": {
                             "type": "string",
                             "enum": ["mobile_app", "counter_service", "branch", "bank_transfer", "atm", "other"],
-                            "description": "Customer's stated payment channel. If the customer has not stated one, send template 1095/2111/3130 (ask_payment_channel_preference) and wait for their answer before calling this tool.",
+                            "description": "OPTIONAL. Customer's stated payment channel. Only include it if the customer actually named one (e.g. an already-paid readback); for a plain 'pay minimum today' close, omit it — do NOT interrogate the customer for a channel.",
                         },
                     },
-                    "required": ["last_4_digits", "amount", "date", "channel"],
+                    "required": ["last_4_digits", "amount", "date"],
                 },
             },
         },
@@ -263,7 +282,7 @@ def _openai_tool_schemas(valid_text_ids: list[int]) -> list[dict]:
             "type": "function",
             "function": {
                 "name": "record_verbal_commitment",
-                "description": "Phase G (v6) — STEP 1 of the 3-step close-out for Track A. Records the customer's verbal commitment to (amount, date, channel) in conversation state. DOES NOT WRITE TO CRM — payment_date does that. After this returns {recorded: true}, you MUST immediately call payment_date(last_4_digits, amount, date, channel) with the same args, THEN send the closing reply ([A_Negotiation_InformPromiseSummary, B_Closing_CloseCallSuccess]). All three steps happen in the same turn through the multi-hop loop. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
+                "description": "Phase G (v6) — STEP 1 of the 3-step close-out for Track A. Records the customer's verbal commitment to (amount, date [, channel]) in conversation state. DOES NOT WRITE TO CRM — payment_date does that. After this returns {recorded: true}, you MUST immediately call payment_date(last_4_digits, amount, date) with the same args, THEN send the closing reply ([A_Negotiation_InformPromiseSummary, B_Closing_CloseCallSuccess]). All steps happen in the same turn through the multi-hop loop. `channel` is OPTIONAL — omit it for a plain 'pay minimum today' close; only pass it if the customer named a channel. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -272,10 +291,10 @@ def _openai_tool_schemas(valid_text_ids: list[int]) -> list[dict]:
                         "channel": {
                             "type": "string",
                             "enum": ["mobile_app", "counter_service", "branch", "bank_transfer", "atm", "other"],
-                            "description": "Customer's stated payment channel.",
+                            "description": "OPTIONAL. Customer's stated payment channel — include only if the customer named one.",
                         },
                     },
-                    "required": ["amount", "date", "channel"],
+                    "required": ["amount", "date"],
                 },
             },
         },
@@ -302,6 +321,40 @@ def _openai_tool_schemas(valid_text_ids: list[int]) -> list[dict]:
                         },
                     },
                     "required": ["reason"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "record_outcome",
+                "description": "Record the call disposition at the end of the call (production 'Outbound - Remind' result stamping). Call once you know how the call resolved. No KYC.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "enum": ["ptp", "refused", "unreachable", "reached", "tcb", "tin"],
+                            "description": "ptp=promise to pay · refused · unreachable (wrong/other person) · reached · tcb=customer asked for a human · tin=name read wrong.",
+                        },
+                        "reason": {"type": "string", "description": "sub-code: paid / minimum / ptp / agent / wrong_number / other_person / busy / voice_mail."},
+                        "remark": {"type": "string", "description": "optional free-text note (collected utterance)."},
+                    },
+                    "required": ["result"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "update_phone",
+                "description": "Record a new contact phone number the customer provides (production 'Change Phone Number' node).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "number": {"type": "string", "description": "The new phone number the customer stated."},
+                    },
+                    "required": ["number"],
                 },
             },
         },
@@ -368,7 +421,7 @@ def _gemini_tool_declarations() -> list[types.FunctionDeclaration]:
         ),
         types.FunctionDeclaration(
             name="payment_date",
-            description="Record the customer's promise to pay (amount + date + channel). Re-validates last_4_digits against CRM. Rejects with 'identity_mismatch' on KYC fail, 'account_under_review' on pending_review (use 1092→1096 / 2109→2112 / 3127→3131 chain instead), 'account_closed' on closed status, 'channel_required' if channel is missing (ask customer using template 1095/2111/3130 first), or 'channel_invalid' if outside the enum. Under v6 (Phase G): also rejects with 'verbal_commitment_missing_or_mismatch' if record_verbal_commitment was not called first OR if the (amount, date, channel) args do not match the prior verbal commitment. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
+            description="Record the customer's promise to pay (amount + date [+ channel]). Re-validates last_4_digits against CRM. Rejects with 'identity_mismatch' on KYC fail, 'account_under_review' on pending_review (use 1092→1096 / 2109→2112 / 3127→3131 chain instead), 'account_closed' on closed status, or 'channel_invalid' if a channel is given that is outside the enum. `channel` is OPTIONAL — for a plain 'pay minimum today' close you need NOT ask which channel; omit it. Under v6 (Phase G): also rejects with 'verbal_commitment_missing_or_mismatch' if record_verbal_commitment was not called first OR if the (amount, date) args — and channel, only when one was committed — do not match the prior verbal commitment. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
@@ -378,15 +431,15 @@ def _gemini_tool_declarations() -> list[types.FunctionDeclaration]:
                     "channel": types.Schema(
                         type="STRING",
                         enum=["mobile_app", "counter_service", "branch", "bank_transfer", "atm", "other"],
-                        description="Customer's stated payment channel. If the customer has not stated one, send template 1095/2111/3130 (ask_payment_channel_preference) first.",
+                        description="OPTIONAL. Customer's stated payment channel — include only if the customer named one (e.g. an already-paid readback); for a plain 'pay minimum today' close, omit it and do NOT interrogate the customer for a channel.",
                     ),
                 },
-                required=["last_4_digits", "amount", "date", "channel"],
+                required=["last_4_digits", "amount", "date"],
             ),
         ),
         types.FunctionDeclaration(
             name="record_verbal_commitment",
-            description="Phase G (v6) — STEP 1 of the 3-step close-out for Track A. Records the customer's verbal commitment to (amount, date, channel) in conversation state. DOES NOT WRITE TO CRM — payment_date does that. After this returns {recorded: true}, you MUST immediately call payment_date(last_4_digits, amount, date, channel) with the same args, THEN send the closing reply ([A_Negotiation_InformPromiseSummary, B_Closing_CloseCallSuccess]). All three steps happen in the same turn through the multi-hop loop. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
+            description="Phase G (v6) — STEP 1 of the 3-step close-out for Track A. Records the customer's verbal commitment to (amount, date [, channel]) in conversation state. DOES NOT WRITE TO CRM — payment_date does that. After this returns {recorded: true}, you MUST immediately call payment_date(last_4_digits, amount, date) with the same args, THEN send the closing reply ([A_Negotiation_InformPromiseSummary, B_Closing_CloseCallSuccess]). All steps happen in the same turn through the multi-hop loop. `channel` is OPTIONAL — omit it for a plain 'pay minimum today' close; only pass it if the customer named a channel. Under v6 (Phase H): rejects with 'date_format_invalid' if `date` is not in canonical ISO format 'YYYY-MM-DD (Weekday)'.",
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
@@ -395,10 +448,10 @@ def _gemini_tool_declarations() -> list[types.FunctionDeclaration]:
                     "channel": types.Schema(
                         type="STRING",
                         enum=["mobile_app", "counter_service", "branch", "bank_transfer", "atm", "other"],
-                        description="Customer's stated payment channel.",
+                        description="OPTIONAL. Customer's stated payment channel — include only if the customer named one.",
                     ),
                 },
-                required=["amount", "date", "channel"],
+                required=["amount", "date"],
             ),
         ),
         types.FunctionDeclaration(
@@ -419,6 +472,29 @@ def _gemini_tool_declarations() -> list[types.FunctionDeclaration]:
                     ),
                 },
                 required=["reason"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="record_outcome",
+            description="Record the call disposition at the end of the call (production 'Outbound - Remind' result stamping). Call once you know how the call resolved. No KYC.",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "result": types.Schema(type="STRING", enum=["ptp", "refused", "unreachable", "reached", "tcb", "tin"],
+                                           description="ptp=promise to pay · refused · unreachable (wrong/other person) · reached · tcb=customer asked for a human · tin=name read wrong."),
+                    "reason": types.Schema(type="STRING", description="sub-code: paid / minimum / ptp / agent / wrong_number / other_person / busy / voice_mail."),
+                    "remark": types.Schema(type="STRING", description="optional free-text note (collected utterance)."),
+                },
+                required=["result"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="update_phone",
+            description="Record a new contact phone number the customer provides (production 'Change Phone Number' node).",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={"number": types.Schema(type="STRING", description="The new phone number the customer stated.")},
+                required=["number"],
             ),
         ),
     ]
@@ -498,6 +574,13 @@ def _validate_chain(
     if len(text_ids) < 2:
         return None
 
+    # v10 clone: the catalog's is_closer / expects_response / is_demand flags are
+    # uniformly True across all templates (build defect), so the flag-based chain
+    # checks below would false-reject every 2+ chain. The real bot barely chains
+    # anyway — skip them for v10 (dispute_lock above still applies).
+    if _clone_reply_only():
+        return None
+
     flags: list[dict] = []
     for tid in text_ids:
         s = script_lookup.get(int(tid))
@@ -540,19 +623,64 @@ def _validate_chain(
     return None
 
 
+# v10: fine_states that assume the customer already knows the balance (asking to
+# pay, convincing after a refusal, offering a payment channel, confirming info) —
+# require disclose_balance to have fired at least once this call. A required
+# disclosure by law/policy, not advisory: found via live debugging that the student
+# sometimes skips straight to ask_pay_today (a familiar training-time template id)
+# even when a compliant disclose_balance option is available in the same turn's
+# valid set — adding the option alone did not change the behavior (56% skip rate
+# measured on a 25-case probe), so this is enforced as a hard backend gate.
+_REQUIRES_PRIOR_DISCLOSURE = frozenset({
+    "ask_pay_today", "convince_lost_job", "convince_sick", "convince_other",
+    "offer_channel", "offer_channel_only", "confirm_info",
+})
+_DISCLOSE_STATE = "disclose_balance"
+
+
+def _check_disclosure_gate(
+    text_ids: list[int], script_lookup: dict[int, dict], disclosed_already: bool
+) -> str | None:
+    """Returns a rejection reason if this reply assumes disclosure happened but it
+    hasn't yet (and this reply doesn't itself disclose), else None."""
+    states = {script_lookup.get(int(tid), {}).get("_fine_state") for tid in text_ids}
+    if _DISCLOSE_STATE in states:
+        return None
+    needy = states & _REQUIRES_PRIOR_DISCLOSURE
+    if not disclosed_already and needy:
+        return (
+            f"disclosure_required: text_ids {list(text_ids)} assume the balance was "
+            f"already disclosed ({sorted(needy)}), but no disclose_balance template has "
+            f"been sent yet this call. Include a disclose_balance template (states "
+            f"[amount]/[minimum_payment]) in this reply, or send it on its own first."
+        )
+    return None
+
+
 def _render_reply(script_db: list[dict], script_lookup: dict[int, dict],
                   agent_context_data: dict, text_ids: list[int],
-                  dynamic_vars: dict[str, str]) -> tuple[str, list[int], list[str]]:
+                  dynamic_vars: dict[str, str], gender: str = "M") -> tuple[str, list[int], list[str]]:
     """Resolve text_ids → templates → filled Thai. Returns (text, valid_ids, intent_names).
 
     Under v6 (V6_ACTIVE=True) the underlying fill_template runs in strict mode:
     DATE_PLACEHOLDERS / TIME_PLACEHOLDERS values must match the canonical ISO
     format, otherwise DateFormatError propagates to the reply tool handler
     which converts it to `{sent: False, reason: "date_format_invalid", ...}`.
+
+    `gender` resolves {suffix}/{q_suffix}/{pronoun} placeholders — a no-op on the
+    older fully-duplicated catalog (see prescript.render_gender).
     """
     scripts = []
+    seen: set[int] = set()
     for tid in text_ids:
-        s = script_lookup.get(int(tid))
+        itid = int(tid)
+        # Dedup within a single reply: rendering the same template twice in one
+        # bubble is never desired (e.g. sampling emits [1054, 1054] at temp>0 in
+        # the live demo). Keep first occurrence, drop repeats — order preserved.
+        if itid in seen:
+            continue
+        seen.add(itid)
+        s = script_lookup.get(itid)
         if s is not None:
             scripts.append(s)
     if not scripts:
@@ -562,7 +690,7 @@ def _render_reply(script_db: list[dict], script_lookup: dict[int, dict],
         scripts = [script_db[0]]
     filled_parts = [
         fill_template(s["template"], agent_context_data, dynamic_vars=dynamic_vars,
-                      strict_dates=V6_ACTIVE)
+                      strict_dates=V6_ACTIVE, gender=gender)
         for s in scripts
     ]
     return (
@@ -606,6 +734,8 @@ class CommunicatorQwenPreScript:
         tool_choice: str = "auto",
         temperature: float | None = None,
         seed: int | None = None,
+        case_id: str | None = None,
+        gender: str | None = None,
     ) -> None:
         from openai import OpenAI
 
@@ -622,6 +752,16 @@ class CommunicatorQwenPreScript:
         self.agent_context_data = agent_context_data
         self.script_lookup: dict[int, dict] = {s["text_id"]: s for s in script_db}
         self.all_valid_ids = [s["text_id"] for s in script_db]
+        # v11 render-time gender for {suffix}/{q_suffix}/{pronoun} placeholders.
+        # Explicit `gender` (e.g. the demo's voice picker) wins so spoken voice and
+        # text particles agree; else deterministic per-case hash; else "M". No-op
+        # on the older fully-duplicated catalog.
+        self._gender = gender if gender in ("M", "F") else (
+            locked_gender_for_case(case_id) if case_id else "M"
+        )
+        # v10: has disclose_balance fired yet this call? Gates ask/convince/channel
+        # replies until the balance has actually been stated. See _check_disclosure_gate.
+        self._disclosed_balance = False
 
         # Demo's qwen-demo variant hand-curates a catalog directly in the .md
         # body, so we skip the runtime append to keep Qwen from seeing two
@@ -634,6 +774,8 @@ class CommunicatorQwenPreScript:
             self.system_prompt = system_prompt
         self.history: list[dict] = []
         self.tools = _openai_tool_schemas(self.all_valid_ids)
+        if _clone_reply_only():
+            self.tools = [t for t in self.tools if t["function"]["name"] in _V10_CLONE_TOOLS]
         self.verbose = False  # set externally to enable per-hop stderr progress logs
         # Optional sink invoked as each hop is appended during reply(). Set
         # externally by demo/server/sessions.py to stream hops to the frontend
@@ -734,6 +876,10 @@ class CommunicatorQwenPreScript:
                     self.script_lookup,
                     case_status=backend.customer_data.get("case_status") or "normal",
                 )
+                if chain_err is None and _clone_reply_only():
+                    chain_err = _check_disclosure_gate(
+                        text_ids, self.script_lookup, self._disclosed_balance
+                    )
                 if chain_err is not None:
                     result = {"sent": False, "reason": chain_err}
                     _hop_log(self.verbose, hop_idx + 1, "tool_call",
@@ -820,7 +966,7 @@ class CommunicatorQwenPreScript:
                 try:
                     text, final_ids, intent_names = _render_reply(
                         self.script_db, self.script_lookup, self.agent_context_data,
-                        text_ids, dynamic_vars,
+                        text_ids, dynamic_vars, gender=self._gender,
                     )
                 except DateFormatError as e:
                     result = {
@@ -855,6 +1001,8 @@ class CommunicatorQwenPreScript:
                 if leaks:
                     print(f"    placeholder_leak in rendered reply: {leaks} (text_ids={final_ids})",
                           file=sys.stderr, flush=True)
+                if any(self.script_lookup.get(int(t), {}).get("_fine_state") == _DISCLOSE_STATE for t in final_ids):
+                    self._disclosed_balance = True
                 _hop_log(self.verbose, hop_idx + 1, "tool_call",
                          name="reply", args={"text_ids": final_ids, "dynamic_vars": dynamic_vars},
                          elapsed_ms=hop_ms)
@@ -871,7 +1019,7 @@ class CommunicatorQwenPreScript:
                 })
                 hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": dynamic_vars}, "hop_ms": round(hop_ms, 1)})
                 hops.append({"kind": "rendered_text", "text": text, **({"placeholder_leak": leaks} if leaks else {})})
-                agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
+                agent_messages = [FILLER_TEXT, text] if (any_non_reply and FILLER_TEXT) else [text]
                 return {
                     "text": text,
                     "agent_messages": agent_messages,
@@ -1068,7 +1216,7 @@ class CommunicatorQwenPreScript:
         fallback_tid = self.script_db[0]["text_id"]
         text, final_ids, intent_names = _render_reply(
             self.script_db, self.script_lookup, self.agent_context_data,
-            [fallback_tid], {},
+            [fallback_tid], {}, gender=self._gender,
         )
         text = FALLBACK_TEXT
         if LOG_TOOLS:
@@ -1077,7 +1225,7 @@ class CommunicatorQwenPreScript:
         self.history.append({"role": "assistant", "content": text})
         hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": {}, "fallback": True}})
         hops.append({"kind": "rendered_text", "text": text})
-        agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
+        agent_messages = [FILLER_TEXT, text] if (any_non_reply and FILLER_TEXT) else [text]
         return {
             "text": text,
             "agent_messages": agent_messages,
@@ -1219,7 +1367,7 @@ class CommunicatorQwenFreeform:
             self.history.append({"role": "assistant", "content": text})
             _hop_log(self.verbose, hop_idx + 1, "rendered_text", text=text)
             hops.append({"kind": "rendered_text", "text": text})
-            agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
+            agent_messages = [FILLER_TEXT, text] if (any_non_reply and FILLER_TEXT) else [text]
             return {
                 "text": text,
                 "agent_messages": agent_messages,
@@ -1234,7 +1382,7 @@ class CommunicatorQwenFreeform:
             print(f"    MAX_TOOL_HOPS exhausted — falling back", file=sys.stderr, flush=True)
         self.history.append({"role": "assistant", "content": FALLBACK_TEXT})
         hops.append({"kind": "rendered_text", "text": FALLBACK_TEXT})
-        agent_messages = [FILLER_TEXT, FALLBACK_TEXT] if any_non_reply else [FALLBACK_TEXT]
+        agent_messages = [FILLER_TEXT, FALLBACK_TEXT] if (any_non_reply and FILLER_TEXT) else [FALLBACK_TEXT]
         return {
             "text": FALLBACK_TEXT,
             "agent_messages": agent_messages,
@@ -1266,6 +1414,8 @@ class CommunicatorGeminiPreScript:
         model: str | None = None,
         temperature: float | None = None,
         seed: int | None = None,
+        case_id: str | None = None,
+        gender: str | None = None,
     ) -> None:
         self.model = model or self.MODEL
         self.client = get_client()
@@ -1273,6 +1423,12 @@ class CommunicatorGeminiPreScript:
         self.script_db = script_db
         self.agent_context_data = agent_context_data
         self.script_lookup: dict[int, dict] = {s["text_id"]: s for s in script_db}
+        # v11 render-time gender (voice-picker wins → text particles match the
+        # spoken voice; else per-case hash; else "M"). See QwenPreScript.__init__.
+        self._gender = gender if gender in ("M", "F") else (
+            locked_gender_for_case(case_id) if case_id else "M"
+        )
+        self._disclosed_balance = False
 
         catalog = build_script_catalog(script_db, compact=True)
         full_system = f"{system_prompt}\n\n{catalog}"
@@ -1286,7 +1442,9 @@ class CommunicatorGeminiPreScript:
         config_kwargs = dict(
             thinking_config=thinking,
             system_instruction=full_system,
-            tools=[types.Tool(function_declarations=_gemini_tool_declarations())],
+            tools=[types.Tool(function_declarations=(
+                [d for d in _gemini_tool_declarations() if d.name in _V10_CLONE_TOOLS]
+                if _clone_reply_only() else _gemini_tool_declarations()))],
             tool_config=types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(mode="ANY")
             ),
@@ -1373,6 +1531,10 @@ class CommunicatorGeminiPreScript:
                     self.script_lookup,
                     case_status=backend.customer_data.get("case_status") or "normal",
                 )
+                if chain_err is None and _clone_reply_only():
+                    chain_err = _check_disclosure_gate(
+                        text_ids, self.script_lookup, self._disclosed_balance
+                    )
                 if chain_err is not None:
                     result = {"sent": False, "reason": chain_err}
                     _hop_log(self.verbose, hop_idx + 1, "tool_call",
@@ -1451,7 +1613,7 @@ class CommunicatorGeminiPreScript:
                 try:
                     text, final_ids, intent_names = _render_reply(
                         self.script_db, self.script_lookup, self.agent_context_data,
-                        text_ids, dynamic_vars,
+                        text_ids, dynamic_vars, gender=self._gender,
                     )
                 except DateFormatError as e:
                     result = {
@@ -1484,6 +1646,8 @@ class CommunicatorGeminiPreScript:
                 if leaks:
                     print(f"    placeholder_leak in rendered reply: {leaks} (text_ids={final_ids})",
                           file=sys.stderr, flush=True)
+                if any(self.script_lookup.get(int(t), {}).get("_fine_state") == _DISCLOSE_STATE for t in final_ids):
+                    self._disclosed_balance = True
                 _hop_log(self.verbose, hop_idx + 1, "rendered_text", text=text)
                 # Append the model's actual function_call Part (carries thought_signature)
                 # plus our rendered Thai as a text Part on the same model turn.
@@ -1497,7 +1661,7 @@ class CommunicatorGeminiPreScript:
                 self.history.append(types.Content(role="model", parts=model_parts))
                 hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": dynamic_vars}, "hop_ms": round(hop_ms, 1)})
                 hops.append({"kind": "rendered_text", "text": text, **({"placeholder_leak": leaks} if leaks else {})})
-                agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
+                agent_messages = [FILLER_TEXT, text] if (any_non_reply and FILLER_TEXT) else [text]
                 return {
                     "text": text,
                     "agent_messages": agent_messages,
@@ -1555,14 +1719,14 @@ class CommunicatorGeminiPreScript:
         text = FALLBACK_TEXT
         _, final_ids, intent_names = _render_reply(
             self.script_db, self.script_lookup, self.agent_context_data,
-            [fallback_tid], {},
+            [fallback_tid], {}, gender=self._gender,
         )
         self.history.append(types.Content(
             role="model", parts=[types.Part(text=text)],
         ))
         hops.append({"kind": "tool_call", "name": "reply", "args": {"text_ids": final_ids, "dynamic_vars": {}, "fallback": True}})
         hops.append({"kind": "rendered_text", "text": text})
-        agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
+        agent_messages = [FILLER_TEXT, text] if (any_non_reply and FILLER_TEXT) else [text]
         return {
             "text": text,
             "agent_messages": agent_messages,
@@ -1704,7 +1868,7 @@ class CommunicatorGeminiFreeform:
                 self.history.append(types.Content(role="model", parts=[types.Part(text=text)]))
             _hop_log(self.verbose, hop_idx + 1, "rendered_text", text=text)
             hops.append({"kind": "rendered_text", "text": text})
-            agent_messages = [FILLER_TEXT, text] if any_non_reply else [text]
+            agent_messages = [FILLER_TEXT, text] if (any_non_reply and FILLER_TEXT) else [text]
             return {
                 "text": text,
                 "agent_messages": agent_messages,
@@ -1717,7 +1881,7 @@ class CommunicatorGeminiFreeform:
         # MAX_TOOL_HOPS exhausted — emit a safe fallback reply.
         self.history.append(types.Content(role="model", parts=[types.Part(text=FALLBACK_TEXT)]))
         hops.append({"kind": "rendered_text", "text": FALLBACK_TEXT})
-        agent_messages = [FILLER_TEXT, FALLBACK_TEXT] if any_non_reply else [FALLBACK_TEXT]
+        agent_messages = [FILLER_TEXT, FALLBACK_TEXT] if (any_non_reply and FILLER_TEXT) else [FALLBACK_TEXT]
         return {
             "text": FALLBACK_TEXT,
             "agent_messages": agent_messages,

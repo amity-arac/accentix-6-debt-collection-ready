@@ -206,11 +206,20 @@ def _build_v6_catalog(script_db: list[dict], compact: bool) -> list[str]:
         state = entry.get("state") or "_unstated"
         by_state.setdefault(state, []).append(entry)
 
+    # Every state the catalog actually uses gets listed. The known debt-flow
+    # states come first, in their canonical reading order; any other state the
+    # catalog declares follows, in first-appearance order. Iterating STATE_ORDER
+    # alone silently DROPPED every template whose state was not on that fixed
+    # list — a company whose spec names its states anything else (AMT's `main`
+    # and `faq`, any Builder-created company) had those lines removed from the
+    # prompt, so the model was told to choose from a catalog that did not
+    # contain them. It then replied with no text_ids at all.
+    extra = [st for st in by_state if st not in STATE_ORDER and st != "_unstated"]
     lines: list[str] = [V6_CHAIN_RULE, ""]
-    for state in STATE_ORDER + ("_unstated",):
+    for state in tuple(STATE_ORDER) + tuple(extra) + ("_unstated",):
         if state not in by_state:
             continue
-        header = STATE_HEADERS.get(state, "Unstated")
+        header = STATE_HEADERS.get(state, state.replace("_", " ").title())
         lines.append(f"### {header}")
         for entry in sorted(by_state[state], key=lambda e: e["text_id"]):
             tid = entry["text_id"]
@@ -225,11 +234,17 @@ def _build_v6_catalog(script_db: list[dict], compact: bool) -> list[str]:
             requires = ""
             if name.startswith("Close_Call_Success"):
                 requires = " — REQUIRES record_verbal_commitment first"
+            # `hint` says WHEN to use this wording. Without it, several wordings of
+            # one beat reach the model as interchangeable lines and it takes the
+            # first every time (measured: 9 picks out of 9 were the group's first).
+            hint = entry.get("hint")
+            hint_s = f" ‹{hint}›" if hint else ""
             if compact:
-                lines.append(f"- [{cat}] **{tid}** {name}{vars_suffix}{requires}")
+                lines.append(f"- [{cat}] **{tid}** {name}{vars_suffix}{requires}{hint_s}")
             else:
                 template = _strip_conditionals(body)
-                lines.append(f"- [{cat}] **{tid}** ({name}){vars_suffix}{requires}: {template}")
+                lines.append(
+                    f"- [{cat}] **{tid}** ({name}){vars_suffix}{requires}{hint_s}: {template}")
         lines.append("")
     return lines
 
@@ -292,7 +307,13 @@ def fill_template(
         elif field_ref in DYNAMIC_PLACEHOLDERS:
             present = field_ref in dynamic_vars and dynamic_vars[field_ref] is not None
         else:
-            present = agent_context_data.get(field_ref) is not None
+            value = agent_context_data.get(field_ref)
+            # A boolean FLAG must be tested for truth, not for presence. `{{if
+            # due_upcoming}}` with the flag explicitly False took the if-branch,
+            # because `False is not None` — so an account months overdue was
+            # announced with the pre-due wording. Non-booleans keep presence
+            # semantics: a field can legitimately hold 0 or "".
+            present = value if isinstance(value, bool) else value is not None
         if present:
             return match.group(2)
         return match.group(3) or ""
@@ -302,33 +323,43 @@ def fill_template(
         result = CONDITIONAL_RE.sub(resolve_conditional, result)
 
     # Pass 2: substitute [placeholder] tokens.
+    def _render_date_tolerant(value_str: str) -> str | None:
+        """Natural-Thai a date string, tolerating a WRONG weekday in the source
+        (bad CRM data must never leak a raw "YYYY-MM-DD (Weekday)" to the ear).
+        Returns None when the value isn't a date at all."""
+        if datetime_utils.is_valid_date(value_str):
+            return datetime_utils.render_date_thai(value_str)
+        import datetime as _dt
+        m = re.match(r"(\d{4}-\d{2}-\d{2})", value_str)
+        if m:
+            try:
+                d = _dt.date.fromisoformat(m.group(1))
+                return datetime_utils.render_date_thai(
+                    f"{m.group(1)} ({d.strftime('%A')})")
+            except ValueError:
+                pass
+        return None
+
     def replacer(match: re.Match) -> str:
         placeholder = match.group(1)
         if placeholder in SYSTEM_PLACEHOLDERS:
             value = agent_context_data.get(SYSTEM_PLACEHOLDERS[placeholder])
-            if value is None:
-                return match.group(0)
-            if isinstance(value, float):
-                if value == int(value):
-                    return f"{int(value):,}"
-                return f"{value:,.2f}"
-            value_str = str(value)
-            if placeholder in SYSTEM_DATE_PLACEHOLDERS:
-                if datetime_utils.is_valid_date(value_str):
-                    return datetime_utils.render_date_thai(value_str)
-                # Tolerant fallback: a valid ISO date carrying a WRONG weekday
-                # (bad source data) must still render as natural Thai, never leak
-                # the raw "YYYY-MM-DD (Weekday)" string to the customer.
-                import datetime as _dt
-                m = re.match(r"(\d{4}-\d{2}-\d{2})", value_str)
-                if m:
-                    try:
-                        d = _dt.date.fromisoformat(m.group(1))
-                        return datetime_utils.render_date_thai(
-                            f"{m.group(1)} ({d.strftime('%A')})")
-                    except ValueError:
-                        pass
-            return value_str
+            # No early return on a miss: the mapped field may be absent while the
+            # data carries the placeholder's own name (a spec naming `amount`
+            # rather than `total_amount_due`). Fall through to the generic lookup
+            # below, which leaks only if neither name resolves — strictly more
+            # capable than the old `return match.group(0)` here.
+            if value is not None:
+                if isinstance(value, float):
+                    if value == int(value):
+                        return f"{int(value):,}"
+                    return f"{value:,.2f}"
+                value_str = str(value)
+                if placeholder in SYSTEM_DATE_PLACEHOLDERS:
+                    rendered = _render_date_tolerant(value_str)
+                    if rendered is not None:
+                        return rendered
+                return value_str
         if placeholder in DYNAMIC_PLACEHOLDERS:
             value = dynamic_vars.get(placeholder)
             if value is None or value == "":
@@ -352,6 +383,33 @@ def fill_template(
                 # Render enum literal to Thai; pass through paraphrased values.
                 return PAYMENT_CHANNEL_THAI.get(value_str.strip(), value_str)
             return value_str
+        # Spec-declared field, no registry entry. The two registries above are
+        # debt-domain (amount, late_fee, vehicle_registration, …), so a FlowSpec
+        # that names its own CRM fields had every token leak to the customer —
+        # observed: AMT's greeting said literally "มีนัดพบ [doctor_name] วันที่
+        # [appointment_date]". Pass 1's conditional resolver already falls back to
+        # agent_context_data by the bare name; Pass 2 must too, or no uploaded spec
+        # can render. Placeholder name == data key, which is what makes this
+        # spec-driven: a brand-new company works with no code change.
+        # dynamic_vars is the second chance, for a field the model supplies rather
+        # than the case carrying it.
+        for source in (agent_context_data, dynamic_vars):
+            if placeholder not in source:
+                continue
+            value = source[placeholder]
+            if value is None:
+                break
+            if isinstance(value, float):
+                return f"{int(value):,}" if value == int(value) else f"{value:,.2f}"
+            value_str = str(value)
+            # Same courtesy the SYSTEM branch gives: never speak a raw
+            # "YYYY-MM-DD (Weekday)" / "HH:MM" at the customer.
+            rendered = _render_date_tolerant(value_str)
+            if rendered is not None:
+                return rendered
+            if datetime_utils.is_valid_time(value_str):
+                return datetime_utils.render_time_thai(value_str)
+            return value_str
         # Only warn if it LOOKS like a placeholder (identifier-shaped, length≥2).
         # Single-char [A] / [B] (used in v6 instructions to reference the catalog's
         # [A]/[B] category prefix) and non-identifiers like [...] or
@@ -367,7 +425,16 @@ def fill_template(
     # placeholders remain. Backward compatible — [placeholder] still works above.
     result = re.sub(r"\{([^{}]+)\}", replacer, result)
 
-    # Pass 3: normalize whitespace from removed blocks.
+    # Pass 3: collapse a doubled Thai honorific. Templates write the honorific
+    # themselves ("สวัสดีค่ะคุณ [customer_name]") while a CRM row may already carry
+    # one — the shipped persona pool holds "นายเอกชัย วัฒนกุล", "คุณกัญญาพัชร …" —
+    # so the agent said "คุณ นายเอกชัย". Neither side can be fixed alone: strip the
+    # record and templates without an honorific lose it; drop it from templates and
+    # records without one lose it. Collapsing after substitution keeps the more
+    # specific of the two, which is what a person would say.
+    result = re.sub(r"คุณ\s*(คุณ|นายสาว|นางสาว|นาย|นาง|ด\.ช\.|ด\.ญ\.)\s*", r"\1", result)
+
+    # Pass 4: normalize whitespace from removed blocks.
     return re.sub(r" {2,}", " ", result).strip()
 
 
@@ -381,6 +448,24 @@ def fill_template(
 REQUIRED_DYNAMIC_PLACEHOLDERS = DATE_PLACEHOLDERS | TIME_PLACEHOLDERS
 
 
+_PLACEHOLDER_BOTH = re.compile(
+    r"\[([A-Za-z_][A-Za-z0-9_]*)\]|\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def _placeholder_names(text: str) -> list[str]:
+    """Placeholder names in a template, in BOTH brace styles.
+
+    `fill_template` substitutes `[name]` and `{name}` alike (pass 2 / 2b), but the
+    two guards below scanned square brackets only — and AEON's 64-entry catalog is
+    written entirely in `{curly}`. So the leak guard and the required-dynamic-var
+    check were structurally incapable of firing for the company that ships the most
+    templates. `{{if …}}` control blocks are stripped first; their keywords are not
+    slots.
+    """
+    stripped = re.sub(r"\{\{[^{}]*\}\}", "", text or "")
+    return [sq or cu for sq, cu in _PLACEHOLDER_BOTH.findall(stripped)]
+
+
 def missing_required_dynamic_vars(
     script_lookup: dict, text_ids: list[int], dynamic_vars: dict
 ) -> list[str]:
@@ -391,7 +476,7 @@ def missing_required_dynamic_vars(
         s = script_lookup.get(tid)
         if not s:
             continue
-        for ph in re.findall(r"\[([^\]]+)\]", s.get("template", "")):
+        for ph in _placeholder_names(s.get("template", "")):
             if ph in REQUIRED_DYNAMIC_PLACEHOLDERS:
                 needed.add(ph)
     return sorted(
@@ -400,7 +485,13 @@ def missing_required_dynamic_vars(
 
 
 def leaked_placeholders(rendered_text: str) -> list[str]:
-    """Identifier-shaped [name] literals remaining after rendering — unfilled
-    SYSTEM placeholders (missing CRM field) or stale-template references. NOT
-    agent-fixable, so callers should log/tag (not retry-loop) on these."""
-    return re.findall(r"\[([A-Za-z_][A-Za-z0-9_]+)\]", rendered_text or "")
+    """Identifier-shaped `[name]` / `{name}` literals remaining after rendering —
+    unfilled SYSTEM placeholders (missing CRM field) or stale-template references.
+    NOT agent-fixable, so callers should log/tag (not retry-loop) on these.
+
+    Both brace styles: a leaked `{due_date}` is read to the customer exactly as
+    badly as a leaked `[due_date]`, and the shipped catalogs use both."""
+    names = [n for n in _placeholder_names(rendered_text) if len(n) > 1]
+    # render_gender resolves these from the session voice; if one survives it is a
+    # gender-rendering bug, not a missing CRM field — out of scope for this guard.
+    return [n for n in names if n not in ("suffix", "q_suffix", "pronoun")]

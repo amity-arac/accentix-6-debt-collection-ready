@@ -44,6 +44,11 @@ HANDOFF_REASONS = (
     "other",
 )
 
+# v10: valid call-disposition codes for record_outcome (mirrors the production
+# flow's result/reason stamping). Kept in sync with the tool schemas in
+# agents/communicator.py.
+RESULT_CODES = frozenset({"ptp", "refused", "unreachable", "reached", "tcb", "tin"})
+
 
 def _date_format_error(got: str) -> dict:
     """Standard rejection payload for malformed date args under v6.
@@ -81,13 +86,30 @@ VALID_PAYMENT_CHANNELS = {
 
 
 class CaseBackend:
-    def __init__(self, customer_data: dict, *, v6_active: bool = False) -> None:
+    def __init__(self, customer_data: dict, *, v6_active: bool = False,
+                 require_kyc: bool = True, valid_results: set[str] | None = None) -> None:
         self.customer_data = customer_data
+        # Instruction-grounded outcome vocab: whatever THIS flow's spec declares under
+        # outcomes.results (appointment flows use confirmed/rescheduled, surveys use
+        # completed/declined, …). None → fall back to the debt default RESULT_CODES.
+        # Without this a non-debt company can never close a call: its own declared
+        # result code is rejected as `invalid_result`.
+        self.valid_results = set(valid_results) if valid_results else None
         self._crm_digits = str(customer_data.get("last_4_digits", ""))
         self.v6_active = v6_active
+        # v10 clone is name-only (the real bot it clones never asks for 4 digits);
+        # the agent still records payment silently, so payment_date skips the
+        # identity check when require_kyc=False.
+        self.require_kyc = require_kyc
         # Phase G: per-case verbal commitment state. Set by record_verbal_commitment;
         # checked by payment_date when v6_active. None until the agent calls the tool.
         self._commitment: dict[str, str | None] = {"amount": None, "date": None, "channel": None}
+        # v11 Tier-3 flow guards (see documentation/v10-teacher-flow-map.md):
+        # last recorded payment_date (for the overdue-ptp-date rule) and whether
+        # the call has connected (check_account_status fired — busy/voice_mail
+        # are pre-connection-only after that).
+        self._last_payment_date: str | None = None
+        self._account_status_checked = False
 
     def _case_status(self) -> str:
         return self.customer_data.get("case_status") or "normal"
@@ -96,6 +118,7 @@ class CaseBackend:
         return {"verified": str(last_4_digits) == self._crm_digits}
 
     def check_account_status(self) -> dict:
+        self._account_status_checked = True
         out = {k: v for k, v in self.customer_data.items() if k != "last_4_digits"}
         out.setdefault("case_status", "normal")
         out.setdefault("case_status_note", None)
@@ -115,10 +138,14 @@ class CaseBackend:
             return _date_format_error(date)
         return {"recorded": True, "id": _gen_id("CB")}
 
-    def record_verbal_commitment(self, amount: str, date: str, channel: str) -> dict:
-        """Phase G: record the customer's verbal commitment to (amount, date, channel)
+    def record_verbal_commitment(self, amount: str, date: str, channel: str = "") -> dict:
+        """Phase G: record the customer's verbal commitment to (amount, date[, channel])
         before payment_date writes. No KYC check — this is conversation-state tracking,
         not a CRM write. v5 doesn't call this; v6 system instructions require it.
+
+        `channel` is OPTIONAL: for the common "pay minimum today" close the agent need
+        not ask which channel. If the customer volunteers a channel (e.g. an already-paid
+        readback) it is validated + stored so payment_date can echo it back.
 
         Returns a `next_action` hint on success so the LLM gets a runtime reminder
         that the CRM write still needs to happen via payment_date.
@@ -126,19 +153,20 @@ class CaseBackend:
         amt = str(amount).strip()
         dt = str(date).strip()
         ch = str(channel).strip()
-        if not amt or not dt or not ch:
-            missing = [k for k, v in (("amount", amt), ("date", dt), ("channel", ch)) if not v]
+        if not amt or not dt:
+            missing = [k for k, v in (("amount", amt), ("date", dt)) if not v]
             return {"recorded": False, "reason": "incomplete_commitment", "missing": missing}
-        if ch not in VALID_PAYMENT_CHANNELS:
+        if ch and ch not in VALID_PAYMENT_CHANNELS:
             return {"recorded": False, "reason": "channel_invalid", "valid_channels": sorted(VALID_PAYMENT_CHANNELS)}
         if self.v6_active and not datetime_utils.is_valid_date(dt):
             return _date_format_error(dt)
         self._commitment = {"amount": amt, "date": dt, "channel": ch}
+        _ch_arg = f", channel={ch!r}" if ch else ""
         return {
             "recorded": True,
             "next_action": (
                 f"Verbal commitment captured. CRM write still pending. "
-                f"Now call payment_date(last_4_digits, amount={amt}, date={dt!r}, channel={ch!r}) "
+                f"Now call payment_date(last_4_digits, amount={amt}, date={dt!r}{_ch_arg}) "
                 f"with the same values, THEN send the closing reply "
                 f"([A_Negotiation_InformPromiseSummary, B_Closing_CloseCallSuccess])."
             ),
@@ -150,11 +178,9 @@ class CaseBackend:
             return {"recorded": False, "reason": "account_under_review"}
         if status == "closed":
             return {"recorded": False, "reason": "account_closed"}
-        if str(last_4_digits) != self._crm_digits:
+        if self.require_kyc and str(last_4_digits) != self._crm_digits:
             return {"recorded": False, "reason": "identity_mismatch"}
-        if not channel:
-            return {"recorded": False, "reason": "channel_required"}
-        if channel not in VALID_PAYMENT_CHANNELS:
+        if channel and channel not in VALID_PAYMENT_CHANNELS:
             return {"recorded": False, "reason": "channel_invalid", "valid_channels": sorted(VALID_PAYMENT_CHANNELS)}
         if self.v6_active and not datetime_utils.is_valid_date(date):
             return _date_format_error(date)
@@ -172,7 +198,8 @@ class CaseBackend:
                 missing.append("amount")
             if self._commitment["date"] is None or self._commitment["date"] != date:
                 missing.append("date")
-            if self._commitment["channel"] is None or self._commitment["channel"] != channel:
+            # channel is optional: only enforce a match when one was actually committed
+            if self._commitment["channel"] and self._commitment["channel"] != channel:
                 missing.append("channel")
             if missing:
                 return {
@@ -182,6 +209,7 @@ class CaseBackend:
                     "expected": dict(self._commitment),
                     "hint": "Call record_verbal_commitment(amount, date, channel) first with values the customer verbally agreed to, then retry payment_date with matching args.",
                 }
+        self._last_payment_date = date
         return {"recorded": True, "id": _gen_id("PP")}
 
     def get_current_datetime(self) -> dict:
@@ -202,6 +230,65 @@ class CaseBackend:
             reason = "other"
         return {"transferred": True, "ticket_id": _gen_id("HUM"), "reason": reason}
 
+    def record_outcome(self, result: str, reason: str = "", remark: str = "") -> dict:
+        """v10: record the call disposition (mirrors the production flow's result/reason
+        stamping). result in RESULT_CODES; reason is a free sub-code (paid/minimum/agent/
+        wrong_name/...); remark holds the collected free-text utterance. No KYC — this is
+        outcome logging, not a CRM write.
+
+        v11 Tier-3 flow guards (documentation/v10-teacher-flow-map.md):
+        - overdue account + ptp dated after today -> reject (a future promise on an
+          already-overdue account is a refusal, not a ptp).
+        - busy/voice_mail after the call has connected -> reject (those are
+          pre-connection-only outcomes)."""
+        valid = self.valid_results or RESULT_CODES
+        if result not in valid:
+            return {"recorded": False, "reason": "invalid_result", "valid": sorted(valid)}
+
+        reason_norm = str(reason).strip().lower().replace(" ", "_")
+
+        if (
+            self.v6_active
+            and result == "ptp"
+            and self.customer_data.get("due_status") == "overdue"
+            and self._last_payment_date is not None
+        ):
+            pay_date = datetime_utils.parse_date_prefix(self._last_payment_date)
+            if pay_date is not None and pay_date > datetime_utils.simulation_date():
+                return {
+                    "recorded": False,
+                    "reason": "future_ptp_on_overdue_account_requires_refused",
+                    "hint": (
+                        "This account is already overdue and the recorded payment_date "
+                        f"({self._last_payment_date}) is after today. A promise to pay on a "
+                        "future date does not count as a ptp on an overdue account — call "
+                        "record_outcome(result='refused', ...) instead, or renegotiate for "
+                        "a same-day payment before recording ptp."
+                    ),
+                }
+
+        if reason_norm in {"busy", "voice_mail"} and self._account_status_checked:
+            return {
+                "recorded": False,
+                "reason": "busy_or_voicemail_invalid_after_connected_call",
+                "hint": (
+                    f"reason={reason_norm!r} means the line never connected — invalid once "
+                    "check_account_status has been called, since the call clearly connected. "
+                    "Classify by what actually happened (e.g. reached/refused), no busy/voice_mail."
+                ),
+            }
+
+        return {"recorded": True, "id": _gen_id("OUT"),
+                "result": result, "reason": str(reason).strip(), "remark": str(remark).strip()}
+
+    def update_phone(self, number: str) -> dict:
+        """v10: record a customer's new contact number (production flow's
+        'Change Phone Number' node)."""
+        n = str(number).strip()
+        if not n:
+            return {"recorded": False, "reason": "empty_number"}
+        return {"recorded": True, "id": _gen_id("PH"), "number": n}
+
     def dispatch(self, name: str, args: dict) -> dict:
         """Route a non-reply tool call to its handler, logging the model's call
         and the deterministic result so the demo console shows exactly what the
@@ -217,6 +304,12 @@ class CaseBackend:
         return result
 
     def _dispatch(self, name: str, args: dict) -> dict:
+        if name == "record_outcome":
+            return self.record_outcome(
+                args.get("result", ""), args.get("reason", ""), args.get("remark", "")
+            )
+        if name == "update_phone":
+            return self.update_phone(args.get("number", ""))
         if name == "verify_identity":
             return self.verify_identity(args.get("last_4_digits", ""))
         if name == "check_account_status":
