@@ -224,6 +224,34 @@
 
 ### `mock`
 
+รูปแบบ `when` มีสองแบบ:
+
+```jsonc
+"when": {"arg": "date", "matches": "^2026-09"}                 // regex ตรงๆ
+"when": {"arg": "date",                                        // หน้าต่างวันจริง
+         "within_days_of": {"field": "due_date", "days_field": "max_extend_days"}}
+```
+
+แบบหลังให้ตัว generate คำนวณจาก CRM — `valid_dates` ออกมาเป็นวันจริงทั้งช่วง คำนวณสด
+ทุกครั้งที่ถูกเรียก ใช้เมื่อ requirement พูดว่า "ไม่เกิน N วัน" **อย่าเขียน regex เดา** —
+ของเดิมใช้ `^2026-0[89]-` แล้วรับวันที่เกินเกณฑ์ไป 26 วัน
+
+⚠️ Mockoon ไม่มี helper เปรียบเทียบ (`lte`/`gt` ทดสอบแล้วไม่ทำงาน) — regex ที่เลือก
+response จึงตรึงตอน generate ต้อง regenerate เมื่อข้ามวัน · ตัวบังคับจริงคือ
+`one_of_from` ที่ arg ปลายทาง ซึ่งเทียบกับ `valid_dates` ที่คำนวณสด
+
+### วันที่ต้องอิง "วันนี้" เสมอ
+
+persona เก็บวันแบบตายตัวจะถูกแค่วันที่เขียน — เตือนนัดที่ผ่านมาแล้ว 3 เดือน ให้ใช้
+
+```jsonc
+"appointment_date_offset_days": 2      // → วันนี้ + 2
+"due_date_offset_days": -7             // → วันนี้ - 7 (ค้างชำระ)
+```
+
+แอปแปลงตอนเปิด session · `gen_mockoon` แปลงเป็น `dateTimeShift` ให้ API คืนค่าตรงกัน
+(`due_offset_days` เป็นชื่อเดิม ยังใช้ได้ ชี้ไป `due_date`)
+
 ```json
 "mock": {"rules": [{"when": {"arg": "date", "matches": "regex"},
                     "body": {…}, "label": "…"}],

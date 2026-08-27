@@ -131,17 +131,17 @@
       {
        "when": {
         "arg": "date",
-        "matches": "^2026-0[89]-"
+        "within_days_of": {
+         "field": "due_date",
+         "days_field": "max_extend_days"
+        }
        },
        "body": {
         "in_range": true,
-        "valid_dates": [
-         "{{body 'args.date'}}"
-        ],
         "max_extend_days": 7,
         "new_date": "{{body 'args.date'}}"
        },
-       "label": "in range (stand-in: Aug/Sep 2026)"
+       "label": "อยู่ในเกณฑ์ (due_date + max_extend_days)"
       }
      ],
      "default": {

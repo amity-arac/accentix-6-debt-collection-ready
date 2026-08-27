@@ -37,7 +37,16 @@ from typing import AsyncIterator, Final, Iterator
 
 from functools import lru_cache
 
-from google.cloud import texttospeech
+try:
+    from google.cloud import texttospeech
+except ImportError:  # pragma: no cover - depends on the install
+    # A checkout without the speech extra can still run everything that is not audio.
+    # It used to fail at import, which took down `demo.server.sessions` with it — and
+    # `tools/gen_mockoon.py` imports sessions to read the demo personas, so the mock
+    # could only be regenerated on a host with the TTS libraries. It stopped being
+    # regenerated anywhere else, and the committed mock lost SHOP's two endpoints.
+    texttospeech = None
+
 
 from services.speech.config import (
     DEFAULT_LANGUAGE_CODE,

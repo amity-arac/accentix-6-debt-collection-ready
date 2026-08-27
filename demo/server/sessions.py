@@ -283,8 +283,7 @@ class LiveSession:
         cd.setdefault("agent_name", COMPANY_AGENT_NAMES.get(self._company))
         if V6_ACTIVE:
             cd.setdefault("today", datetime_utils.today_iso())
-        if cd.get("due_offset_days") is not None:  # resolve to a live date (now+N)
-            cd["due_date"] = datetime_utils.future_date(cd["due_offset_days"])
+        _resolve_offset_dates(cd)      # <field>_offset_days → live date
         self.customer_data = cd
 
         # Load v6 catalog (filtered to this company)
@@ -633,6 +632,33 @@ def cue_library() -> dict[str, list[str]]:
         except (json.JSONDecodeError, OSError):
             pass
     return {}
+
+
+def _offset_target(key: str) -> str:
+    """Which field an `<x>_offset_days` key fills. `due_offset_days` predates the rule
+    and fills `due_date`, not `due` — stripping the suffix blindly wrote a key nothing
+    reads and left the frozen date in place."""
+    stem = key[: -len("_offset_days")]
+    return "due_date" if stem == "due" else stem
+
+
+def _resolve_offset_dates(cd: dict) -> None:
+    """`<field>_offset_days: N` → `<field>` = today+N, resolved per session.
+
+    A persona that stores a literal date is right on the day it was written and wrong
+    every day after — the appointment reminder told the patient about a visit three
+    months in the past. `due_offset_days` already existed for one field; this is the
+    same rule for any of them, so a tenant can anchor whatever its templates speak.
+    """
+    from simulator import datetime_utils as _du
+    for key in [k for k in cd if k.endswith("_offset_days")]:
+        n = cd.get(key)
+        if n is None:
+            continue
+        try:
+            cd[_offset_target(key)] = _du.future_date(int(n))
+        except (TypeError, ValueError):
+            continue
 
 
 def _flow_spec_path(company: str, instruction_version: str | None = None) -> "Any":
@@ -1358,8 +1384,7 @@ class FlowLiveSession:
         # match) or a silent None that the template then spoke as an empty bracket.
         # Leaving the field missing is the better failure: the placeholder audit names it.
         cd.setdefault("today", datetime_utils.today_iso())
-        if cd.get("due_offset_days") is not None:  # resolve to a live date (now+N)
-            cd["due_date"] = datetime_utils.future_date(cd["due_offset_days"])
+        _resolve_offset_dates(cd)      # <field>_offset_days → live date
         # Derive the {{if due_upcoming}} template flag from the actual dates so
         # disclose templates say "จะครบกำหนด [due_date]" pre-due and only say
         # "เกินกำหนดแล้ว" when truly past due (issue: pre-due customer told the

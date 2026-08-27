@@ -42,7 +42,8 @@
    "case_status": "normal",
    "case_status_note": null,
    "company_name": "เอบีซี",
-   "agent_name": "น้องอัลฟา"
+   "agent_name": "น้องอัลฟา",
+   "due_date_offset_days": -7
   },
   "user_system_prompt": "<persona>ลูกค้าของเอบีซี ที่มียอดค้างชำระ</persona>\n<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  },
@@ -65,7 +66,8 @@
    "case_status": "normal",
    "case_status_note": null,
    "company_name": "กสิกรไทย",
-   "agent_name": "น้องKBANK"
+   "agent_name": "น้องKBANK",
+   "due_date_offset_days": -7
   },
   "user_system_prompt": "<persona>ลูกค้าของกสิกรไทย ที่มียอดค้างชำระ</persona>\n<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  },
@@ -88,7 +90,8 @@
    "case_status": "normal",
    "case_status_note": null,
    "company_name": "สยามคูโบต้าลีสซิ่ง",
-   "agent_name": "น้องSKL"
+   "agent_name": "น้องSKL",
+   "due_date_offset_days": -7
   },
   "user_system_prompt": "<persona>ลูกค้าของส่งเสริมลีสซิ่ง ที่มียอดค้างชำระ</persona>\n<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  },
@@ -112,7 +115,8 @@
    "appointment_time": "10:00",
    "doctor_schedule": "จันทร์-ศุกร์ 9:00-16:00",
    "visit_time_start": "10:00",
-   "visit_time_end": "11:00"
+   "visit_time_end": "11:00",
+   "appointment_date_offset_days": 2
   },
   "user_system_prompt": "<persona>ผู้ป่วยของโรงพยาบาล AMT ที่มีนัดพบแพทย์ตามกำหนด</persona>\n<situation>รับสายจากเจ้าหน้าที่โรงพยาบาลโทรมายืนยันนัดพบแพทย์</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  },
@@ -122,7 +126,7 @@
    "customer_name": "สมชาย ใจดี",
    "customer_phone": "081-234-5678",
    "shop_name": "ร้านทองเจริญ",
-   "due_date": "2026-08-27 (Thursday)",
+   "due_date": "@today+1",
    "amount": "3500",
    "max_extend_days": "7",
    "company_name": "ร้านทองเจริญ",

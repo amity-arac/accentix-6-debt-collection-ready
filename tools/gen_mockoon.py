@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import uuid
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -92,8 +93,28 @@ def persona_for(company: str) -> dict:
             if str(c.get("company", "")).upper() == company.upper()]
     if not rows:
         return {}
-    cd = dict(sessions.case_customer_data(rows[0]["id"]))
+    # The demo and the eval open `TC-<CODE>-BUILD-001` (AEON: `TC-AEON-PREDUE-001`).
+    # Taking `rows[0]` picked whichever persona happened to sort first — for AEON a
+    # different customer with a frozen due_date — so `check_account_status` returned a
+    # different name and balance than the session was rendering from, and `_merge_context`
+    # then overwrote the session's row with it.
+    demo_ids = [c["id"] for c in sessions.list_cases()
+                if str(c["id"]).startswith(f"TC-{company.upper()}-")
+                and str(c["id"]).split("-")[-2] in ("BUILD", "PREDUE")]
+    pick = demo_ids[0] if demo_ids else rows[0]["id"]
+    cd = dict(sessions.case_customer_data(pick))
     cd.update(COMPANY_EXTRAS.get(company.upper(), {}))
+    # The app resolves `<field>_offset_days` per session (sessions._resolve_offset_dates);
+    # the mock has to stay relative too, or the CRM the API returns disagrees with the
+    # CRM the app renders from the day after generation.
+    for key in [k for k in cd if k.endswith("_offset_days")]:
+        try:
+            n = int(cd[key])
+        except (TypeError, ValueError):
+            continue
+        stem = key[: -len("_offset_days")]
+        cd["due_date" if stem == "due" else stem] = _rel_date(f"@today{n:+d}")
+    cd = {k: _rel_date(v) for k, v in cd.items() if not k.endswith("_offset_days")}
     # The confirm-close templates need both ends of a visit window; the CRM row
     # stores only the start, so derive the end rather than let those templates read
     # "[visit_time_end]" to the patient.
@@ -112,6 +133,63 @@ def persona_for(company: str) -> dict:
 # --------------------------------------------------------------------------- #
 # Mockoon building blocks
 # --------------------------------------------------------------------------- #
+_REL_DATE = re.compile(r"^@today(?:\s*([+-])\s*(\d+))?$")
+_CANON = "yyyy-MM-dd (EEEE)"
+
+
+def _rel_date(value):
+    """`@today`, `@today+1`, `@today-3` → a date computed when the mock is CALLED.
+
+    A CRM row with a literal `due_date` is right on the day it was written and wrong
+    every day after: the greeting says "พรุ่งนี้" about a date already past, and any
+    window measured from it slides out of the real one. Mockoon has no comparison
+    helpers but it does have `dateTimeShift`, so the value can be produced per request.
+    Returns the value unchanged when it is not a relative token.
+    """
+    m = _REL_DATE.match(str(value).strip()) if isinstance(value, str) else None
+    if not m:
+        return value
+    days = int(m.group(2) or 0) * (-1 if m.group(1) == "-" else 1)
+    return "{{dateTimeShift date=(now) days=%d format='%s'}}" % (days, _CANON)
+
+
+def _window_dates(crm: dict, w: dict) -> list[str]:
+    """The dates a `within_days_of` rule accepts, computed from the CRM row.
+
+    A requirement like "no more than 7 days" needs a mechanism, not a sentence: the
+    model does not do date arithmetic reliably, so the API has to answer. The stand-in
+    this replaces was a regex over the month (`^2026-0[89]-`), which accepted a date
+    five weeks past the limit — the rule existed in the spec's prose and nowhere else.
+    """
+    import datetime as _dt
+
+    raw = str(crm.get(w.get("field") or "") or "")
+    days = w.get("days")
+    if days is None:
+        try:
+            days = int(re.sub(r"\D", "", str(crm.get(w.get("days_field") or "") or "")) or "")
+        except ValueError:
+            return []
+    days = int(days)
+
+    # An anchor already rendered as a `dateTimeShift` (from `@today+N`) keeps the window
+    # relative: each entry is its own shift, so the list is right on any day the mock
+    # runs. The regex that selects the in-range response cannot be templated — Mockoon
+    # matches rules against a static pattern — so it is built from today's window and
+    # the caller is told the mock is date-anchored.
+    m = re.search(r"days=(-?\d+)", raw)
+    if m:
+        base = int(m.group(1))
+        return ["{{dateTimeShift date=(now) days=%d format='%s'}}" % (base + i, _CANON)
+                for i in range(days + 1)]
+    try:
+        d0 = _dt.date.fromisoformat(raw[:10])
+    except ValueError:
+        return []
+    return [f"{(d0 + _dt.timedelta(days=i)).isoformat()} "
+            f"({(d0 + _dt.timedelta(days=i)).strftime('%A')})" for i in range(days + 1)]
+
+
 def _resp(body: dict | str, *, rules: list | None = None, default: bool = False,
           label: str = "", status: int = 200) -> dict:
     return {
@@ -253,9 +331,30 @@ def tool_responses(decl: dict, crm: dict) -> list[dict]:
         echo = _echo(decl)
         for rule in mock.get("rules", []):
             w = rule.get("when") or {}
-            out.append(_resp({**echo, **rule["body"]}, default=False,
+            body = dict(rule["body"])
+            if w.get("within_days_of"):
+                window = _window_dates(crm, w["within_days_of"])
+                if not window:
+                    print(f"    ! {name}: within_days_of อ้าง field ที่ CRM ไม่มี — ข้ามกฎนี้")
+                    continue
+                import datetime as _dt2
+                m0 = re.search(r"days=(-?\d+)", window[0])
+                if m0:
+                    t0 = _dt2.date.today() + _dt2.timedelta(days=int(m0.group(1)))
+                    days_n = len(window) - 1
+                    lits = [(t0 + _dt2.timedelta(days=i)).isoformat() for i in range(days_n + 1)]
+                    print(f"    ! {name}: หน้าต่างวันอิงวันนี้ ({lits[0]}..{lits[-1]}) — "
+                          "regex เลือก response ตรึงตอน generate ต้อง regenerate เมื่อข้ามวัน "
+                          "(valid_dates คำนวณสดอยู่แล้ว และ one_of_from เป็นตัวบังคับจริง)")
+                else:
+                    lits = [d[:10] for d in window]
+                pattern = "^(%s)" % "|".join(lits)
+                body.setdefault("valid_dates", window)
+            else:
+                pattern = w["matches"]
+            out.append(_resp({**echo, **body}, default=False,
                              label=rule.get("label", "match"),
-                             rules=[_body_regex(f"args.{w['arg']}", w["matches"])]))
+                             rules=[_body_regex(f"args.{w['arg']}", pattern)]))
         if mock.get("default") is not None:
             out.append(_resp({**echo, **mock["default"]}, default=True, label="default"))
             return out

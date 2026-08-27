@@ -1,5 +1,5 @@
 {
-  "uuid": "66b98a1f-8ff9-44e5-ac37-d0310065984d",
+  "uuid": "1c817072-f02f-486f-b61e-0be933d9ad26",
   "lastMigration": 33,
   "name": "AAX6 mock backend",
   "endpointPrefix": "",
@@ -9,15 +9,15 @@
   "folders": [],
   "routes": [
     {
-      "uuid": "d205c817-90e6-465b-be0b-2992807329bf",
+      "uuid": "59b859f1-f6af-47c0-adfe-742ddbb8e1fc",
       "type": "http",
       "documentation": "Call context fetched once at session start (spec.session_init)",
       "method": "get",
       "endpoint": ":company/init",
       "responses": [
         {
-          "uuid": "771620d1-8f9f-4658-b9b8-52a6b4e64127",
-          "body": "{\n  \"customer_name\": \"สมชาย วงศ์ตระกูล\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"2026-05-08 (Friday)\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-976-3347\",\n  \"last_4_digits\": \"4275\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้าร้องเรียนเรื่องค่าธรรมเนียมแฝงและยอดเรียกเก็บสูงผิดปกติ\",\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "uuid": "7211c08c-3f81-4947-8dc7-3efb0a38c463",
+          "body": "{\n  \"customer_name\": \"วีระ ตรงเวลา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"upcoming\",\n  \"due_upcoming\": true,\n  \"customer_phone\": \"081-555-7777\",\n  \"msisdn\": \"081-555-7777\",\n  \"last_4_digits\": \"7777\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"อิอ้อน\",\n  \"agent_name\": \"น้องอิ\",\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
           "label": "AEON context",
@@ -48,72 +48,8 @@
           "callbacks": []
         },
         {
-          "uuid": "c397b107-dc0f-4a29-abb7-7eb5e55c006e",
-          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"2026-05-15 (Friday)\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"กสิกรไทย\",\n  \"agent_name\": \"น้องKBANK\",\n  \"company_phone\": \"02-888-8888\",\n  \"num\": 3\n}",
-          "latency": 0,
-          "statusCode": 200,
-          "label": "KBANK context",
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "bodyType": "INLINE",
-          "filePath": "",
-          "databucketID": "",
-          "sendFileAsBody": false,
-          "rules": [
-            {
-              "target": "params",
-              "modifier": "company",
-              "value": "KBANK",
-              "operator": "equals",
-              "invert": false
-            }
-          ],
-          "rulesOperator": "AND",
-          "disableTemplating": false,
-          "fallbackTo404": false,
-          "default": false,
-          "crudKey": "id",
-          "callbacks": []
-        },
-        {
-          "uuid": "6b14e123-8959-4ae6-97e4-de9d007cbefb",
-          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"2026-05-15 (Friday)\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"สยามคูโบต้าลีสซิ่ง\",\n  \"agent_name\": \"น้องSKL\",\n  \"company_phone\": \"02-762-8888\",\n  \"num\": 3\n}",
-          "latency": 0,
-          "statusCode": 200,
-          "label": "SKL context",
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "bodyType": "INLINE",
-          "filePath": "",
-          "databucketID": "",
-          "sendFileAsBody": false,
-          "rules": [
-            {
-              "target": "params",
-              "modifier": "company",
-              "value": "SKL",
-              "operator": "equals",
-              "invert": false
-            }
-          ],
-          "rulesOperator": "AND",
-          "disableTemplating": false,
-          "fallbackTo404": false,
-          "default": false,
-          "crudKey": "id",
-          "callbacks": []
-        },
-        {
-          "uuid": "b64e9933-b8dc-4773-8b55-4ee9f829d8cc",
-          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"โรงพยาบาล AMT\",\n  \"agent_name\": \"น้องAMT\",\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"appointment_date\": \"2026-05-20 (Wednesday)\",\n  \"appointment_time\": \"10:00\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"company_phone\": \"02-514-4141\",\n  \"num\": 3,\n  \"visit_time_start\": \"10:00\",\n  \"visit_time_end\": \"11:00\"\n}",
+          "uuid": "9866e5c5-f66d-420e-9e33-9d085a6f188b",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"โรงพยาบาล AMT\",\n  \"agent_name\": \"น้องAMT\",\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"appointment_date\": \"{{dateTimeShift date=(now) days=2 format='yyyy-MM-dd (EEEE)'}}\",\n  \"appointment_time\": \"10:00\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"visit_time_start\": \"10:00\",\n  \"visit_time_end\": \"11:00\",\n  \"company_phone\": \"02-514-4141\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
           "label": "AMT context",
@@ -144,11 +80,11 @@
           "callbacks": []
         },
         {
-          "uuid": "5d4de583-5cac-4050-a609-58ced489308a",
-          "body": "{\n  \"customer_name\": \"คุณสมมติ ทดสอบระบบ\",\n  \"loan_type\": \"สินเชื่อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"2026-05-15 (Thursday)\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"NEWCO\",\n  \"agent_name\": \"NEWCO\"\n}",
+          "uuid": "217d4cde-778e-4d67-97e4-a0d508e0d6f6",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"กสิกรไทย\",\n  \"agent_name\": \"น้องKBANK\",\n  \"company_phone\": \"02-888-8888\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
-          "label": "NEWCO context",
+          "label": "KBANK context",
           "headers": [
             {
               "key": "Content-Type",
@@ -163,7 +99,7 @@
             {
               "target": "params",
               "modifier": "company",
-              "value": "NEWCO",
+              "value": "KBANK",
               "operator": "equals",
               "invert": false
             }
@@ -176,7 +112,71 @@
           "callbacks": []
         },
         {
-          "uuid": "4a8f396f-66ce-4d3c-9297-f3df4bd57e61",
+          "uuid": "24c1f6f3-caef-41e1-ae6c-3c2ca2dde980",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"shop_name\": \"ร้านทองเจริญ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n  \"amount\": \"3500\",\n  \"max_extend_days\": \"7\",\n  \"company_name\": \"ร้านทองเจริญ\",\n  \"agent_name\": \"น้องร้านทอง\",\n  \"company_phone\": \"02-111-2222\",\n  \"case_status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP context",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "982c7063-3114-4245-bfd9-8cbe9503da01",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"สยามคูโบต้าลีสซิ่ง\",\n  \"agent_name\": \"น้องSKL\",\n  \"company_phone\": \"02-762-8888\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SKL context",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SKL",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "68653219-d3e5-483a-a73d-92671411308e",
           "body": "{\n  \"error\": \"unknown_company\"\n}",
           "latency": 0,
           "statusCode": 404,
@@ -205,14 +205,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "2b424e73-f184-4b3e-8556-5c0c516b7837",
+      "uuid": "ae37e099-7892-4fd6-8d20-83663f75b5b6",
       "type": "http",
       "documentation": "callback_datetime — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/callback_datetime",
       "responses": [
         {
-          "uuid": "96c75b68-add2-4cfc-a409-564d139eba99",
+          "uuid": "cabe9440-278f-4539-a3b5-b44e6804b9ef",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -251,7 +251,7 @@
           "callbacks": []
         },
         {
-          "uuid": "21ea81d1-2cfd-4754-ab21-5f92f613069b",
+          "uuid": "119eb793-6d1d-48d8-a0fe-5002c7be9a35",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"time\": \"{{body 'args.time'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -283,7 +283,7 @@
           "callbacks": []
         },
         {
-          "uuid": "24a6cbe0-4ffd-48ff-87d2-e1edb1d3c27a",
+          "uuid": "c0504edb-0ff9-4c92-8f22-f52e765f31bf",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -322,7 +322,7 @@
           "callbacks": []
         },
         {
-          "uuid": "4d4bc377-8e45-43c4-853c-551eba031400",
+          "uuid": "fca552e7-aac1-4028-92c6-9a14dc0bfa95",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -354,7 +354,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9e5a07c8-9a49-4262-a11c-bbc09635f5b6",
+          "uuid": "5fb821da-1310-4c10-8138-22d7864ead60",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -393,7 +393,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5ecff871-7146-44ad-9992-bcea42fe031e",
+          "uuid": "ae5396d6-83e1-4ec7-9148-50fcff468933",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -425,7 +425,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0a415a85-5ccb-4d6d-9d06-a51256de269d",
+          "uuid": "eb576b22-ad1b-449c-be4b-ae8e5b430814",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CALLBA-{{now 't'}}\",\n  \"tool\": \"callback_datetime\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -454,15 +454,15 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "2df4ddae-068e-4d64-87f5-f1870e2cc9d9",
+      "uuid": "500635b6-b372-43c4-984b-58ed6e7a6938",
       "type": "http",
       "documentation": "check_account_status — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/check_account_status",
       "responses": [
         {
-          "uuid": "041d5519-e8ea-48cb-9697-841080d87e7a",
-          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"2026-05-08 (Friday)\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
+          "uuid": "a84118ac-5513-4bc1-9927-3f0519c569d1",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"upcoming\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
           "label": "AEON: ok",
@@ -493,8 +493,8 @@
           "callbacks": []
         },
         {
-          "uuid": "f221cc72-c91e-473d-ac79-4aa5fcc9f323",
-          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"2026-05-15 (Friday)\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "uuid": "cd4772a2-4ecd-4ff1-9abf-0e5898befb3a",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
           "label": "KBANK: ok",
@@ -525,8 +525,8 @@
           "callbacks": []
         },
         {
-          "uuid": "564a4b65-5ce5-4ba2-9fea-75860937fed1",
-          "body": "{\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"2026-05-15 (Friday)\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "uuid": "ab0e8ae7-4ffe-4f98-81fb-2571fb3ece5e",
+          "body": "{\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
           "label": "SKL: ok",
@@ -557,7 +557,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5c08368f-f6b4-421b-9121-c394e5601404",
+          "uuid": "f5e2bfb8-934c-4cf2-b30f-c753a3d1893a",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_account_status\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -586,54 +586,15 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "4f8c84cc-22a4-499c-be6b-2558a8d7433a",
+      "uuid": "7d980e24-8088-4ad2-9592-0ff3cb0639e0",
       "type": "http",
       "documentation": "check_doctor_time — declared by AMT",
       "method": "post",
       "endpoint": ":company/check_doctor_time",
       "responses": [
         {
-          "uuid": "8e6f5b51-a0e9-47fc-a801-d4e641f889b7",
-          "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
-          "latency": 0,
-          "statusCode": 200,
-          "label": "AMT: date not canonical",
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "bodyType": "INLINE",
-          "filePath": "",
-          "databucketID": "",
-          "sendFileAsBody": false,
-          "rules": [
-            {
-              "target": "params",
-              "modifier": "company",
-              "value": "AMT",
-              "operator": "equals",
-              "invert": false
-            },
-            {
-              "target": "body",
-              "modifier": "args.date",
-              "value": "^\\d{4}-\\d{2}-\\d{2} \\(\\w+\\)$",
-              "operator": "regex",
-              "invert": true
-            }
-          ],
-          "rulesOperator": "AND",
-          "disableTemplating": false,
-          "fallbackTo404": false,
-          "default": false,
-          "crudKey": "id",
-          "callbacks": []
-        },
-        {
-          "uuid": "5819fc54-403b-4fb5-9ff3-8b96ee5e0dec",
-          "body": "{\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"available_dates\": [\n    \"2026-05-25 (Monday)\",\n    \"2026-05-26 (Tuesday)\",\n    \"2026-05-27 (Wednesday)\"\n  ],\n  \"available_dates_text\": \"วันจันทร์ที่ 25 พฤษภาคม 2026 / วันอังคารที่ 26 พฤษภาคม 2026 / วันพุธที่ 27 พฤษภาคม 2026\"\n}",
+          "uuid": "f998fc15-9ad4-422c-b082-b342b8013332",
+          "body": "{\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"name\": \"{{body 'args.name'}}\",\n  \"available_dates\": [\n    \"{{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='EEEE'}})\"\n  ],\n  \"available_dates_text\": \"วันจันทร์ที่ {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='M') 1)}} {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy'}} / วันอังคารที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy'}} / วันพุธที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
           "label": "AMT: ok",
@@ -664,7 +625,7 @@
           "callbacks": []
         },
         {
-          "uuid": "51f162a1-50ea-4a81-b2e1-a07b73cc9a20",
+          "uuid": "ec707626-1253-4077-8109-ab2c09d17d52",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_doctor_time\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -693,14 +654,160 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "493949b1-842c-43c4-a6e4-c59f92167e0b",
+      "uuid": "b839a636-5f87-4b3e-843d-a09dec96f315",
+      "type": "http",
+      "documentation": "check_new_date — declared by SHOP",
+      "method": "post",
+      "endpoint": ":company/check_new_date",
+      "responses": [
+        {
+          "uuid": "9fadbb07-b4a5-43bc-96f3-5b9502931abb",
+          "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP: date not canonical",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "args.date",
+              "value": "^\\d{4}-\\d{2}-\\d{2} \\(\\w+\\)$",
+              "operator": "regex",
+              "invert": true
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "f0ce767f-7648-4c60-b208-8bf20a56b25a",
+          "body": "{\n  \"date\": \"{{body 'args.date'}}\",\n  \"in_range\": true,\n  \"max_extend_days\": 7,\n  \"new_date\": \"{{body 'args.date'}}\",\n  \"valid_dates\": [\n    \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=2 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=4 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=5 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=6 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=7 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=8 format='yyyy-MM-dd (EEEE)'}}\"\n  ]\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP: อยู่ในเกณฑ์ (due_date + max_extend_days)",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "args.date",
+              "value": "^(2026-08-28|2026-08-29|2026-08-30|2026-08-31|2026-09-01|2026-09-02|2026-09-03|2026-09-04)",
+              "operator": "regex",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "bb464461-5e13-46b4-8023-091c2a6cbdf0",
+          "body": "{\n  \"date\": \"{{body 'args.date'}}\",\n  \"in_range\": false,\n  \"valid_dates\": [],\n  \"max_extend_days\": 7,\n  \"note\": \"เกินเกณฑ์ที่ร้านรับได้\",\n  \"new_date\": \"\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP: default",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "99ed26a2-d28f-438d-868e-638b547d14f5",
+          "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_new_date\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "generic (no company-specific rule)",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": true,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    },
+    {
+      "uuid": "20c8b870-8e56-43ed-b71a-e6a8b0553651",
       "type": "http",
       "documentation": "get_current_datetime — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/get_current_datetime",
       "responses": [
         {
-          "uuid": "4751d7dd-3f0f-4195-912b-c1fe704da8b4",
+          "uuid": "26d90d99-d25d-4153-8291-dd583b988403",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -732,7 +839,7 @@
           "callbacks": []
         },
         {
-          "uuid": "aa3f60eb-8442-46eb-98c0-8cf488079b9e",
+          "uuid": "a65939bc-0f20-46bc-9cf3-d232097c9681",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -764,7 +871,7 @@
           "callbacks": []
         },
         {
-          "uuid": "62cc1a1d-253e-49f1-9daf-a94853e6f8c4",
+          "uuid": "529388f8-b082-4ceb-be0b-d862fccb6529",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -796,7 +903,7 @@
           "callbacks": []
         },
         {
-          "uuid": "93794780-8f76-4a82-96e6-fb7a57f3f345",
+          "uuid": "32ab0dba-3fa3-40d0-a862-c56d3ac490e4",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"GET_CU-{{now 't'}}\",\n  \"tool\": \"get_current_datetime\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -825,82 +932,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "a86717b0-8f77-4f10-aef6-861fc12487f5",
-      "type": "http",
-      "documentation": "notify_crm — declared by NEWCO",
-      "method": "post",
-      "endpoint": ":company/notify_crm",
-      "responses": [
-        {
-          "uuid": "168fcd93-0c9d-41c4-841e-0653d0b07312",
-          "body": "{\n  \"recorded\": true,\n  \"notify_crm_id\": \"NOT-{{now 't'}}\"\n}",
-          "latency": 0,
-          "statusCode": 200,
-          "label": "NEWCO: ok",
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "bodyType": "INLINE",
-          "filePath": "",
-          "databucketID": "",
-          "sendFileAsBody": false,
-          "rules": [
-            {
-              "target": "params",
-              "modifier": "company",
-              "value": "NEWCO",
-              "operator": "equals",
-              "invert": false
-            }
-          ],
-          "rulesOperator": "AND",
-          "disableTemplating": false,
-          "fallbackTo404": false,
-          "default": false,
-          "crudKey": "id",
-          "callbacks": []
-        },
-        {
-          "uuid": "e7bee894-8cf7-4c2d-a071-646218d7030a",
-          "body": "{\n  \"ok\": true,\n  \"ref\": \"NOTIFY-{{now 't'}}\",\n  \"tool\": \"notify_crm\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
-          "latency": 0,
-          "statusCode": 200,
-          "label": "generic (no company-specific rule)",
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "bodyType": "INLINE",
-          "filePath": "",
-          "databucketID": "",
-          "sendFileAsBody": false,
-          "rules": [],
-          "rulesOperator": "AND",
-          "disableTemplating": false,
-          "fallbackTo404": false,
-          "default": true,
-          "crudKey": "id",
-          "callbacks": []
-        }
-      ],
-      "responseMode": null,
-      "streamingMode": null,
-      "streamingInterval": 0
-    },
-    {
-      "uuid": "a94566b1-b8bd-471e-9fa5-6c195c1444eb",
+      "uuid": "65fbe333-93b6-461c-b22f-298f0e274407",
       "type": "http",
       "documentation": "payment_date — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/payment_date",
       "responses": [
         {
-          "uuid": "d75ad83a-cd35-4ff5-8d58-bdc4c3af72d4",
+          "uuid": "420e1d25-f394-4eea-a09a-bc41cc3e7be2",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -939,7 +978,7 @@
           "callbacks": []
         },
         {
-          "uuid": "eba6aa24-b7fe-4cd3-8f3f-2fde77065ed3",
+          "uuid": "8ab18215-ef38-452c-98c0-b1fdbec384ff",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -985,7 +1024,7 @@
           "callbacks": []
         },
         {
-          "uuid": "c92e3596-d523-48c8-aad2-ac46df212845",
+          "uuid": "a39a0b7e-aef7-4411-be85-8690faa0fdb2",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1017,7 +1056,7 @@
           "callbacks": []
         },
         {
-          "uuid": "c7aa6019-16e6-4637-ae84-774ddc3ae540",
+          "uuid": "939e1c30-039b-4dd5-97a6-2cc53d48a67f",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1056,7 +1095,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e26dfcc5-b505-4ba4-a68b-5bf8af84f41f",
+          "uuid": "ac849fe2-188a-4853-9c5c-e9c28ab8c45a",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1102,7 +1141,7 @@
           "callbacks": []
         },
         {
-          "uuid": "2286e2db-08b0-4900-b3a0-5eab9665bdfb",
+          "uuid": "b12c8a1a-dd6d-4f38-87b4-bfa5217b09d5",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1134,7 +1173,7 @@
           "callbacks": []
         },
         {
-          "uuid": "894f5df1-057a-4403-912a-feba192d0867",
+          "uuid": "8d69e177-ffaa-44db-9fb5-fda21dc87752",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1173,7 +1212,7 @@
           "callbacks": []
         },
         {
-          "uuid": "341601a9-8737-44ab-97c2-6ef7a922f8b2",
+          "uuid": "53b61b0b-564e-440b-ac5c-ad87c70360ce",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1219,7 +1258,7 @@
           "callbacks": []
         },
         {
-          "uuid": "cb00df90-91c3-4a16-bf71-d15d65b195d3",
+          "uuid": "d15cebea-c681-4f76-bd72-e60075e398ec",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1251,7 +1290,7 @@
           "callbacks": []
         },
         {
-          "uuid": "72e2fbf9-2a71-4a30-b6d4-6a2fb6172cf5",
+          "uuid": "2a977c77-2f8e-4fdd-9f75-336038d122c4",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"PAYMEN-{{now 't'}}\",\n  \"tool\": \"payment_date\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1280,14 +1319,167 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "d1086600-ed3d-4e07-a7a2-70ab13fe3717",
+      "uuid": "a08f6959-dc23-46c6-b5ad-bd70c408e526",
       "type": "http",
-      "documentation": "record_outcome — declared by AEON, KBANK, NEWCO, SKL",
+      "documentation": "record_call_result — declared by SHOP",
+      "method": "post",
+      "endpoint": ":company/record_call_result",
+      "responses": [
+        {
+          "uuid": "f3181b03-689b-41fd-8537-f558562a864d",
+          "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"new_date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.new_date'}}\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP: new_date not canonical",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "args.new_date",
+              "value": "",
+              "operator": "null",
+              "invert": true
+            },
+            {
+              "target": "body",
+              "modifier": "args.new_date",
+              "value": "^\\d{4}-\\d{2}-\\d{2} \\(\\w+\\)$",
+              "operator": "regex",
+              "invert": true
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "9a66d3a2-a13c-4c35-b8b1-8848a82fef4c",
+          "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"confirmed\",\n    \"rescheduled\",\n    \"paid_claimed\",\n    \"handoff\",\n    \"unreachable\"\n  ]\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP: result out of vocabulary",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "args.result",
+              "value": "^(confirmed|rescheduled|paid_claimed|handoff|unreachable)$",
+              "operator": "regex",
+              "invert": true
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "6f71c56d-215d-4b64-89ba-6722edb52cb4",
+          "body": "{\n  \"recorded\": true,\n  \"record_call_result_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"new_date\": \"{{body 'args.new_date'}}\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP: ok",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "318c3266-af10-435d-b458-993240217e40",
+          "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_call_result\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "generic (no company-specific rule)",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": true,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    },
+    {
+      "uuid": "f1e309fd-8e66-4792-b3b8-4df63bcadc9d",
+      "type": "http",
+      "documentation": "record_outcome — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/record_outcome",
       "responses": [
         {
-          "uuid": "028693da-0bf5-4722-b1fe-a7029998dc8a",
+          "uuid": "df5fe28f-4ef7-4ba9-88de-7a8f7d71284f",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1326,7 +1518,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f1ad225c-5f19-4dde-a30a-ee5e1e673ce7",
+          "uuid": "a07c64b8-0283-417a-b5f7-9a9d6d1f6624",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1358,7 +1550,7 @@
           "callbacks": []
         },
         {
-          "uuid": "b624dd48-f8be-4126-8c33-776fd36bcbe3",
+          "uuid": "c8db9e6b-4563-4ce4-9092-d27d1dfaa595",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1397,7 +1589,7 @@
           "callbacks": []
         },
         {
-          "uuid": "02bdf0c9-63b4-4b5d-b8da-bf9f40fd6269",
+          "uuid": "3cbcd2d9-13f3-4de6-b911-d7327d15afe1",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1429,39 +1621,7 @@
           "callbacks": []
         },
         {
-          "uuid": "570b0ed8-cad3-4b79-b442-65ea5c8d26ec",
-          "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\"\n}",
-          "latency": 0,
-          "statusCode": 200,
-          "label": "NEWCO: ok",
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            }
-          ],
-          "bodyType": "INLINE",
-          "filePath": "",
-          "databucketID": "",
-          "sendFileAsBody": false,
-          "rules": [
-            {
-              "target": "params",
-              "modifier": "company",
-              "value": "NEWCO",
-              "operator": "equals",
-              "invert": false
-            }
-          ],
-          "rulesOperator": "AND",
-          "disableTemplating": false,
-          "fallbackTo404": false,
-          "default": false,
-          "crudKey": "id",
-          "callbacks": []
-        },
-        {
-          "uuid": "ecfb3e84-e3c6-41a0-bc61-d4a67a69c5fc",
+          "uuid": "88099514-bfb5-4bbc-9a54-eecd0ea1855c",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1500,7 +1660,7 @@
           "callbacks": []
         },
         {
-          "uuid": "4db537c7-2c43-4611-85c9-2dffb2e7d8ea",
+          "uuid": "8033dd43-5017-4d83-9185-646f2440d2df",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1532,7 +1692,7 @@
           "callbacks": []
         },
         {
-          "uuid": "d825bd99-bd2f-43f5-a0cf-de07e47af3c3",
+          "uuid": "dac98a88-8844-4e2a-ba49-cd5ba917ea35",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_outcome\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1561,14 +1721,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "cd33f4f8-52e0-469d-9aeb-cde2ffa497e8",
+      "uuid": "c5ce93b3-ed32-4348-88fd-3371252f0407",
       "type": "http",
       "documentation": "record_verbal_commitment — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/record_verbal_commitment",
       "responses": [
         {
-          "uuid": "37a39f73-3718-4e32-941f-15b81db3c02e",
+          "uuid": "5ad6a68f-9614-4936-8b9b-d94eb0b90ca3",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1607,7 +1767,7 @@
           "callbacks": []
         },
         {
-          "uuid": "94567c0b-9e6d-4942-a764-d63556dcda1e",
+          "uuid": "a979c8da-a79e-4b02-afd9-03cd2740b721",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1653,7 +1813,7 @@
           "callbacks": []
         },
         {
-          "uuid": "2443a0a8-2538-4535-b664-ceb28522fd2a",
+          "uuid": "c2e5d75a-4672-4e01-a76c-b7c43b6fcfd4",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1685,7 +1845,7 @@
           "callbacks": []
         },
         {
-          "uuid": "d923f165-ed7e-487c-887e-9056ba1d4d9f",
+          "uuid": "b5da29b4-9ff3-46ae-bf20-d900517bcd6a",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1724,7 +1884,7 @@
           "callbacks": []
         },
         {
-          "uuid": "7e687e18-3f8e-4eaf-984e-80035f208735",
+          "uuid": "27522f4d-1eb0-4249-91ef-47fcfd33bd4f",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1770,7 +1930,7 @@
           "callbacks": []
         },
         {
-          "uuid": "3462ccd4-9173-4f91-ad80-f5af3d02fbd5",
+          "uuid": "7409445b-b9ef-419f-8442-f047b5146cd4",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1802,7 +1962,7 @@
           "callbacks": []
         },
         {
-          "uuid": "56f48429-5787-493e-a2a0-be7df2e00250",
+          "uuid": "00a32f67-f7cb-4ab8-b97e-7ccd7a1fc61f",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1841,7 +2001,7 @@
           "callbacks": []
         },
         {
-          "uuid": "688be7c9-f89d-411c-89fa-0887e70e1bc6",
+          "uuid": "3f6cbfde-eeed-49d1-aed8-cfdeccf6e804",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1887,7 +2047,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ba65ea14-e053-4794-8a03-8929be85e088",
+          "uuid": "1b1fbff3-077f-4c6b-9965-987f3112b343",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1919,7 +2079,7 @@
           "callbacks": []
         },
         {
-          "uuid": "aa3e8ac1-75a7-4c6b-8d93-2ee0e7320f29",
+          "uuid": "945f2985-0765-4db3-bf0a-d772a98e6d09",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_verbal_commitment\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1948,14 +2108,60 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "bd3b701a-8f7c-4473-ba05-a6aa22c2f503",
+      "uuid": "9760540e-43c8-4b8f-b409-3f297f7b5f33",
       "type": "http",
       "documentation": "save_appointment — declared by AMT",
       "method": "post",
       "endpoint": ":company/save_appointment",
       "responses": [
         {
-          "uuid": "5a8f9d3d-ed34-482b-a224-e4231030392b",
+          "uuid": "49b77214-c614-4a76-8732-9d8d07cd0913",
+          "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"new_slot\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.new_slot'}}\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AMT: new_slot not canonical",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AMT",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "args.new_slot",
+              "value": "",
+              "operator": "null",
+              "invert": true
+            },
+            {
+              "target": "body",
+              "modifier": "args.new_slot",
+              "value": "^\\d{4}-\\d{2}-\\d{2} \\(\\w+\\)$",
+              "operator": "regex",
+              "invert": true
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "71ef8aa3-3e98-4bb5-a375-c272541d901e",
           "body": "{\n  \"error\": \"invalid_status\",\n  \"got\": \"{{body 'args.status'}}\",\n  \"valid\": [\n    \"confirmed\",\n    \"rescheduled\",\n    \"cancelled\",\n    \"unreachable\",\n    \"unresolved\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1994,7 +2200,7 @@
           "callbacks": []
         },
         {
-          "uuid": "7907ecd7-f0f6-4f3f-ada0-2f24e65420d5",
+          "uuid": "f67c2067-68a8-4c5c-b815-114f8e1a7139",
           "body": "{\n  \"recorded\": true,\n  \"save_appointment_id\": \"SAV-{{now 't'}}\",\n  \"status\": \"{{body 'args.status'}}\",\n  \"new_slot\": \"{{body 'args.new_slot'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2026,7 +2232,7 @@
           "callbacks": []
         },
         {
-          "uuid": "8777d2a2-f0ed-4f0e-90d8-7e3a4348713e",
+          "uuid": "ecb52dc0-2247-4465-b18b-813df594481a",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"SAVE_A-{{now 't'}}\",\n  \"tool\": \"save_appointment\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2055,14 +2261,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "30006d9d-eb9d-4dc8-a89d-147816f7dcc5",
+      "uuid": "3b90dd8b-1840-4b68-87f4-886e5b50ee06",
       "type": "http",
       "documentation": "update_phone — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/update_phone",
       "responses": [
         {
-          "uuid": "99aadf86-3763-4f49-a4bf-4a33c6476ff9",
+          "uuid": "29d5ab6a-2729-4d9e-b6d3-d1b1e122a51f",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2094,7 +2300,7 @@
           "callbacks": []
         },
         {
-          "uuid": "92b9ac39-dee7-49fa-85bb-fe688c7747a4",
+          "uuid": "bade8b77-2404-425f-a94c-7fbe666e44f9",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2126,7 +2332,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ce69e316-3c29-40c2-967d-8a5e9c62063d",
+          "uuid": "289246be-20da-46d2-b4ad-2ca4145fdb5a",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2158,7 +2364,7 @@
           "callbacks": []
         },
         {
-          "uuid": "bcd541fb-c20e-4e3c-9757-de4499b6a1d2",
+          "uuid": "bb7b8933-2c54-4a3e-b906-0bbf5238873a",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"UPDATE-{{now 't'}}\",\n  \"tool\": \"update_phone\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2190,47 +2396,51 @@
   "rootChildren": [
     {
       "type": "route",
-      "uuid": "d205c817-90e6-465b-be0b-2992807329bf"
+      "uuid": "59b859f1-f6af-47c0-adfe-742ddbb8e1fc"
     },
     {
       "type": "route",
-      "uuid": "2b424e73-f184-4b3e-8556-5c0c516b7837"
+      "uuid": "ae37e099-7892-4fd6-8d20-83663f75b5b6"
     },
     {
       "type": "route",
-      "uuid": "2df4ddae-068e-4d64-87f5-f1870e2cc9d9"
+      "uuid": "500635b6-b372-43c4-984b-58ed6e7a6938"
     },
     {
       "type": "route",
-      "uuid": "4f8c84cc-22a4-499c-be6b-2558a8d7433a"
+      "uuid": "7d980e24-8088-4ad2-9592-0ff3cb0639e0"
     },
     {
       "type": "route",
-      "uuid": "493949b1-842c-43c4-a6e4-c59f92167e0b"
+      "uuid": "b839a636-5f87-4b3e-843d-a09dec96f315"
     },
     {
       "type": "route",
-      "uuid": "a86717b0-8f77-4f10-aef6-861fc12487f5"
+      "uuid": "20c8b870-8e56-43ed-b71a-e6a8b0553651"
     },
     {
       "type": "route",
-      "uuid": "a94566b1-b8bd-471e-9fa5-6c195c1444eb"
+      "uuid": "65fbe333-93b6-461c-b22f-298f0e274407"
     },
     {
       "type": "route",
-      "uuid": "d1086600-ed3d-4e07-a7a2-70ab13fe3717"
+      "uuid": "a08f6959-dc23-46c6-b5ad-bd70c408e526"
     },
     {
       "type": "route",
-      "uuid": "cd33f4f8-52e0-469d-9aeb-cde2ffa497e8"
+      "uuid": "f1e309fd-8e66-4792-b3b8-4df63bcadc9d"
     },
     {
       "type": "route",
-      "uuid": "bd3b701a-8f7c-4473-ba05-a6aa22c2f503"
+      "uuid": "c5ce93b3-ed32-4348-88fd-3371252f0407"
     },
     {
       "type": "route",
-      "uuid": "30006d9d-eb9d-4dc8-a89d-147816f7dcc5"
+      "uuid": "9760540e-43c8-4b8f-b409-3f297f7b5f33"
+    },
+    {
+      "type": "route",
+      "uuid": "3b90dd8b-1840-4b68-87f4-886e5b50ee06"
     }
   ],
   "proxyMode": false,
