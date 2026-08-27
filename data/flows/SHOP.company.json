@@ -18,7 +18,7 @@
   "max_extend_days": "เลื่อนได้ไม่เกิน (วัน)"
  },
  "session_init": {
-  "url": "{API_BASE}/SHOP/init",
+  "url": "{API_BASE}/SHOP/init?msisdn={msisdn}",
   "method": "GET",
   "timeout": 8,
   "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ",

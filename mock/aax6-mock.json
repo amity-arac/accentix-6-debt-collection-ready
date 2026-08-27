@@ -1,5 +1,5 @@
 {
-  "uuid": "d04e3b5b-e4e3-4985-8286-c3aa0d515051",
+  "uuid": "72c17f5b-dc5f-40c9-bbf2-ab741304d3fb",
   "lastMigration": 33,
   "name": "AAX6 mock backend",
   "endpointPrefix": "",
@@ -9,18 +9,1539 @@
   "folders": [],
   "routes": [
     {
-      "uuid": "724f2692-200c-483e-a3c8-4df093115e4c",
+      "uuid": "196bd7d4-4edb-46b8-b666-1d309c403e18",
       "type": "http",
       "documentation": "Call context fetched once at session start (spec.session_init)",
       "method": "get",
       "endpoint": ":company/init",
       "responses": [
         {
-          "uuid": "1dacf329-2ceb-4782-929a-ed0662790896",
+          "uuid": "150aab2e-40c7-4ad0-90dd-97e6b87ebfbb",
+          "body": "{\n  \"customer_name\": \"วีระ ตรงเวลา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"upcoming\",\n  \"customer_phone\": \"081-555-7777\",\n  \"msisdn\": \"081-555-7777\",\n  \"last_4_digits\": \"7777\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"อิอ้อน\",\n  \"agent_name\": \"น้องอิ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 081-555-7777",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "081-555-7777",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "cf5ef911-8c5b-44c0-88e1-51829923b387",
+          "body": "{\n  \"customer_name\": \"สมชาย วงศ์ตระกูล\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-976-3347\",\n  \"last_4_digits\": \"4275\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้าร้องเรียนเรื่องค่าธรรมเนียมแฝงและยอดเรียกเก็บสูงผิดปกติ\",\n  \"msisdn\": \"06-976-3347\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-14 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-976-3347",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-976-3347",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "653badd5-cdf8-4039-a9a9-0b75769fba24",
+          "body": "{\n  \"customer_name\": \"ธนากร พิทักษ์ชน\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-693-5137\",\n  \"last_4_digits\": \"3956\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-693-5137\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-693-5137",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-693-5137",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "c0a4c5bd-7ef9-4f16-b0ab-5cc178c1efa1",
+          "body": "{\n  \"customer_name\": \"ประยุทธ มั่นคงดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-859-6960\",\n  \"last_4_digits\": \"9891\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-859-6960\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-39 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-859-6960",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-859-6960",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "39aa2db8-5624-4398-96f0-c615a7b0e32f",
+          "body": "{\n  \"customer_name\": \"นภาพร ทองอินทร์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-280-6017\",\n  \"last_4_digits\": \"1844\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-280-6017\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-280-6017",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-280-6017",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "ba801624-55d2-41d6-a033-6a14c735d8d4",
+          "body": "{\n  \"customer_name\": \"ปิ่นมณี ใจดีงาม\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 15000,\n  \"minimum_payment_due\": 1500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-892-4731\",\n  \"last_4_digits\": \"4180\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-892-4731\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-37 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-892-4731",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-892-4731",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "1ace06f4-5243-452e-b7fb-191b27f0d343",
+          "body": "{\n  \"customer_name\": \"อนุชา สายส่งด่วน\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-797-4619\",\n  \"last_4_digits\": \"4674\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-797-4619\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-797-4619",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-797-4619",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "50f20bbd-5ded-4b24-bffd-deb0103f29b9",
+          "body": "{\n  \"customer_name\": \"อรอนงค์ บัญชีพิสุทธิ์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-116-0346\",\n  \"last_4_digits\": \"2579\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้ารอตรวจสอบเอกสารใบแจ้งหนี้และรายละเอียดการคำนวณดอกเบี้ย\",\n  \"msisdn\": \"06-116-0346\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-116-0346",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-116-0346",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "f94e0f7b-88cc-445e-96c3-7704aa09f6ee",
+          "body": "{\n  \"customer_name\": \"ธนกฤต วงศ์ไพบูลย์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-444-5258\",\n  \"last_4_digits\": \"7824\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-444-5258\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-444-5258",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-444-5258",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "4ff177cd-8190-4288-9e55-b8c2cada3e4b",
+          "body": "{\n  \"customer_name\": \"ปาริชาติ บุญมาก\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-955-4833\",\n  \"last_4_digits\": \"3338\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-955-4833\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-26 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-955-4833",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-955-4833",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "84289120-8d2a-4552-9c87-4e58463f170d",
+          "body": "{\n  \"customer_name\": \"อรปรียา จันทร์เพ็ญ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-369-1455\",\n  \"last_4_digits\": \"8090\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-369-1455\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-369-1455",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-369-1455",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "80790719-abf8-4b90-8c2e-cf12645ef2dc",
+          "body": "{\n  \"customer_name\": \"วรเมธ อินทรประเสริฐ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-204-5657\",\n  \"last_4_digits\": \"5300\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-204-5657\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-34 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-204-5657",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-204-5657",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "7dfebb0c-6d96-402e-b6d4-8f3fdccb9cd3",
+          "body": "{\n  \"customer_name\": \"ภาณุพงศ์ ใจดีงาม\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-310-6509\",\n  \"last_4_digits\": \"1391\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-310-6509\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-310-6509",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-310-6509",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "c019ecf0-88fc-4c02-9914-1b74f593c30b",
+          "body": "{\n  \"customer_name\": \"สมหญิง รัตนพิพัฒน์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-239-9894\",\n  \"last_4_digits\": \"3542\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-239-9894\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-239-9894",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-239-9894",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "c16a9865-c695-45bf-98d4-fd5a6aa8f810",
+          "body": "{\n  \"customer_name\": \"ธนกฤต ขจรเดช\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-477-0311\",\n  \"last_4_digits\": \"4111\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-477-0311\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-477-0311",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-477-0311",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "809aa4fd-7fba-47d4-960d-9deb036e9795",
+          "body": "{\n  \"customer_name\": \"ธนกฤต ภูมิวัฒน์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-578-3464\",\n  \"last_4_digits\": \"9388\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-578-3464\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-578-3464",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-578-3464",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "6fec2293-2513-4dbf-994a-3f0925d3ea59",
+          "body": "{\n  \"customer_name\": \"ศิริพร นาคทอง\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4250,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-945-0611\",\n  \"last_4_digits\": \"3884\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-945-0611\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-32 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-945-0611",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-945-0611",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "fc95bf59-32e0-4130-9c65-01efcf51b34b",
+          "body": "{\n  \"customer_name\": \"ณัฐริกา ใจดีงาม\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-354-3074\",\n  \"last_4_digits\": \"5714\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-354-3074\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-9 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-354-3074",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-354-3074",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "1ec72d6d-3726-428e-9287-1acecb0019a3",
+          "body": "{\n  \"customer_name\": \"James Wilson\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-612-2778\",\n  \"last_4_digits\": \"5542\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-612-2778\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-22 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-612-2778",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-612-2778",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "5a30091c-41a8-46e9-bd67-4d80250c27ee",
+          "body": "{\n  \"customer_name\": \"ประยุทธ์ ศรีสุวรรณ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-676-4457\",\n  \"last_4_digits\": \"9794\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-676-4457\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-676-4457",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-676-4457",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "acd7985e-fdcb-46a3-aa4c-c54a3543112b",
+          "body": "{\n  \"customer_name\": \"วิชัย ตั้งจิตเจริญ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 15000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-151-6225\",\n  \"last_4_digits\": \"8051\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-151-6225\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-151-6225",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-151-6225",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "20f45603-2b60-40a4-a934-02a84b9975e8",
+          "body": "{\n  \"customer_name\": \"ธีรภัทร อินทรประเสริฐ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-724-4664\",\n  \"last_4_digits\": \"2549\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-724-4664\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-30 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-724-4664",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-724-4664",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "a7c97574-57ed-4763-84de-7505edc0731f",
+          "body": "{\n  \"customer_name\": \"สมชาย ทองแท้\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 1500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-762-3210\",\n  \"last_4_digits\": \"3272\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-762-3210\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-12 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-762-3210",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-762-3210",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "fe47e228-956f-43ea-8f6f-38c07963ec24",
+          "body": "{\n  \"customer_name\": \"นายวิชัย ใจตรง\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-917-7655\",\n  \"last_4_digits\": \"6505\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้าแจ้งว่าปิดบัญชีไปแล้วเมื่อ 2 ปีก่อน ต้องตรวจสอบประวัติการชำระเงินและสถานะบัญชี\",\n  \"msisdn\": \"06-917-7655\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-917-7655",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-917-7655",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "19625121-b6b1-4b83-bc00-ba7bd97a7661",
+          "body": "{\n  \"customer_name\": \"สมศักดิ์ มีสุข\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-270-6758\",\n  \"last_4_digits\": \"6582\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-270-6758\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-25 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-270-6758",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-270-6758",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "89f65dd8-ea3d-4041-9a4e-fa67425467c1",
+          "body": "{\n  \"customer_name\": \"ธนวัฒน์ มณีรัตน์\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 3500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-114-4207\",\n  \"last_4_digits\": \"0504\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-114-4207\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-114-4207",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-114-4207",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "de75ecf1-a750-461f-b669-65608a998a7d",
+          "body": "{\n  \"customer_name\": \"นายธนชัย แสงสุวรรณ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 120000,\n  \"minimum_payment_due\": 6500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-033-2273\",\n  \"last_4_digits\": \"4532\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-033-2273\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-18 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-033-2273",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-033-2273",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "9a7cbc8c-e2c2-495b-a2ed-c43d2b381829",
+          "body": "{\n  \"customer_name\": \"นายพงศกร สุขเจริญ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-500-2443\",\n  \"last_4_digits\": \"9989\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-500-2443\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-500-2443",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-500-2443",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "ff6a5f0c-2a86-492a-b4ff-da195aec6b13",
+          "body": "{\n  \"customer_name\": \"นายเอกชัย วัฒนกุล\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-842-9809\",\n  \"last_4_digits\": \"5364\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-842-9809\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-842-9809",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-842-9809",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "29671555-9c3a-4238-80a6-47965c79fdc3",
+          "body": "{\n  \"customer_name\": \"สุรศักดิ์ เจริญสุข\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-437-4636\",\n  \"last_4_digits\": \"6784\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-437-4636\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-19 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-437-4636",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-437-4636",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "67c44e8e-5a4e-497c-abe3-db01a4724e92",
+          "body": "{\n  \"customer_name\": \"นายประวิทย์ ศรีสมบูรณ์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-113-9378\",\n  \"last_4_digits\": \"6389\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-113-9378\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-113-9378",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-113-9378",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "f4ac6ef9-764f-44f6-8279-b574b2f4a34d",
+          "body": "{\n  \"customer_name\": \"นางสาวอัญชลี วรรณวิไล\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-290-9994\",\n  \"last_4_digits\": \"9101\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-290-9994\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-290-9994",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-290-9994",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "1a9a25ec-6222-424c-8f82-c197ae3b7c05",
+          "body": "{\n  \"customer_name\": \"นายสุธี มงคลชัย\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-818-1575\",\n  \"last_4_digits\": \"2569\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-818-1575\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-818-1575",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-818-1575",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "b85f1162-9447-49f1-bce7-2b459113e2b1",
+          "body": "{\n  \"customer_name\": \"นางสาวกรรณิกา สุวรรณภูมิ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-989-7223\",\n  \"last_4_digits\": \"8311\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-989-7223\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-989-7223",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-989-7223",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "0a9e8701-e212-4078-a86b-d5a38282b348",
+          "body": "{\n  \"customer_name\": \"นางสาวพรทิพย์ เลิศลักษณ์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-404-6853\",\n  \"last_4_digits\": \"5453\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้าร้องเรียนและปฏิเสธการจ่ายค่าธรรมเนียมรายปีและค่าปรับล่าช้า\",\n  \"msisdn\": \"06-404-6853\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-404-6853",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-404-6853",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "be01ad20-cad4-4d88-b9ef-b0f2c040127b",
+          "body": "{\n  \"customer_name\": \"ดำรง จันทร์แจ่ม\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 154333,\n  \"minimum_payment_due\": 15433,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-025-0129\",\n  \"last_4_digits\": \"9916\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-025-0129\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-025-0129",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-025-0129",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "86c11c56-ba42-4100-bcc4-501662c9fda8",
+          "body": "{\n  \"customer_name\": \"กฤษณะ อัครเดช\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 58000,\n  \"minimum_payment_due\": 5800,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-993-9322\",\n  \"last_4_digits\": \"0655\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"เฝ้าระวังบุคคลอื่นแอบอ้างบัญชี\",\n  \"msisdn\": \"06-993-9322\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-993-9322",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-993-9322",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "24c85ccc-f37d-487a-9926-44734f1133cc",
+          "body": "{\n  \"customer_name\": \"จิรศักดิ์ โชคดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8909,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-380-6794\",\n  \"last_4_digits\": \"9389\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-380-6794\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-380-6794",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-380-6794",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "88ef46ec-b960-4fcf-86ed-ea9892596144",
+          "body": "{\n  \"customer_name\": \"กิตติยา พรหมมา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8761,\n  \"minimum_payment_due\": 876,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-326-1630\",\n  \"last_4_digits\": \"1221\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-326-1630\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-44 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON context · 06-326-1630",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "06-326-1630",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "a9148c76-bff6-4394-9f26-19d9ec276501",
           "body": "{\n  \"customer_name\": \"วีระ ตรงเวลา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"upcoming\",\n  \"customer_phone\": \"081-555-7777\",\n  \"msisdn\": \"081-555-7777\",\n  \"last_4_digits\": \"7777\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"อิอ้อน\",\n  \"agent_name\": \"น้องอิ\",\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true\n}",
           "latency": 0,
           "statusCode": 200,
-          "label": "AEON context",
+          "label": "AEON context · default",
           "headers": [
             {
               "key": "Content-Type",
@@ -48,11 +1569,50 @@
           "callbacks": []
         },
         {
-          "uuid": "e4fca765-cd93-4c3c-9f8a-92b58df1415c",
-          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"โรงพยาบาล AMT\",\n  \"agent_name\": \"น้องAMT\",\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"appointment_date\": \"{{dateTimeShift date=(now) days=2 format='yyyy-MM-dd (EEEE)'}}\",\n  \"appointment_time\": \"10:00\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"visit_time_start\": \"10:00\",\n  \"visit_time_end\": \"11:00\",\n  \"company_phone\": \"02-514-4141\",\n  \"num\": 3\n}",
+          "uuid": "4693ef1f-4e9d-4fc7-b4e5-0ea7fcc0b5f1",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"โรงพยาบาล AMT\",\n  \"agent_name\": \"น้องAMT\",\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"appointment_time\": \"10:00\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"visit_time_start\": \"10:00\",\n  \"visit_time_end\": \"11:00\",\n  \"appointment_date\": \"{{dateTimeShift date=(now) days=-2 format='yyyy-MM-dd (EEEE)'}}\",\n  \"company_phone\": \"02-514-4141\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
-          "label": "AMT context",
+          "label": "AMT context · 081-234-5678",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AMT",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "081-234-5678",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "3208a2e3-7216-4440-ae1e-7dcf974aaa1d",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"โรงพยาบาล AMT\",\n  \"agent_name\": \"น้องAMT\",\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"appointment_time\": \"10:00\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"visit_time_start\": \"10:00\",\n  \"visit_time_end\": \"11:00\",\n  \"company_phone\": \"02-514-4141\",\n  \"num\": 3,\n  \"appointment_date\": \"{{dateTimeShift date=(now) days=-2 format='yyyy-MM-dd (EEEE)'}}\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AMT context · default",
           "headers": [
             {
               "key": "Content-Type",
@@ -80,11 +1640,50 @@
           "callbacks": []
         },
         {
-          "uuid": "bf406673-ac68-4fc2-9fb7-c3cacb5552eb",
-          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"กสิกรไทย\",\n  \"agent_name\": \"น้องKBANK\",\n  \"company_phone\": \"02-888-8888\",\n  \"num\": 3,\n  \"due_upcoming\": false\n}",
+          "uuid": "100afd05-1cf7-4871-8518-9cc21c67013b",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"กสิกรไทย\",\n  \"agent_name\": \"น้องKBANK\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-888-8888\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
-          "label": "KBANK context",
+          "label": "KBANK context · 081-234-5678",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "KBANK",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "081-234-5678",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "6f8c6876-4cd1-44ae-8225-69d698d2b0b7",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"กสิกรไทย\",\n  \"agent_name\": \"น้องKBANK\",\n  \"company_phone\": \"02-888-8888\",\n  \"num\": 3,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "KBANK context · default",
           "headers": [
             {
               "key": "Content-Type",
@@ -112,11 +1711,50 @@
           "callbacks": []
         },
         {
-          "uuid": "7a6e3130-5694-4cea-8b43-d131f12369c2",
-          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"shop_name\": \"ร้านทองเจริญ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n  \"amount\": \"3500\",\n  \"max_extend_days\": \"7\",\n  \"company_name\": \"ร้านทองเจริญ\",\n  \"agent_name\": \"น้องร้านทอง\",\n  \"company_phone\": \"02-111-2222\",\n  \"case_status\": \"normal\"\n}",
+          "uuid": "27ceb4d3-6c59-4944-a780-1bdd7184b2eb",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"shop_name\": \"ร้านทองเจริญ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n  \"amount\": \"3500\",\n  \"max_extend_days\": \"7\",\n  \"company_name\": \"ร้านทองเจริญ\",\n  \"agent_name\": \"น้องร้านทอง\",\n  \"company_phone\": \"02-111-2222\",\n  \"case_status\": \"normal\",\n  \"msisdn\": \"081-234-5678\"\n}",
           "latency": 0,
           "statusCode": 200,
-          "label": "SHOP context",
+          "label": "SHOP context · 081-234-5678",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SHOP",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "081-234-5678",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "ea77bda1-8403-4752-813c-0f73a4a1f3d7",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"shop_name\": \"ร้านทองเจริญ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n  \"amount\": \"3500\",\n  \"max_extend_days\": \"7\",\n  \"company_name\": \"ร้านทองเจริญ\",\n  \"agent_name\": \"น้องร้านทอง\",\n  \"company_phone\": \"02-111-2222\",\n  \"case_status\": \"normal\",\n  \"msisdn\": \"081-234-5678\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SHOP context · default",
           "headers": [
             {
               "key": "Content-Type",
@@ -144,11 +1782,50 @@
           "callbacks": []
         },
         {
-          "uuid": "87c7536b-1ccc-401e-aaa5-16f93b2b1abb",
-          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"สยามคูโบต้าลีสซิ่ง\",\n  \"agent_name\": \"น้องSKL\",\n  \"company_phone\": \"02-762-8888\",\n  \"num\": 3,\n  \"due_upcoming\": false\n}",
+          "uuid": "64900195-0194-43e7-885c-5316453f860a",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"สยามคูโบต้าลีสซิ่ง\",\n  \"agent_name\": \"น้องSKL\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-762-8888\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
-          "label": "SKL context",
+          "label": "SKL context · 081-234-5678",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SKL",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "081-234-5678",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "35a0ff09-c5c3-41c6-bade-c47aaac237d7",
+          "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"สยามคูโบต้าลีสซิ่ง\",\n  \"agent_name\": \"น้องSKL\",\n  \"company_phone\": \"02-762-8888\",\n  \"num\": 3,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SKL context · default",
           "headers": [
             {
               "key": "Content-Type",
@@ -176,7 +1853,7 @@
           "callbacks": []
         },
         {
-          "uuid": "30283e84-da38-43f5-8d68-c9d4362b127e",
+          "uuid": "6937a0bb-d38c-4ec2-af2b-d213880cbdda",
           "body": "{\n  \"error\": \"unknown_company\"\n}",
           "latency": 0,
           "statusCode": 404,
@@ -205,14 +1882,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "6f824858-afce-4c3d-b088-05af9eb3b221",
+      "uuid": "2a9e5e69-a55d-4f8c-a885-2336733315d8",
       "type": "http",
       "documentation": "callback_datetime — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/callback_datetime",
       "responses": [
         {
-          "uuid": "eaf39bed-6240-43d6-b154-2b285043157b",
+          "uuid": "1f05ef36-6c36-4c08-9304-95bdfdf579f7",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -251,7 +1928,7 @@
           "callbacks": []
         },
         {
-          "uuid": "997eddc9-0dcf-4ade-9af1-5ab62e787274",
+          "uuid": "38394460-92f3-4280-babc-203a3d30ba64",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"time\": \"{{body 'args.time'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -283,7 +1960,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ad7afd52-4b13-47d0-bd33-f83168f3cf61",
+          "uuid": "d57f2373-a286-4cd4-894a-cde76cf7e56a",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -322,7 +1999,7 @@
           "callbacks": []
         },
         {
-          "uuid": "23e88503-e88e-414c-bbf8-a741cf7dc433",
+          "uuid": "63442787-7422-4e0b-bb0b-9eb539f1243a",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -354,7 +2031,7 @@
           "callbacks": []
         },
         {
-          "uuid": "6e69961c-cc9d-4887-b7e2-7272aa9bad6b",
+          "uuid": "529d4840-c3fe-4d5b-bb19-9217d66ec5cd",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -393,7 +2070,7 @@
           "callbacks": []
         },
         {
-          "uuid": "8da56119-d2da-43d6-8b1e-3625bccefc30",
+          "uuid": "786ea373-b9c1-4dfe-a2e0-8e844847d289",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -425,7 +2102,7 @@
           "callbacks": []
         },
         {
-          "uuid": "16c0a93b-f81b-45b2-ba35-bcf2f8906ca2",
+          "uuid": "00a86c1a-14ac-4473-875c-fb1ee1a13a60",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CALLBA-{{now 't'}}\",\n  \"tool\": \"callback_datetime\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -454,14 +2131,1535 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "379da71f-5bd1-4ec3-8a29-4882872f53ed",
+      "uuid": "714c26b9-2d90-4376-bfc5-8afa7517d550",
       "type": "http",
       "documentation": "check_account_status — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/check_account_status",
       "responses": [
         {
-          "uuid": "2c831055-8bc9-49c2-9d3c-1be0dc90c6f5",
+          "uuid": "43dea6ce-8567-41ac-9789-07eaafc72b3c",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"upcoming\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 081-555-7777",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "081-555-7777",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "13b9d8ac-a850-4ef1-a310-05146b74feb3",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-14 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-976-3347",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-976-3347",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "dbc80a58-519b-4109-a970-90882901e336",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-693-5137",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-693-5137",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "83310b57-60ce-4320-935b-97b9507c7669",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-39 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-859-6960",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-859-6960",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "f80fc94d-109e-4f72-85d4-4bd9657d67a9",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-280-6017",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-280-6017",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "368f0fca-9b8a-499e-beb8-8182169e9a5e",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 15000,\n  \"minimum_payment_due\": 1500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-37 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-892-4731",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-892-4731",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "ad241b1c-bcca-48f9-96a7-7a39525aedb3",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-797-4619",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-797-4619",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "9160755a-a427-4db8-bd03-69f438c23d94",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-116-0346",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-116-0346",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "03227b70-fbcb-4b95-818b-c0895ee8b811",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-444-5258",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-444-5258",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "d121e138-9058-49f1-9e15-299af3dddb78",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-26 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-955-4833",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-955-4833",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "014dd2b1-2c9a-41a6-9a10-76d26c0eeae5",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-369-1455",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-369-1455",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "2ebf9080-e829-491d-bc76-01bcc4d5bd5f",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-34 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-204-5657",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-204-5657",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "92f052fe-f0f9-4dc6-a26f-652c078c39ee",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-310-6509",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-310-6509",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "3454446c-0c27-4063-b682-cf95603089dd",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-239-9894",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-239-9894",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "c957212a-a331-4e49-b713-9c5136151882",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-477-0311",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-477-0311",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "a07058ac-0b75-4255-b8a6-acbbad7e2d49",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-578-3464",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-578-3464",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "0d905577-b69f-4117-b8d6-a807bd1bc85a",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4250,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-32 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-945-0611",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-945-0611",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "fea2ee19-c996-4d5f-949e-8ce1844972d8",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-9 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-354-3074",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-354-3074",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "9184d150-1403-4c06-b88c-23ce278fb413",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-22 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-612-2778",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-612-2778",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "b92f4b43-6678-4ba5-a61a-4a4c49f70248",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-676-4457",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-676-4457",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "ce5e740c-af7d-420b-b915-18a0e2363583",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 15000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-151-6225",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-151-6225",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "500a0fcf-4cdc-44a5-a612-719804b3e7f5",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-30 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-724-4664",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-724-4664",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "a5f21449-0afc-4466-ad6e-f12ce40b64b6",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 1500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-12 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-762-3210",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-762-3210",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "abab61ce-9261-40d6-ada3-30d2f9612114",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-917-7655",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-917-7655",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "e3786995-6b2a-4bff-831b-efdac073e28b",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-25 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-270-6758",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-270-6758",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "d5f35ce2-dee0-4ea2-912c-e9141802d559",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 3500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-114-4207",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-114-4207",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "b2437251-4ec5-4c2d-8f86-ddc77e8f2649",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 120000,\n  \"minimum_payment_due\": 6500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-18 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-033-2273",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-033-2273",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "20e69d65-ef4f-41ee-bbe4-0377d08c0845",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-500-2443",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-500-2443",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "84f50659-2283-4091-9929-acf4cdc267f9",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-842-9809",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-842-9809",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "3257c005-f3cc-42af-b3e3-91cd6ef729f9",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-19 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-437-4636",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-437-4636",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "25a44f05-ec48-4e4f-ac5d-cfb21365f43c",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-113-9378",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-113-9378",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "9e289726-84e7-4c2a-9748-3b7b8d3dd0ca",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-290-9994",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-290-9994",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "1a6e0bbf-3e75-42dc-a531-25b71823aca5",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-818-1575",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-818-1575",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "c14ff788-5111-4edc-9aed-a0cb00af2497",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-989-7223",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-989-7223",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "d2f79122-6d61-4e75-ab6c-2e5ba3a98f7c",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-404-6853",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-404-6853",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "5866a0d5-1df9-4dd0-82ba-509972097841",
+          "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 154333,\n  \"minimum_payment_due\": 15433,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-025-0129",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-025-0129",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "278f9cff-8a05-4c85-8fb9-3738ad4c5d8c",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 58000,\n  \"minimum_payment_due\": 5800,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-993-9322",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-993-9322",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "2f69449d-2a01-4813-87b3-414b6af681a5",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8909,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-380-6794",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-380-6794",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "3c7fe711-0b81-4732-b8df-40913cd237c5",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8761,\n  \"minimum_payment_due\": 876,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-44 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEON: ok · 06-326-1630",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEON",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "06-326-1630",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "0a705bfb-d964-4109-bdab-020cdd162811",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"upcoming\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -493,7 +3691,46 @@
           "callbacks": []
         },
         {
-          "uuid": "897d7f1b-d111-4298-8c54-a31f7cb9fd93",
+          "uuid": "1efbe599-a726-482f-b319-c3d8a784294b",
+          "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "KBANK: ok · 081-234-5678",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "KBANK",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "081-234-5678",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "a226cb4e-dab6-4e0f-96be-2fe245c65931",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -525,7 +3762,46 @@
           "callbacks": []
         },
         {
-          "uuid": "8f5d46a5-a633-4476-88db-345e19d190c3",
+          "uuid": "7612fd85-7621-47e5-8bae-334fa86075fc",
+          "body": "{\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "SKL: ok · 081-234-5678",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "SKL",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "081-234-5678",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "8e1667f8-69d5-4fd4-bd80-eeeb70eb1586",
           "body": "{\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -557,7 +3833,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e74d5152-968b-49b4-bf85-f49dafcbc610",
+          "uuid": "d79226e9-e0d3-40f6-9e5f-8bf5e3edf053",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_account_status\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -586,14 +3862,53 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "682b5f52-1ed0-4aa0-b2d8-3b63dc749b07",
+      "uuid": "b3f8ebcb-1ee9-456c-8356-8f222bbf8e8d",
       "type": "http",
       "documentation": "check_doctor_time — declared by AMT",
       "method": "post",
       "endpoint": ":company/check_doctor_time",
       "responses": [
         {
-          "uuid": "756114ba-5b9c-444b-8614-bdafa40f6abf",
+          "uuid": "905fa16f-b359-4951-9fbb-222d5e92ca45",
+          "body": "{\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"name\": \"{{body 'args.name'}}\",\n  \"available_dates\": [\n    \"{{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='EEEE'}})\"\n  ],\n  \"available_dates_text\": \"วันจันทร์ที่ {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='M') 1)}} {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy'}} / วันอังคารที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy'}} / วันพุธที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy'}}\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AMT: ok · 081-234-5678",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AMT",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "ref.msisdn",
+              "value": "081-234-5678",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "ac577fe2-90de-4092-8323-f7c956814e57",
           "body": "{\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"name\": \"{{body 'args.name'}}\",\n  \"available_dates\": [\n    \"{{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='EEEE'}})\"\n  ],\n  \"available_dates_text\": \"วันจันทร์ที่ {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='M') 1)}} {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy'}} / วันอังคารที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy'}} / วันพุธที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -625,7 +3940,7 @@
           "callbacks": []
         },
         {
-          "uuid": "29bf9a79-febe-42d6-ac4f-9683af140030",
+          "uuid": "608b7f5e-c900-4a65-9404-8ee9ed119817",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_doctor_time\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -654,14 +3969,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "0d38ba9d-f38c-43ea-8051-4a427c698dcb",
+      "uuid": "177d8736-65f2-49de-9f30-3d842762e5b2",
       "type": "http",
       "documentation": "check_new_date — declared by SHOP",
       "method": "post",
       "endpoint": ":company/check_new_date",
       "responses": [
         {
-          "uuid": "a6586c79-7252-4981-8ae3-57f1c5bed29a",
+          "uuid": "9a43509a-19e4-4391-88b5-a7d698643197",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -700,7 +4015,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5f62384b-951b-46a9-a2e5-087300d3288b",
+          "uuid": "3f1e6322-fb0a-4b7c-97f0-770b5c73931e",
           "body": "{\n  \"date\": \"{{body 'args.date'}}\",\n  \"in_range\": true,\n  \"max_extend_days\": 7,\n  \"new_date\": \"{{body 'args.date'}}\",\n  \"valid_dates\": [\n    \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=2 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=4 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=5 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=6 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=7 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=8 format='yyyy-MM-dd (EEEE)'}}\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -739,7 +4054,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e827b48f-32ab-4846-8913-82e0bfebcb47",
+          "uuid": "e3c3dc98-faf3-4069-8dc8-736a33eec1e6",
           "body": "{\n  \"date\": \"{{body 'args.date'}}\",\n  \"in_range\": false,\n  \"valid_dates\": [],\n  \"max_extend_days\": 7,\n  \"note\": \"เกินเกณฑ์ที่ร้านรับได้\",\n  \"new_date\": \"\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -771,7 +4086,7 @@
           "callbacks": []
         },
         {
-          "uuid": "498ff08e-c1fc-491e-a03c-0733c7bba6b0",
+          "uuid": "d19b1f87-b6a1-4249-a37c-d70dc55749a0",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_new_date\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -800,14 +4115,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "46a994ad-7475-47d9-91b1-1ef403b61d49",
+      "uuid": "6b68c849-f903-4a24-b900-a7745439e3f3",
       "type": "http",
       "documentation": "get_current_datetime — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/get_current_datetime",
       "responses": [
         {
-          "uuid": "26de143c-c1ec-4254-b500-d2f3a8a23479",
+          "uuid": "28fc9037-9f4a-4b65-b9b0-99b0e2ff982a",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -839,7 +4154,7 @@
           "callbacks": []
         },
         {
-          "uuid": "230ce956-84e1-4703-baa1-3a875e7bbe93",
+          "uuid": "f900b1e1-8ea8-423a-a7ef-b12064220076",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -871,7 +4186,7 @@
           "callbacks": []
         },
         {
-          "uuid": "4af7b4b8-d64a-48cb-a577-f8f3b4d23ddc",
+          "uuid": "a854bb45-fb32-4bff-b64e-46b8f565a2dd",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -903,7 +4218,7 @@
           "callbacks": []
         },
         {
-          "uuid": "d7e9f618-c068-4077-a60e-48836163ddf0",
+          "uuid": "084a6e2a-641d-45e0-be27-c4b3c85b53c1",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"GET_CU-{{now 't'}}\",\n  \"tool\": \"get_current_datetime\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -932,14 +4247,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "23a6cdf2-fdea-4bfe-ac44-c0a6a9cb832d",
+      "uuid": "59a81b83-41f1-4872-ac6d-4c7d385303ef",
       "type": "http",
       "documentation": "payment_date — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/payment_date",
       "responses": [
         {
-          "uuid": "6e2c35d3-89ba-4bc4-b994-1cb3c6f42468",
+          "uuid": "7d68756b-82a3-4260-9a3e-b76452e49e9d",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -978,7 +4293,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5a907d09-b747-40b6-82b4-0ccb3f43a897",
+          "uuid": "4a10dd1d-1bab-463b-be69-bdcf5351aa7f",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1024,7 +4339,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0f5f92fc-b44f-4b86-a2fb-67c6ee215e4f",
+          "uuid": "663362e4-125f-4e65-a292-5006d2a68ab9",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1056,7 +4371,7 @@
           "callbacks": []
         },
         {
-          "uuid": "086561f3-d906-4c7e-9c86-3ccdba1633eb",
+          "uuid": "9df87e53-1899-4c4d-bf8c-3d999229f919",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1095,7 +4410,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9f3b80a2-7b7c-43d0-8366-2c06f9421ec1",
+          "uuid": "f4588a95-e4d9-456c-97d9-176f8876f957",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1141,7 +4456,7 @@
           "callbacks": []
         },
         {
-          "uuid": "cfa5b96a-a69d-4f8d-aae7-f872a1fc6f06",
+          "uuid": "e8bdac2c-5e1d-462b-b790-52b250d9019e",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1173,7 +4488,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e038de90-5acc-4d82-8cef-5e81c2b43805",
+          "uuid": "b440c8be-b546-4799-8b3b-a74aae4b6a3b",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1212,7 +4527,7 @@
           "callbacks": []
         },
         {
-          "uuid": "760b6163-7c27-4650-bc22-5fc7f424c7e4",
+          "uuid": "ba4da2c6-c5c2-41ab-9f3d-89c082a6328e",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1258,7 +4573,7 @@
           "callbacks": []
         },
         {
-          "uuid": "17d90deb-0028-45eb-92b9-d6deda44133b",
+          "uuid": "808b06da-4f81-4563-bcf6-64243a05fcf2",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1290,7 +4605,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0ee6dfc3-ccb2-44ee-be47-d013dcb14064",
+          "uuid": "350b1665-df10-4c6e-97dd-5ed8fafecc17",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"PAYMEN-{{now 't'}}\",\n  \"tool\": \"payment_date\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1319,14 +4634,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "1e2dfc77-4fe3-4112-93c1-9ee3ad7b75df",
+      "uuid": "6b9d650c-fa8e-4dcb-ae26-908609eec4a4",
       "type": "http",
       "documentation": "record_call_result — declared by SHOP",
       "method": "post",
       "endpoint": ":company/record_call_result",
       "responses": [
         {
-          "uuid": "a8f3ae10-709f-49dc-8d89-365d2de4cc77",
+          "uuid": "99b7c9d4-f7a9-4cde-8f9d-42216f5f7f80",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"new_date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.new_date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1372,7 +4687,7 @@
           "callbacks": []
         },
         {
-          "uuid": "6b343514-1461-4438-8554-1b168117feea",
+          "uuid": "159ef62f-ddc3-4031-a615-ee9409fa8a26",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"confirmed\",\n    \"rescheduled\",\n    \"paid_claimed\",\n    \"handoff\",\n    \"unreachable\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1411,7 +4726,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0b0feb16-5b57-4fff-8c9a-0c7c48a2b6cd",
+          "uuid": "559b552b-dc6a-4e13-9669-f0b9dc5acbfb",
           "body": "{\n  \"recorded\": true,\n  \"record_call_result_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"new_date\": \"{{body 'args.new_date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1443,7 +4758,7 @@
           "callbacks": []
         },
         {
-          "uuid": "b45f48cf-548b-4599-a547-4238f576453f",
+          "uuid": "3f2ad108-5cea-45bd-b2e9-fe09d5e21e83",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_call_result\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1472,14 +4787,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "566668e4-d7b2-49bb-91cc-661acb264666",
+      "uuid": "67fc48bd-d834-4785-a02b-87cfa763794a",
       "type": "http",
       "documentation": "record_outcome — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/record_outcome",
       "responses": [
         {
-          "uuid": "cba1dc86-0f38-4bf3-bbe8-849efd426c68",
+          "uuid": "8106807f-7780-4197-999f-a70479f0f38c",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1518,7 +4833,7 @@
           "callbacks": []
         },
         {
-          "uuid": "2bce1de4-f481-4cf9-80ff-253edecae00b",
+          "uuid": "8d0dfb03-6a97-4c76-9289-6290722eaf45",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1550,7 +4865,7 @@
           "callbacks": []
         },
         {
-          "uuid": "64ff969e-6978-4fd7-837d-da6528f19ca3",
+          "uuid": "6f110723-0cc9-43ad-b5ab-f864dc757a2c",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1589,7 +4904,7 @@
           "callbacks": []
         },
         {
-          "uuid": "649d36db-66a8-4c8f-b599-ea42e2633875",
+          "uuid": "a8ac9dfa-9c5f-412a-b24e-52c9263f6663",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1621,7 +4936,7 @@
           "callbacks": []
         },
         {
-          "uuid": "806c5ce5-8c6b-437d-bbf0-b9a94f4bec78",
+          "uuid": "f3dd1a0e-63a8-46fe-a616-4a2cca60d6dd",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1660,7 +4975,7 @@
           "callbacks": []
         },
         {
-          "uuid": "4d7a1a97-2996-4d1e-87bf-0e5ebb3bef0e",
+          "uuid": "c379b7f4-0ff7-4c1f-a0a3-e7551448fc86",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1692,7 +5007,7 @@
           "callbacks": []
         },
         {
-          "uuid": "6caa8191-bee0-43e3-9817-79c2c07a2f2b",
+          "uuid": "14ae7bb2-5a5e-4784-8a7f-5743280d0428",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_outcome\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1721,14 +5036,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "85251b7d-573c-453b-ab87-3c58fcad9b48",
+      "uuid": "0f316776-91ad-46d4-b4a6-170207b2ab6c",
       "type": "http",
       "documentation": "record_verbal_commitment — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/record_verbal_commitment",
       "responses": [
         {
-          "uuid": "5bb0efb6-3224-4390-beca-14d5bd6c3ebb",
+          "uuid": "2039547b-4644-4bd1-aae0-7589ad2a96f9",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1767,7 +5082,7 @@
           "callbacks": []
         },
         {
-          "uuid": "fce0a572-cb72-4074-8605-ca00c1a92c7f",
+          "uuid": "8188bb57-53b1-4b10-90a5-b17a11f60dfa",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1813,7 +5128,7 @@
           "callbacks": []
         },
         {
-          "uuid": "979c27cf-8bcd-467f-bfb9-36eb071a9f91",
+          "uuid": "fbe7d117-c9b2-4c8c-aa74-a1acc13d0a66",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1845,7 +5160,7 @@
           "callbacks": []
         },
         {
-          "uuid": "82cb2efd-a9fa-41f3-9073-dcf920683d3b",
+          "uuid": "5c4c38c8-8929-457a-bf1e-cf87f399e4f9",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1884,7 +5199,7 @@
           "callbacks": []
         },
         {
-          "uuid": "bb4575f5-03e0-4b57-bc57-001708a08d5f",
+          "uuid": "630bf7c3-3275-42ec-992b-caea3ad565e0",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1930,7 +5245,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9fcc77f7-9859-4b0e-bc06-eb95ac2a26a7",
+          "uuid": "66f3245f-210e-4525-a040-6dc14d08d0e6",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1962,7 +5277,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f928d15e-dfa0-4e90-98de-6e50160a0935",
+          "uuid": "453460e5-cbe4-4a09-9f9c-b407acf03473",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2001,7 +5316,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f42c6935-2192-428b-be98-c676fb7c6ab8",
+          "uuid": "a5e07f8c-6a1f-4c4d-91f8-6b814989b496",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2047,7 +5362,7 @@
           "callbacks": []
         },
         {
-          "uuid": "2e316bd5-5b1b-4307-b37c-c71da92ed0e2",
+          "uuid": "35712f28-f96b-485a-a50c-a77f942a5f69",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2079,7 +5394,7 @@
           "callbacks": []
         },
         {
-          "uuid": "29c3f5d6-c3dc-4d97-b1d9-6d3a11005252",
+          "uuid": "f8a6fc1b-9648-408b-bc6b-864f4aad7923",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_verbal_commitment\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2108,14 +5423,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "79bde9d5-cd32-4e02-84c6-aefeeda6af12",
+      "uuid": "81e4d1dc-5619-4024-baef-31edf843aead",
       "type": "http",
       "documentation": "save_appointment — declared by AMT",
       "method": "post",
       "endpoint": ":company/save_appointment",
       "responses": [
         {
-          "uuid": "24233b1b-81d9-46ec-9c96-66f0a9be4b69",
+          "uuid": "5959acff-7672-4960-a77f-c077fecdd7b8",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"new_slot\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.new_slot'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2161,7 +5476,7 @@
           "callbacks": []
         },
         {
-          "uuid": "6097c6c4-4821-498e-b5d1-193e2819306e",
+          "uuid": "67a467c7-7524-434b-a408-52193befed56",
           "body": "{\n  \"error\": \"invalid_status\",\n  \"got\": \"{{body 'args.status'}}\",\n  \"valid\": [\n    \"confirmed\",\n    \"rescheduled\",\n    \"cancelled\",\n    \"unreachable\",\n    \"unresolved\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2200,7 +5515,7 @@
           "callbacks": []
         },
         {
-          "uuid": "60f10161-cedc-4969-8e80-22aca2d5f732",
+          "uuid": "f9631e37-0e05-4a18-8fed-1ba03354d4af",
           "body": "{\n  \"recorded\": true,\n  \"save_appointment_id\": \"SAV-{{now 't'}}\",\n  \"status\": \"{{body 'args.status'}}\",\n  \"new_slot\": \"{{body 'args.new_slot'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2232,7 +5547,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e8bf1664-f6c9-4c74-86be-77fe9fe4f2b0",
+          "uuid": "a19d89a4-3b2e-4067-a6a6-0780e1a029a9",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"SAVE_A-{{now 't'}}\",\n  \"tool\": \"save_appointment\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2261,14 +5576,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "490c024c-9e82-4118-b08d-b80adc52f459",
+      "uuid": "efc5abb1-1834-40cf-830d-83fea057fe37",
       "type": "http",
       "documentation": "update_phone — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/update_phone",
       "responses": [
         {
-          "uuid": "bf9196f5-72d6-4a25-9255-f2fb54d9eba3",
+          "uuid": "92177fb5-e788-4866-9a4f-6850dcee8c84",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2300,7 +5615,7 @@
           "callbacks": []
         },
         {
-          "uuid": "3575d401-3d23-466a-bc1a-20475b9d7cf0",
+          "uuid": "f2fa3a5a-1692-4dcf-829b-e210853db70f",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2332,7 +5647,7 @@
           "callbacks": []
         },
         {
-          "uuid": "896e86d7-724d-403f-9227-6cabb9da2e44",
+          "uuid": "9a5079f2-ba4b-4ed1-be2a-1aa2f49bbfd5",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2364,7 +5679,7 @@
           "callbacks": []
         },
         {
-          "uuid": "cdc0f9c0-2f8a-493b-a27e-0fcfaab3ecce",
+          "uuid": "f0a579d5-ef2e-438e-80e8-14a12d80392f",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"UPDATE-{{now 't'}}\",\n  \"tool\": \"update_phone\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2396,51 +5711,51 @@
   "rootChildren": [
     {
       "type": "route",
-      "uuid": "724f2692-200c-483e-a3c8-4df093115e4c"
+      "uuid": "196bd7d4-4edb-46b8-b666-1d309c403e18"
     },
     {
       "type": "route",
-      "uuid": "6f824858-afce-4c3d-b088-05af9eb3b221"
+      "uuid": "2a9e5e69-a55d-4f8c-a885-2336733315d8"
     },
     {
       "type": "route",
-      "uuid": "379da71f-5bd1-4ec3-8a29-4882872f53ed"
+      "uuid": "714c26b9-2d90-4376-bfc5-8afa7517d550"
     },
     {
       "type": "route",
-      "uuid": "682b5f52-1ed0-4aa0-b2d8-3b63dc749b07"
+      "uuid": "b3f8ebcb-1ee9-456c-8356-8f222bbf8e8d"
     },
     {
       "type": "route",
-      "uuid": "0d38ba9d-f38c-43ea-8051-4a427c698dcb"
+      "uuid": "177d8736-65f2-49de-9f30-3d842762e5b2"
     },
     {
       "type": "route",
-      "uuid": "46a994ad-7475-47d9-91b1-1ef403b61d49"
+      "uuid": "6b68c849-f903-4a24-b900-a7745439e3f3"
     },
     {
       "type": "route",
-      "uuid": "23a6cdf2-fdea-4bfe-ac44-c0a6a9cb832d"
+      "uuid": "59a81b83-41f1-4872-ac6d-4c7d385303ef"
     },
     {
       "type": "route",
-      "uuid": "1e2dfc77-4fe3-4112-93c1-9ee3ad7b75df"
+      "uuid": "6b9d650c-fa8e-4dcb-ae26-908609eec4a4"
     },
     {
       "type": "route",
-      "uuid": "566668e4-d7b2-49bb-91cc-661acb264666"
+      "uuid": "67fc48bd-d834-4785-a02b-87cfa763794a"
     },
     {
       "type": "route",
-      "uuid": "85251b7d-573c-453b-ab87-3c58fcad9b48"
+      "uuid": "0f316776-91ad-46d4-b4a6-170207b2ab6c"
     },
     {
       "type": "route",
-      "uuid": "79bde9d5-cd32-4e02-84c6-aefeeda6af12"
+      "uuid": "81e4d1dc-5619-4024-baef-31edf843aead"
     },
     {
       "type": "route",
-      "uuid": "490c024c-9e82-4118-b08d-b80adc52f459"
+      "uuid": "efc5abb1-1834-40cf-830d-83fea057fe37"
     }
   ],
   "proxyMode": false,

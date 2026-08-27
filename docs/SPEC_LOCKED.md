@@ -354,6 +354,17 @@ argument ที่ส่งมากลับไป — จำเป็นเว
 |---|---|
 | `session_init.url` | ยิงครั้งเดียวตอนเปิดสาย ได้ dict ของข้อมูลลูกค้า |
 | `session_init.on_failure` | API ไม่ตอบ → พูดประโยคนี้แล้วปิดสาย (ดูข้างล่าง) |
+
+**ค้นผู้โทรด้วยตัวระบุ ไม่ใช่คืนแถวเดียวตายตัว** — `{msisdn}` (และ token อื่นใน CRM)
+แทนค่าได้ทั้งใน `url`, `headers`, `body`
+
+```jsonc
+"url": "{API_BASE}/AEON/init?msisdn={msisdn}"
+```
+
+tool ทุกตัวก็ส่ง `ref: {case_id, msisdn, customer_phone, last_4_digits}` ไปกับ body
+อัตโนมัติ — API แยกแถวได้โดยโมเดลไม่ต้องพิมพ์อะไร ⇒ เลือกผู้โทรคนไหนในหน้าเว็บ
+ก็ได้ข้อมูลของคนนั้นจริง
 | `crm_fields` | **whitelist** — เฉพาะ field ในนี้ที่โมเดลได้เห็น |
 | `crm_labels` | ป้ายไทยในหัวข้อ `## ข้อมูลลูกค้า (CRM Snapshot)` |
 

@@ -11,14 +11,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2450,
    "minimum_payment_due": 1225,
-   "due_date": "2026-06-21 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-511-2133",
    "last_4_digits": "9987",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-980-4450"
+   "msisdn": "093-980-4450",
+   "due_date_offset_days": 30
   }
  },
  {
@@ -33,12 +33,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-08 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-976-3347",
    "last_4_digits": "4275",
    "case_status": "pending_review",
-   "case_status_note": "ลูกค้าร้องเรียนเรื่องค่าธรรมเนียมแฝงและยอดเรียกเก็บสูงผิดปกติ"
+   "case_status_note": "ลูกค้าร้องเรียนเรื่องค่าธรรมเนียมแฝงและยอดเรียกเก็บสูงผิดปกติ",
+   "due_date_offset_days": -14,
+   "msisdn": "06-976-3347"
   }
  },
  {
@@ -53,7 +54,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 15500,
    "minimum_payment_due": 1550,
-   "due_date": "2026-05-05 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-236-3954",
    "last_4_digits": "1703",
@@ -65,7 +65,9 @@
    "late_fee": 200,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -17,
+   "msisdn": "06-236-3954"
   }
  },
  {
@@ -80,12 +82,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 45000,
    "minimum_payment_due": 3500,
-   "due_date": "2026-05-12 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-693-5137",
    "last_4_digits": "3956",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -10,
+   "msisdn": "06-693-5137"
   }
  },
  {
@@ -100,14 +103,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2450,
    "minimum_payment_due": 1225,
-   "due_date": "2026-04-21 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-593-1617",
    "last_4_digits": "3344",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "092-538-3609"
+   "msisdn": "092-538-3609",
+   "due_date_offset_days": -31
   }
  },
  {
@@ -122,14 +125,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-16 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-117-6848",
    "last_4_digits": "9450",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "1กข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -36,
+   "msisdn": "06-117-6848"
   }
  },
  {
@@ -144,14 +148,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-04-21 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-352-8954",
    "last_4_digits": "5652",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "8กฒ 4321",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -31,
+   "msisdn": "06-352-8954"
   }
  },
  {
@@ -166,14 +171,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2450,
    "minimum_payment_due": 1225,
-   "due_date": "2026-04-12 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-511-2133",
    "last_4_digits": "9987",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-980-4450"
+   "msisdn": "093-980-4450",
+   "due_date_offset_days": -40
   }
  },
  {
@@ -188,14 +193,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 42500,
    "minimum_payment_due": 8500,
-   "due_date": "2026-05-07 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-904-5648",
    "last_4_digits": "4613",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "4กฒ 8921",
-   "location": "ชลบุรี"
+   "location": "ชลบุรี",
+   "due_date_offset_days": -15,
+   "msisdn": "06-904-5648"
   }
  },
  {
@@ -210,12 +216,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-13 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-859-6960",
    "last_4_digits": "9891",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -39,
+   "msisdn": "06-859-6960"
   }
  },
  {
@@ -230,12 +237,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-16 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-280-6017",
    "last_4_digits": "1844",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -6,
+   "msisdn": "06-280-6017"
   }
  },
  {
@@ -250,14 +258,14 @@
    "loan_type": "AIS Fibre บรอดแบนด์",
    "total_amount_due": 1282,
    "minimum_payment_due": 641,
-   "due_date": "2026-04-14 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-125-8565",
    "last_4_digits": "6936",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "AIS_Fibre",
-   "msisdn": "090-377-4298"
+   "msisdn": "090-377-4298",
+   "due_date_offset_days": -38
   }
  },
  {
@@ -272,7 +280,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 25500,
    "minimum_payment_due": 8500,
-   "due_date": "2026-05-03 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-437-2002",
    "last_4_digits": "0623",
@@ -284,7 +291,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -19,
+   "msisdn": "06-437-2002"
   }
  },
  {
@@ -299,7 +308,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 185000,
    "minimum_payment_due": 9500,
-   "due_date": "2026-05-08 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-828-1396",
    "last_4_digits": "8101",
@@ -311,7 +319,9 @@
    "late_fee": 250.0,
    "collection_fee": 100.0,
    "insurance_fee": 300.0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -14,
+   "msisdn": "06-828-1396"
   }
  },
  {
@@ -326,14 +336,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 30000,
    "minimum_payment_due": 10000,
-   "due_date": "2026-04-25 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-717-0123",
    "last_4_digits": "7524",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "1กข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -27,
+   "msisdn": "06-717-0123"
   }
  },
  {
@@ -348,14 +359,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1800,
    "minimum_payment_due": 900,
-   "due_date": "2026-05-05 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-634-9433",
    "last_4_digits": "7084",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "086-990-8511"
+   "msisdn": "086-990-8511",
+   "due_date_offset_days": -17
   }
  },
  {
@@ -370,14 +381,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 45000,
    "minimum_payment_due": 15000,
-   "due_date": "2026-04-11 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-762-3277",
    "last_4_digits": "1645",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -41,
+   "msisdn": "06-762-3277"
   }
  },
  {
@@ -392,14 +404,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18000,
    "minimum_payment_due": 9000,
-   "due_date": "2026-05-10 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-990-3227",
    "last_4_digits": "1568",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "ขค 5521",
-   "location": "ขอนแก่น"
+   "location": "ขอนแก่น",
+   "due_date_offset_days": -12,
+   "msisdn": "06-990-3227"
   }
  },
  {
@@ -414,14 +427,14 @@
    "loan_type": "AIS Fibre บรอดแบนด์",
    "total_amount_due": 4500,
    "minimum_payment_due": 1500,
-   "due_date": "2026-05-04 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-774-9487",
    "last_4_digits": "2397",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "AIS_Fibre",
-   "msisdn": "090-635-4699"
+   "msisdn": "090-635-4699",
+   "due_date_offset_days": -18
   }
  },
  {
@@ -436,7 +449,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 12500,
    "minimum_payment_due": 12000,
-   "due_date": "2026-05-02 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-117-4018",
    "last_4_digits": "0631",
@@ -448,7 +460,9 @@
    "late_fee": 200,
    "collection_fee": 100,
    "insurance_fee": 200,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -20,
+   "msisdn": "06-117-4018"
   }
  },
  {
@@ -463,7 +477,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 26100,
    "minimum_payment_due": 25500,
-   "due_date": "2026-05-11 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-279-1426",
    "last_4_digits": "0012",
@@ -475,7 +488,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 250,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -11,
+   "msisdn": "06-279-1426"
   }
  },
  {
@@ -490,12 +505,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 15000,
    "minimum_payment_due": 1500,
-   "due_date": "2026-04-15 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-892-4731",
    "last_4_digits": "4180",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -37,
+   "msisdn": "06-892-4731"
   }
  },
  {
@@ -510,7 +526,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 13200,
    "minimum_payment_due": 12500,
-   "due_date": "2026-04-16 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-382-4218",
    "last_4_digits": "8925",
@@ -522,7 +537,9 @@
    "late_fee": 200,
    "collection_fee": 100,
    "insurance_fee": 400,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -36,
+   "msisdn": "06-382-4218"
   }
  },
  {
@@ -537,14 +554,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 185000,
    "minimum_payment_due": 15500,
-   "due_date": "2026-05-01 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-345-3457",
    "last_4_digits": "9265",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "2กฒ 8910",
-   "location": "ชลบุรี"
+   "location": "ชลบุรี",
+   "due_date_offset_days": -21,
+   "msisdn": "06-345-3457"
   }
  },
  {
@@ -559,14 +577,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 250000,
    "minimum_payment_due": 12500,
-   "due_date": "2026-04-09 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-911-7491",
    "last_4_digits": "7221",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -43,
+   "msisdn": "06-911-7491"
   }
  },
  {
@@ -581,7 +600,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 185000,
    "minimum_payment_due": 18500,
-   "due_date": "2026-05-16 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-583-2452",
    "last_4_digits": "2737",
@@ -593,7 +611,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 300,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -6,
+   "msisdn": "06-583-2452"
   }
  },
  {
@@ -608,12 +628,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 25000,
    "minimum_payment_due": 2500,
-   "due_date": "2026-05-14 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-797-4619",
    "last_4_digits": "4674",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -8,
+   "msisdn": "06-797-4619"
   }
  },
  {
@@ -628,14 +649,14 @@
    "loan_type": "AIS Fibre บรอดแบนด์",
    "total_amount_due": 3500,
    "minimum_payment_due": 1500,
-   "due_date": "2026-05-02 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-950-8615",
    "last_4_digits": "3163",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "AIS_Fibre",
-   "msisdn": "082-479-1052"
+   "msisdn": "082-479-1052",
+   "due_date_offset_days": -20
   }
  },
  {
@@ -650,12 +671,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45500,
    "minimum_payment_due": 4550,
-   "due_date": "2026-05-12 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-116-0346",
    "last_4_digits": "2579",
    "case_status": "pending_review",
-   "case_status_note": "ลูกค้ารอตรวจสอบเอกสารใบแจ้งหนี้และรายละเอียดการคำนวณดอกเบี้ย"
+   "case_status_note": "ลูกค้ารอตรวจสอบเอกสารใบแจ้งหนี้และรายละเอียดการคำนวณดอกเบี้ย",
+   "due_date_offset_days": -10,
+   "msisdn": "06-116-0346"
   }
  },
  {
@@ -670,14 +692,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-04-24 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-605-1965",
    "last_4_digits": "6337",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "7กณ 9921",
-   "location": "ชลบุรี"
+   "location": "ชลบุรี",
+   "due_date_offset_days": -28,
+   "msisdn": "06-605-1965"
   }
  },
  {
@@ -692,14 +715,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 3200,
    "minimum_payment_due": 1600,
-   "due_date": "2026-04-29 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-567-6539",
    "last_4_digits": "8616",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "086-815-2271"
+   "msisdn": "086-815-2271",
+   "due_date_offset_days": -23
   }
  },
  {
@@ -714,12 +737,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-01 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-444-5258",
    "last_4_digits": "7824",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -21,
+   "msisdn": "06-444-5258"
   }
  },
  {
@@ -734,7 +758,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9000,
-   "due_date": "2026-04-12 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-718-7061",
    "last_4_digits": "5127",
@@ -746,7 +769,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 300,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -40,
+   "msisdn": "06-718-7061"
   }
  },
  {
@@ -761,14 +786,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2450,
    "minimum_payment_due": 1225,
-   "due_date": "2026-05-17 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-604-2014",
    "last_4_digits": "5476",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "082-558-1617"
+   "msisdn": "082-558-1617",
+   "due_date_offset_days": -5
   }
  },
  {
@@ -783,14 +808,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 8500,
    "minimum_payment_due": 4250,
-   "due_date": "2026-04-17 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-975-5940",
    "last_4_digits": "9554",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "092-993-6599"
+   "msisdn": "092-993-6599",
+   "due_date_offset_days": -35
   }
  },
  {
@@ -805,14 +830,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 24500,
    "minimum_payment_due": 8200,
-   "due_date": "2026-05-06 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-437-6033",
    "last_4_digits": "8337",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "2ขถ 5432",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -16,
+   "msisdn": "06-437-6033"
   }
  },
  {
@@ -827,12 +853,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-26 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-955-4833",
    "last_4_digits": "3338",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -26,
+   "msisdn": "06-955-4833"
   }
  },
  {
@@ -847,14 +874,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2500,
    "minimum_payment_due": 1250,
-   "due_date": "2026-04-10 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-100-2703",
    "last_4_digits": "2429",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "092-896-7147"
+   "msisdn": "092-896-7147",
+   "due_date_offset_days": -42
   }
  },
  {
@@ -869,7 +896,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-04-12 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-947-0539",
    "last_4_digits": "1705",
@@ -881,7 +907,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 300,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -40,
+   "msisdn": "06-947-0539"
   }
  },
  {
@@ -896,12 +924,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-01 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-369-1455",
    "last_4_digits": "8090",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -21,
+   "msisdn": "06-369-1455"
   }
  },
  {
@@ -916,12 +945,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-18 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-204-5657",
    "last_4_digits": "5300",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -34,
+   "msisdn": "06-204-5657"
   }
  },
  {
@@ -936,12 +966,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-19 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-310-6509",
    "last_4_digits": "1391",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -33,
+   "msisdn": "06-310-6509"
   }
  },
  {
@@ -956,14 +987,14 @@
    "loan_type": "AIS Fibre บรอดแบนด์",
    "total_amount_due": 1798,
    "minimum_payment_due": 899,
-   "due_date": "2026-05-16 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-662-9010",
    "last_4_digits": "1586",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "AIS_Fibre",
-   "msisdn": "090-158-7924"
+   "msisdn": "090-158-7924",
+   "due_date_offset_days": -6
   }
  },
  {
@@ -978,12 +1009,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-12 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-239-9894",
    "last_4_digits": "3542",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -10,
+   "msisdn": "06-239-9894"
   }
  },
  {
@@ -998,12 +1030,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-09 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-477-0311",
    "last_4_digits": "4111",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -43,
+   "msisdn": "06-477-0311"
   }
  },
  {
@@ -1018,7 +1051,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 26000,
    "minimum_payment_due": 13000,
-   "due_date": "2026-05-17 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-462-6390",
    "last_4_digits": "1939",
@@ -1030,7 +1062,9 @@
    "late_fee": 200,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -5,
+   "msisdn": "06-462-6390"
   }
  },
  {
@@ -1045,14 +1079,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 15000,
-   "due_date": "2026-05-10 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-525-2041",
    "last_4_digits": "4825",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "บย 4567",
-   "location": "นครราชสีมา"
+   "location": "นครราชสีมา",
+   "due_date_offset_days": -12,
+   "msisdn": "06-525-2041"
   }
  },
  {
@@ -1067,14 +1102,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 17500,
    "minimum_payment_due": 8750,
-   "due_date": "2026-05-07 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-157-2893",
    "last_4_digits": "5241",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "8กข 4321",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -15,
+   "msisdn": "06-157-2893"
   }
  },
  {
@@ -1089,14 +1125,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1850,
    "minimum_payment_due": 925,
-   "due_date": "2026-05-11 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-740-6783",
    "last_4_digits": "5019",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-162-9161"
+   "msisdn": "093-162-9161",
+   "due_date_offset_days": -11
   }
  },
  {
@@ -1111,7 +1147,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 185000,
    "minimum_payment_due": 12500,
-   "due_date": "2026-05-07 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-156-0747",
    "last_4_digits": "6216",
@@ -1123,7 +1158,9 @@
    "late_fee": 500,
    "collection_fee": 350,
    "insurance_fee": 200,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -15,
+   "msisdn": "06-156-0747"
   }
  },
  {
@@ -1138,14 +1175,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 25000,
    "minimum_payment_due": 12500,
-   "due_date": "2026-04-09 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-907-7843",
    "last_4_digits": "2319",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -43,
+   "msisdn": "06-907-7843"
   }
  },
  {
@@ -1160,14 +1198,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 12500,
-   "due_date": "2026-04-25 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-185-1796",
    "last_4_digits": "4203",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "8กข 9999",
-   "location": "ชลบุรี"
+   "location": "ชลบุรี",
+   "due_date_offset_days": -27,
+   "msisdn": "06-185-1796"
   }
  },
  {
@@ -1182,14 +1221,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 8500,
    "minimum_payment_due": 4250,
-   "due_date": "2026-05-07 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-202-2650",
    "last_4_digits": "7784",
    "case_status": "pending_review",
    "case_status_note": "ลูกค้าโต้แย้งยอดค่าปรับล่าช้าและต้องการเจรจาขอส่วนลด",
    "service_type": "Postpaid_Mobile",
-   "msisdn": "086-635-4354"
+   "msisdn": "086-635-4354",
+   "due_date_offset_days": -15
   }
  },
  {
@@ -1204,12 +1243,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-09 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-578-3464",
    "last_4_digits": "9388",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -13,
+   "msisdn": "06-578-3464"
   }
  },
  {
@@ -1224,14 +1264,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1850,
    "minimum_payment_due": 900,
-   "due_date": "2026-04-15 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-420-0836",
    "last_4_digits": "2676",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "081-751-8492"
+   "msisdn": "081-751-8492",
+   "due_date_offset_days": -37
   }
  },
  {
@@ -1246,7 +1286,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9000,
-   "due_date": "2026-05-08 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-148-2673",
    "last_4_digits": "0450",
@@ -1258,7 +1297,9 @@
    "late_fee": 300,
    "collection_fee": 200,
    "insurance_fee": 0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -14,
+   "msisdn": "06-148-2673"
   }
  },
  {
@@ -1273,14 +1314,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-04-23 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-932-8923",
    "last_4_digits": "6908",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "8กฒ 4321",
-   "location": "เชียงใหม่"
+   "location": "เชียงใหม่",
+   "due_date_offset_days": -29,
+   "msisdn": "06-932-8923"
   }
  },
  {
@@ -1295,14 +1337,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2450,
    "minimum_payment_due": 1225,
-   "due_date": "2026-05-16 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-001-3267",
    "last_4_digits": "3732",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "092-760-3852"
+   "msisdn": "092-760-3852",
+   "due_date_offset_days": -6
   }
  },
  {
@@ -1317,7 +1359,6 @@
    "loan_type": "รถจักรยานยนต์",
    "total_amount_due": 12500,
    "minimum_payment_due": 3500,
-   "due_date": "2026-05-17 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-429-2251",
    "last_4_digits": "3905",
@@ -1329,7 +1370,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 150,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -5,
+   "msisdn": "06-429-2251"
   }
  },
  {
@@ -1344,12 +1387,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 85000,
    "minimum_payment_due": 4250,
-   "due_date": "2026-04-20 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-945-0611",
    "last_4_digits": "3884",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -32,
+   "msisdn": "06-945-0611"
   }
  },
  {
@@ -1364,14 +1408,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2500,
    "minimum_payment_due": 1250,
-   "due_date": "2026-04-22 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-171-1874",
    "last_4_digits": "4140",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "081-522-8990"
+   "msisdn": "081-522-8990",
+   "due_date_offset_days": -30
   }
  },
  {
@@ -1386,14 +1430,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2500,
    "minimum_payment_due": 1250,
-   "due_date": "2026-05-09 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-367-8344",
    "last_4_digits": "4718",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "089-709-4274"
+   "msisdn": "089-709-4274",
+   "due_date_offset_days": -13
   }
  },
  {
@@ -1408,7 +1452,6 @@
    "loan_type": "รถจักรยานยนต์",
    "total_amount_due": 15500,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-29 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-671-6096",
    "last_4_digits": "4301",
@@ -1420,7 +1463,9 @@
    "late_fee": 250.0,
    "collection_fee": 100.0,
    "insurance_fee": 300.0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -23,
+   "msisdn": "06-671-6096"
   }
  },
  {
@@ -1435,7 +1480,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 25500,
    "minimum_payment_due": 12500,
-   "due_date": "2026-05-08 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-117-5824",
    "last_4_digits": "9281",
@@ -1447,7 +1491,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -14,
+   "msisdn": "06-117-5824"
   }
  },
  {
@@ -1462,7 +1508,6 @@
    "loan_type": "รถจักรยานยนต์",
    "total_amount_due": 10500,
    "minimum_payment_due": 3500,
-   "due_date": "2026-05-14 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-217-0391",
    "last_4_digits": "9934",
@@ -1474,7 +1519,9 @@
    "late_fee": 150.0,
    "collection_fee": 100.0,
    "insurance_fee": 0.0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -8,
+   "msisdn": "06-217-0391"
   }
  },
  {
@@ -1489,12 +1536,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-13 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-354-3074",
    "last_4_digits": "5714",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -9,
+   "msisdn": "06-354-3074"
   }
  },
  {
@@ -1509,14 +1557,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 4500,
    "minimum_payment_due": 1200,
-   "due_date": "2026-04-19 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-217-8526",
    "last_4_digits": "4010",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "086-361-3404"
+   "msisdn": "086-361-3404",
+   "due_date_offset_days": -33
   }
  },
  {
@@ -1531,14 +1579,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 125000,
    "minimum_payment_due": 7500,
-   "due_date": "2026-04-23 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-596-9203",
    "last_4_digits": "2377",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3กค 9876",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -29,
+   "msisdn": "06-596-9203"
   }
  },
  {
@@ -1553,14 +1602,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1850,
    "minimum_payment_due": 925,
-   "due_date": "2026-04-18 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-394-6405",
    "last_4_digits": "1941",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-475-6211"
+   "msisdn": "093-475-6211",
+   "due_date_offset_days": -34
   }
  },
  {
@@ -1575,14 +1624,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 4500,
    "minimum_payment_due": 1500,
-   "due_date": "2026-05-03 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-864-1417",
    "last_4_digits": "9148",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "081-505-0368"
+   "msisdn": "081-505-0368",
+   "due_date_offset_days": -19
   }
  },
  {
@@ -1597,14 +1646,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 25500,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-17 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-136-9644",
    "last_4_digits": "4986",
    "case_status": "pending_review",
    "case_status_note": "ผู้กู้ร่วมขอตรวจสอบยอดค้างชำระกับผู้กู้หลัก",
    "vehicle_registration": "3ขข 9981",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -35,
+   "msisdn": "06-136-9644"
   }
  },
  {
@@ -1619,14 +1669,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9000,
-   "due_date": "2026-04-26 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-282-0364",
    "last_4_digits": "9913",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -26,
+   "msisdn": "06-282-0364"
   }
  },
  {
@@ -1641,14 +1692,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 125000,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-19 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-878-9579",
    "last_4_digits": "3428",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "1กข 9999",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -33,
+   "msisdn": "06-878-9579"
   }
  },
  {
@@ -1663,14 +1715,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 15000,
-   "due_date": "2026-04-12 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-902-3309",
    "last_4_digits": "7603",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขร 9921",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -40,
+   "msisdn": "06-902-3309"
   }
  },
  {
@@ -1685,12 +1738,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-30 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-612-2778",
    "last_4_digits": "5542",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -22,
+   "msisdn": "06-612-2778"
   }
  },
  {
@@ -1705,14 +1759,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2450,
    "minimum_payment_due": 1200,
-   "due_date": "2026-04-28 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-870-1716",
    "last_4_digits": "9863",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "089-038-8682"
+   "msisdn": "089-038-8682",
+   "due_date_offset_days": -24
   }
  },
  {
@@ -1727,14 +1781,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 3200,
    "minimum_payment_due": 1600,
-   "due_date": "2026-05-04 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-406-5409",
    "last_4_digits": "6202",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "089-672-1853"
+   "msisdn": "089-672-1853",
+   "due_date_offset_days": -18
   }
  },
  {
@@ -1749,14 +1803,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1284,
    "minimum_payment_due": 642,
-   "due_date": "2026-04-08 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-290-8003",
    "last_4_digits": "6619",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "082-967-0358"
+   "msisdn": "082-967-0358",
+   "due_date_offset_days": -44
   }
  },
  {
@@ -1771,7 +1825,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 15850,
    "minimum_payment_due": 15000,
-   "due_date": "2026-04-29 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-055-3317",
    "last_4_digits": "2836",
@@ -1783,7 +1836,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -23,
+   "msisdn": "06-055-3317"
   }
  },
  {
@@ -1798,7 +1853,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 17500,
    "minimum_payment_due": 8500,
-   "due_date": "2026-05-15 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-477-5580",
    "last_4_digits": "4027",
@@ -1810,7 +1864,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 400,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -7,
+   "msisdn": "06-477-5580"
   }
  },
  {
@@ -1825,14 +1881,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2450,
    "minimum_payment_due": 1225,
-   "due_date": "2026-04-24 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-934-5545",
    "last_4_digits": "0434",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "081-636-3194"
+   "msisdn": "081-636-3194",
+   "due_date_offset_days": -28
   }
  },
  {
@@ -1847,7 +1903,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 15800,
    "minimum_payment_due": 15000,
-   "due_date": "2026-04-21 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-466-5604",
    "last_4_digits": "3553",
@@ -1859,7 +1914,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 450,
-   "month": "มีนาคม"
+   "month": "มีนาคม",
+   "due_date_offset_days": -31,
+   "msisdn": "06-466-5604"
   }
  },
  {
@@ -1874,7 +1931,6 @@
    "loan_type": "สินเชื่อรถจักรยานยนต์",
    "total_amount_due": 10500,
    "minimum_payment_due": 3500,
-   "due_date": "2026-04-16 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-943-4286",
    "last_4_digits": "3063",
@@ -1886,7 +1942,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -36,
+   "msisdn": "06-943-4286"
   }
  },
  {
@@ -1901,7 +1959,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-05-07 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-371-8768",
    "last_4_digits": "2125",
@@ -1913,7 +1970,9 @@
    "late_fee": 250.0,
    "collection_fee": 100.0,
    "insurance_fee": 0.0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -15,
+   "msisdn": "06-371-8768"
   }
  },
  {
@@ -1928,12 +1987,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-09 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-676-4457",
    "last_4_digits": "9794",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -13,
+   "msisdn": "06-676-4457"
   }
  },
  {
@@ -1948,12 +2008,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 85000,
    "minimum_payment_due": 15000,
-   "due_date": "2026-04-09 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-151-6225",
    "last_4_digits": "8051",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -43,
+   "msisdn": "06-151-6225"
   }
  },
  {
@@ -1968,7 +2029,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 17000,
    "minimum_payment_due": 8500,
-   "due_date": "2026-05-09 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-263-9924",
    "last_4_digits": "1950",
@@ -1980,7 +2040,9 @@
    "late_fee": 250.0,
    "collection_fee": 100.0,
    "insurance_fee": 500.0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -13,
+   "msisdn": "06-263-9924"
   }
  },
  {
@@ -1995,14 +2057,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 15000,
-   "due_date": "2026-05-14 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-088-4478",
    "last_4_digits": "2944",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "2ฒข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -8,
+   "msisdn": "06-088-4478"
   }
  },
  {
@@ -2017,14 +2080,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 25000,
    "minimum_payment_due": 8500,
-   "due_date": "2026-05-16 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-330-9626",
    "last_4_digits": "6271",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "2ขข 9876",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -6,
+   "msisdn": "06-330-9626"
   }
  },
  {
@@ -2039,12 +2103,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 45000,
    "minimum_payment_due": 3500,
-   "due_date": "2026-04-22 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-724-4664",
    "last_4_digits": "2549",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -30,
+   "msisdn": "06-724-4664"
   }
  },
  {
@@ -2059,14 +2124,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1500,
    "minimum_payment_due": 750,
-   "due_date": "2026-05-04 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-410-8881",
    "last_4_digits": "9809",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-557-7974"
+   "msisdn": "093-557-7974",
+   "due_date_offset_days": -18
   }
  },
  {
@@ -2081,12 +2146,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 45000,
    "minimum_payment_due": 1500,
-   "due_date": "2026-05-10 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-762-3210",
    "last_4_digits": "3272",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -12,
+   "msisdn": "06-762-3210"
   }
  },
  {
@@ -2101,14 +2167,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 25500,
    "minimum_payment_due": 8500,
-   "due_date": "2026-05-06 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-470-8978",
    "last_4_digits": "6480",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3กข 8910",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -16,
+   "msisdn": "06-470-8978"
   }
  },
  {
@@ -2123,7 +2190,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-29 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-600-5957",
    "last_4_digits": "0254",
@@ -2135,7 +2201,9 @@
    "late_fee": 200,
    "collection_fee": 150,
    "insurance_fee": 300,
-   "month": "สิงหาคม"
+   "month": "สิงหาคม",
+   "due_date_offset_days": -23,
+   "msisdn": "06-600-5957"
   }
  },
  {
@@ -2150,14 +2218,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 1850,
-   "due_date": "2026-04-23 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-527-2460",
    "last_4_digits": "2880",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "7กณ 4521",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -29,
+   "msisdn": "06-527-2460"
   }
  },
  {
@@ -2172,14 +2241,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 3500,
    "minimum_payment_due": 1750,
-   "due_date": "2026-04-17 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-112-9354",
    "last_4_digits": "8471",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "090-687-0227"
+   "msisdn": "090-687-0227",
+   "due_date_offset_days": -35
   }
  },
  {
@@ -2194,14 +2263,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1850,
    "minimum_payment_due": 925,
-   "due_date": "2026-04-12 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-508-9295",
    "last_4_digits": "5154",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-072-8014"
+   "msisdn": "093-072-8014",
+   "due_date_offset_days": -40
   }
  },
  {
@@ -2216,7 +2285,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-04-14 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-349-3512",
    "last_4_digits": "4776",
@@ -2228,7 +2296,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -38,
+   "msisdn": "06-349-3512"
   }
  },
  {
@@ -2243,14 +2313,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 12500,
-   "due_date": "2026-05-05 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-677-5153",
    "last_4_digits": "2965",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขข 9988",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -17,
+   "msisdn": "06-677-5153"
   }
  },
  {
@@ -2265,14 +2336,14 @@
    "loan_type": "AIS Fibre บรอดแบนด์",
    "total_amount_due": 2598,
    "minimum_payment_due": 1299,
-   "due_date": "2026-04-28 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-849-3522",
    "last_4_digits": "1668",
    "case_status": "pending_review",
    "case_status_note": "ผู้รับสายอ้างว่าบัญชีธนาคารถูกแฮกเงินหมด ขอระงับการทวงถาม 30 วันเพื่อรอเอกสารแจ้งความ",
    "service_type": "AIS_Fibre",
-   "msisdn": "090-048-5049"
+   "msisdn": "090-048-5049",
+   "due_date_offset_days": -24
   }
  },
  {
@@ -2287,7 +2358,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 13250,
    "minimum_payment_due": 12500,
-   "due_date": "2026-04-10 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-778-9968",
    "last_4_digits": "3072",
@@ -2299,7 +2369,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 400,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -42,
+   "msisdn": "06-778-9968"
   }
  },
  {
@@ -2314,7 +2386,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 19350,
    "minimum_payment_due": 9000,
-   "due_date": "2026-04-30 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-860-5225",
    "last_4_digits": "7846",
@@ -2326,7 +2397,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 1000,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -22,
+   "msisdn": "06-860-5225"
   }
  },
  {
@@ -2341,12 +2414,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-29 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-917-7655",
    "last_4_digits": "6505",
    "case_status": "pending_review",
-   "case_status_note": "ลูกค้าแจ้งว่าปิดบัญชีไปแล้วเมื่อ 2 ปีก่อน ต้องตรวจสอบประวัติการชำระเงินและสถานะบัญชี"
+   "case_status_note": "ลูกค้าแจ้งว่าปิดบัญชีไปแล้วเมื่อ 2 ปีก่อน ต้องตรวจสอบประวัติการชำระเงินและสถานะบัญชี",
+   "due_date_offset_days": -23,
+   "msisdn": "06-917-7655"
   }
  },
  {
@@ -2361,14 +2435,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2500,
    "minimum_payment_due": 1000,
-   "due_date": "2026-04-18 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-504-3668",
    "last_4_digits": "1905",
    "case_status": "pending_review",
    "case_status_note": "ลูกค้ายืนยันว่าชำระเงินบางส่วนแล้วเมื่อสัปดาห์ก่อน แต่ยอดในระบบยังไม่ลดลง",
    "service_type": "Postpaid_Mobile",
-   "msisdn": "081-398-9779"
+   "msisdn": "081-398-9779",
+   "due_date_offset_days": -34
   }
  },
  {
@@ -2383,7 +2457,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 12500,
    "minimum_payment_due": 12000,
-   "due_date": "2026-05-11 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-800-4856",
    "last_4_digits": "9257",
@@ -2395,7 +2468,9 @@
    "late_fee": 200,
    "collection_fee": 100,
    "insurance_fee": 200,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -11,
+   "msisdn": "06-800-4856"
   }
  },
  {
@@ -2410,12 +2485,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-27 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-270-6758",
    "last_4_digits": "6582",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -25,
+   "msisdn": "06-270-6758"
   }
  },
  {
@@ -2430,14 +2506,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 24500,
    "minimum_payment_due": 12250,
-   "due_date": "2026-04-28 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-936-9322",
    "last_4_digits": "7259",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขข 8910",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -24,
+   "msisdn": "06-936-9322"
   }
  },
  {
@@ -2452,14 +2529,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 45000,
    "minimum_payment_due": 15000,
-   "due_date": "2026-04-09 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-619-9463",
    "last_4_digits": "9214",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3ขข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -43,
+   "msisdn": "06-619-9463"
   }
  },
  {
@@ -2474,14 +2552,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 250000,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-19 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-769-5256",
    "last_4_digits": "5173",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "2ขข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -33,
+   "msisdn": "06-769-5256"
   }
  },
  {
@@ -2496,14 +2575,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 185000,
    "minimum_payment_due": 9500,
-   "due_date": "2026-04-26 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-543-7673",
    "last_4_digits": "3820",
    "case_status": "pending_review",
    "case_status_note": "บุคคลที่สามอ้างสิทธิ์ PDPA ขอให้ลบข้อมูลและระงับการติดต่อ",
    "vehicle_registration": "3ขข 5678",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -26,
+   "msisdn": "06-543-7673"
   }
  },
  {
@@ -2518,14 +2598,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 12500,
-   "due_date": "2026-05-05 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-043-1949",
    "last_4_digits": "4317",
    "case_status": "pending_review",
    "case_status_note": "ลูกค้าร้องเรียนและทักท้วงเรื่องค่าปรับล่าช้าที่ไม่เป็นธรรม",
    "vehicle_registration": "3ขข 9876",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -17,
+   "msisdn": "06-043-1949"
   }
  },
  {
@@ -2540,7 +2621,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 17350,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-16 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-076-5416",
    "last_4_digits": "1910",
@@ -2552,7 +2632,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -36,
+   "msisdn": "06-076-5416"
   }
  },
  {
@@ -2567,14 +2649,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2500,
    "minimum_payment_due": 1250,
-   "due_date": "2026-04-14 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-201-0854",
    "last_4_digits": "2713",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-469-5687"
+   "msisdn": "093-469-5687",
+   "due_date_offset_days": -38
   }
  },
  {
@@ -2589,14 +2671,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 4500,
    "minimum_payment_due": 1500,
-   "due_date": "2026-04-28 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-051-5451",
    "last_4_digits": "2140",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "089-703-1225"
+   "msisdn": "089-703-1225",
+   "due_date_offset_days": -24
   }
  },
  {
@@ -2611,7 +2693,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-05-11 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-515-6900",
    "last_4_digits": "7562",
@@ -2623,7 +2704,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 300,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -11,
+   "msisdn": "06-515-6900"
   }
  },
  {
@@ -2638,14 +2721,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 125000,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-25 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-664-3458",
    "last_4_digits": "3780",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "2ขข 5678",
-   "location": "ระยอง"
+   "location": "ระยอง",
+   "due_date_offset_days": -27,
+   "msisdn": "06-664-3458"
   }
  },
  {
@@ -2660,12 +2744,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 85000,
    "minimum_payment_due": 3500,
-   "due_date": "2026-04-21 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-114-4207",
    "last_4_digits": "0504",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -31,
+   "msisdn": "06-114-4207"
   }
  },
  {
@@ -2680,7 +2765,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 125000,
    "minimum_payment_due": 12500,
-   "due_date": "2026-05-08 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-655-6783",
    "last_4_digits": "4909",
@@ -2692,7 +2776,9 @@
    "late_fee": 500,
    "collection_fee": 200,
    "insurance_fee": 0,
-   "month": "กันยายน"
+   "month": "กันยายน",
+   "due_date_offset_days": -14,
+   "msisdn": "06-655-6783"
   }
  },
  {
@@ -2707,14 +2793,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 15000,
    "minimum_payment_due": 5000,
-   "due_date": "2026-04-20 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-435-8289",
    "last_4_digits": "7065",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "บม 1234",
-   "location": "ขอนแก่น"
+   "location": "ขอนแก่น",
+   "due_date_offset_days": -32,
+   "msisdn": "06-435-8289"
   }
  },
  {
@@ -2729,12 +2816,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 120000,
    "minimum_payment_due": 6500,
-   "due_date": "2026-05-04 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-033-2273",
    "last_4_digits": "4532",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -18,
+   "msisdn": "06-033-2273"
   }
  },
  {
@@ -2749,7 +2837,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 125000,
    "minimum_payment_due": 18500,
-   "due_date": "2026-05-05 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-292-2563",
    "last_4_digits": "0552",
@@ -2761,7 +2848,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -17,
+   "msisdn": "06-292-2563"
   }
  },
  {
@@ -2776,14 +2865,14 @@
    "loan_type": "AIS Fibre บรอดแบนด์",
    "total_amount_due": 3590,
    "minimum_payment_due": 1190,
-   "due_date": "2026-05-01 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-852-9187",
    "last_4_digits": "8367",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "AIS_Fibre",
-   "msisdn": "082-362-4462"
+   "msisdn": "082-362-4462",
+   "due_date_offset_days": -21
   }
  },
  {
@@ -2798,12 +2887,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 85000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-21 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-500-2443",
    "last_4_digits": "9989",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -31,
+   "msisdn": "06-500-2443"
   }
  },
  {
@@ -2818,14 +2908,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 150000,
    "minimum_payment_due": 15000,
-   "due_date": "2026-04-18 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-451-8301",
    "last_4_digits": "1405",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "1ขข 9876",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -34,
+   "msisdn": "06-451-8301"
   }
  },
  {
@@ -2840,7 +2931,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 18500,
    "minimum_payment_due": 9250,
-   "due_date": "2026-05-03 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-631-8406",
    "last_4_digits": "8835",
@@ -2852,7 +2942,9 @@
    "late_fee": 250.0,
    "collection_fee": 100.0,
    "insurance_fee": 300.0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -19,
+   "msisdn": "06-631-8406"
   }
  },
  {
@@ -2867,12 +2959,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-14 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-842-9809",
    "last_4_digits": "5364",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -8,
+   "msisdn": "06-842-9809"
   }
  },
  {
@@ -2887,14 +2980,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2500,
    "minimum_payment_due": 1250,
-   "due_date": "2026-04-22 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-948-8276",
    "last_4_digits": "6027",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "082-709-1296"
+   "msisdn": "082-709-1296",
+   "due_date_offset_days": -30
   }
  },
  {
@@ -2909,14 +3002,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 4250,
    "minimum_payment_due": 2000,
-   "due_date": "2026-04-22 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-435-6084",
    "last_4_digits": "3617",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "089-752-0216"
+   "msisdn": "089-752-0216",
+   "due_date_offset_days": -30
   }
  },
  {
@@ -2931,12 +3024,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 45000,
    "minimum_payment_due": 2500,
-   "due_date": "2026-05-03 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-437-4636",
    "last_4_digits": "6784",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -19,
+   "msisdn": "06-437-4636"
   }
  },
  {
@@ -2951,14 +3045,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 17000,
    "minimum_payment_due": 8500,
-   "due_date": "2026-05-10 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-344-6657",
    "last_4_digits": "5985",
    "case_status": "pending_review",
    "case_status_note": "ลูกค้ายืนยันว่าสมัครหักบัญชีอัตโนมัติแล้ว รอตรวจสอบสถานะการสมัคร",
    "vehicle_registration": "2กข 9999",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -12,
+   "msisdn": "06-344-6657"
   }
  },
  {
@@ -2973,12 +3068,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-14 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-113-9378",
    "last_4_digits": "6389",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -38,
+   "msisdn": "06-113-9378"
   }
  },
  {
@@ -2993,12 +3089,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-23 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-290-9994",
    "last_4_digits": "9101",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -29,
+   "msisdn": "06-290-9994"
   }
  },
  {
@@ -3013,12 +3110,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 25000,
    "minimum_payment_due": 2500,
-   "due_date": "2026-04-29 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-818-1575",
    "last_4_digits": "2569",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -23,
+   "msisdn": "06-818-1575"
   }
  },
  {
@@ -3033,7 +3131,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 17850,
    "minimum_payment_due": 8500,
-   "due_date": "2026-04-26 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-892-8416",
    "last_4_digits": "8263",
@@ -3045,7 +3142,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 500,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -26,
+   "msisdn": "06-892-8416"
   }
  },
  {
@@ -3060,12 +3159,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
-   "due_date": "2026-05-16 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-989-7223",
    "last_4_digits": "8311",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -6,
+   "msisdn": "06-989-7223"
   }
  },
  {
@@ -3080,7 +3180,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 12500,
    "minimum_payment_due": 12000,
-   "due_date": "2026-05-10 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-030-9734",
    "last_4_digits": "7278",
@@ -3092,7 +3191,9 @@
    "late_fee": 200,
    "collection_fee": 100,
    "insurance_fee": 200,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -12,
+   "msisdn": "06-030-9734"
   }
  },
  {
@@ -3107,12 +3208,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 45500,
    "minimum_payment_due": 4550,
-   "due_date": "2026-04-19 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-404-6853",
    "last_4_digits": "5453",
    "case_status": "pending_review",
-   "case_status_note": "ลูกค้าร้องเรียนและปฏิเสธการจ่ายค่าธรรมเนียมรายปีและค่าปรับล่าช้า"
+   "case_status_note": "ลูกค้าร้องเรียนและปฏิเสธการจ่ายค่าธรรมเนียมรายปีและค่าปรับล่าช้า",
+   "due_date_offset_days": -33,
+   "msisdn": "06-404-6853"
   }
  },
  {
@@ -3127,7 +3229,6 @@
    "loan_type": "สินเชื่อรถจักรยานยนต์",
    "total_amount_due": 9877,
    "minimum_payment_due": 9000,
-   "due_date": "2026-04-13 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-229-2288",
    "last_4_digits": "4340",
@@ -3139,7 +3240,9 @@
    "late_fee": 300,
    "collection_fee": 200,
    "insurance_fee": 377,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -39,
+   "msisdn": "06-229-2288"
   }
  },
  {
@@ -3154,12 +3257,13 @@
    "loan_type": "สินเชื่อส่วนบุคคล",
    "total_amount_due": 154333,
    "minimum_payment_due": 15433,
-   "due_date": "2026-04-23 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-025-0129",
    "last_4_digits": "9916",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -29,
+   "msisdn": "06-025-0129"
   }
  },
  {
@@ -3174,14 +3278,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 126975,
    "minimum_payment_due": 12697,
-   "due_date": "2026-05-14 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-447-4747",
    "last_4_digits": "6050",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "8กณ 4567",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -8,
+   "msisdn": "06-447-4747"
   }
  },
  {
@@ -3196,7 +3301,6 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 154205,
    "minimum_payment_due": 12500,
-   "due_date": "2026-04-27 (Monday)",
    "due_status": "overdue",
    "customer_phone": "06-326-8641",
    "last_4_digits": "9804",
@@ -3208,7 +3312,9 @@
    "late_fee": 250.0,
    "collection_fee": 100.0,
    "insurance_fee": 300.0,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -25,
+   "msisdn": "06-326-8641"
   }
  },
  {
@@ -3223,14 +3329,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 34000,
    "minimum_payment_due": 17000,
-   "due_date": "2026-05-03 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-799-7229",
    "last_4_digits": "5488",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "7กฒ 8921",
-   "location": "เชียงใหม่"
+   "location": "เชียงใหม่",
+   "due_date_offset_days": -19,
+   "msisdn": "06-799-7229"
   }
  },
  {
@@ -3245,12 +3352,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 58000,
    "minimum_payment_due": 5800,
-   "due_date": "2026-04-19 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-993-9322",
    "last_4_digits": "0655",
    "case_status": "pending_review",
-   "case_status_note": "เฝ้าระวังบุคคลอื่นแอบอ้างบัญชี"
+   "case_status_note": "เฝ้าระวังบุคคลอื่นแอบอ้างบัญชี",
+   "due_date_offset_days": -33,
+   "msisdn": "06-993-9322"
   }
  },
  {
@@ -3265,14 +3373,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 2635,
    "minimum_payment_due": 1317,
-   "due_date": "2026-04-19 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-273-2036",
    "last_4_digits": "3365",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "090-594-5223"
+   "msisdn": "090-594-5223",
+   "due_date_offset_days": -33
   }
  },
  {
@@ -3287,14 +3395,14 @@
    "loan_type": "AIS Fibre บรอดแบนด์",
    "total_amount_due": 10812,
    "minimum_payment_due": 7105,
-   "due_date": "2026-04-08 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-517-1632",
    "last_4_digits": "1879",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "AIS_Fibre",
-   "msisdn": "086-677-0550"
+   "msisdn": "086-677-0550",
+   "due_date_offset_days": -44
   }
  },
  {
@@ -3309,14 +3417,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 7500,
    "minimum_payment_due": 750,
-   "due_date": "2026-04-16 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-956-2604",
    "last_4_digits": "7811",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "3กข 8899",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -36,
+   "msisdn": "06-956-2604"
   }
  },
  {
@@ -3331,14 +3440,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 5353,
    "minimum_payment_due": 2676,
-   "due_date": "2026-04-18 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-653-7606",
    "last_4_digits": "5640",
    "case_status": "normal",
    "case_status_note": null,
    "service_type": "Postpaid_Mobile",
-   "msisdn": "093-537-1212"
+   "msisdn": "093-537-1212",
+   "due_date_offset_days": -34
   }
  },
  {
@@ -3353,7 +3462,6 @@
    "loan_type": "รถยนต์",
    "total_amount_due": 15500,
    "minimum_payment_due": 14000,
-   "due_date": "2026-04-30 (Thursday)",
    "due_status": "overdue",
    "customer_phone": "06-792-9489",
    "last_4_digits": "3256",
@@ -3365,7 +3473,9 @@
    "late_fee": 500,
    "collection_fee": 500,
    "insurance_fee": 500,
-   "month": "พฤศจิกายน"
+   "month": "พฤศจิกายน",
+   "due_date_offset_days": -22,
+   "msisdn": "06-792-9489"
   }
  },
  {
@@ -3380,14 +3490,14 @@
    "loan_type": "บริการรายเดือน Postpaid",
    "total_amount_due": 1850,
    "minimum_payment_due": 1200,
-   "due_date": "2026-04-12 (Sunday)",
    "due_status": "overdue",
    "customer_phone": "06-612-4173",
    "last_4_digits": "0582",
    "case_status": "pending_review",
    "case_status_note": "ลูกค้าร้องเรียนและโต้แย้งค่าปรับล่าช้า",
    "service_type": "Postpaid_Mobile",
-   "msisdn": "090-670-5811"
+   "msisdn": "090-670-5811",
+   "due_date_offset_days": -40
   }
  },
  {
@@ -3402,14 +3512,15 @@
    "loan_type": "สินเชื่อรถยนต์",
    "total_amount_due": 14594,
    "minimum_payment_due": 4864,
-   "due_date": "2026-04-10 (Friday)",
    "due_status": "overdue",
    "customer_phone": "06-553-1853",
    "last_4_digits": "0862",
    "case_status": "normal",
    "case_status_note": null,
    "vehicle_registration": "1กข 4567",
-   "location": "กรุงเทพมหานคร"
+   "location": "กรุงเทพมหานคร",
+   "due_date_offset_days": -42,
+   "msisdn": "06-553-1853"
   }
  },
  {
@@ -3424,12 +3535,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 8909,
    "minimum_payment_due": 2500,
-   "due_date": "2026-04-14 (Tuesday)",
    "due_status": "overdue",
    "customer_phone": "06-380-6794",
    "last_4_digits": "9389",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -38,
+   "msisdn": "06-380-6794"
   }
  },
  {
@@ -3444,7 +3556,6 @@
    "loan_type": "สินเชื่อรถจักรยานยนต์",
    "total_amount_due": 5188,
    "minimum_payment_due": 4500,
-   "due_date": "2026-04-25 (Saturday)",
    "due_status": "overdue",
    "customer_phone": "06-498-5323",
    "last_4_digits": "8649",
@@ -3456,7 +3567,9 @@
    "late_fee": 250,
    "collection_fee": 100,
    "insurance_fee": 338,
-   "month": "ตุลาคม"
+   "month": "ตุลาคม",
+   "due_date_offset_days": -27,
+   "msisdn": "06-498-5323"
   }
  },
  {
@@ -3471,12 +3584,13 @@
    "loan_type": "บัตรเครดิต",
    "total_amount_due": 8761,
    "minimum_payment_due": 876,
-   "due_date": "2026-04-08 (Wednesday)",
    "due_status": "overdue",
    "customer_phone": "06-326-1630",
    "last_4_digits": "1221",
    "case_status": "normal",
-   "case_status_note": null
+   "case_status_note": null,
+   "due_date_offset_days": -44,
+   "msisdn": "06-326-1630"
   }
  }
 ]

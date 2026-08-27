@@ -82,6 +82,59 @@ def load_specs() -> dict[str, dict]:
     return out
 
 
+def personas_for(company: str) -> "list[tuple[str, dict]]":
+    """Every shipped persona of a company as (msisdn, crm-row), demo persona first.
+
+    The picker in the demo offers 39 AEON callers, but `session_init` fetched one
+    hardcoded row and every tool answered from it, so choosing a different caller
+    changed nothing the agent said. A real deployment looks the caller up by the number
+    it dialled, so the mock does the same: one response per msisdn, selected by the
+    identifier the request already carries.
+    """
+    import sys
+    sys.path.insert(0, str(REPO))
+    from demo.server import sessions
+
+    demo_first = persona_for(company)
+    rows = [c for c in sessions.list_cases()
+            if str(c.get("company", "")).upper() == company.upper()]
+    out, seen = [], set()
+    for cid in [_demo_case_id(company)] + [r["id"] for r in rows]:
+        if not cid or cid in seen:
+            continue
+        seen.add(cid)
+        cd = _relativise(dict(sessions.case_customer_data(cid)))
+        cd.update(COMPANY_EXTRAS.get(company.upper(), {}))
+        cd = {k: _rel_date(v) for k, v in cd.items() if not k.endswith("_offset_days")}
+        key = str(cd.get("msisdn") or cd.get("customer_phone") or "")
+        if key:
+            out.append((key, cd))
+    return out or [("", demo_first)]
+
+
+def _demo_case_id(company: str) -> "str | None":
+    import sys
+    sys.path.insert(0, str(REPO))
+    from demo.server import sessions
+    ids = [c["id"] for c in sessions.list_cases()
+           if str(c["id"]).startswith(f"TC-{company.upper()}-")
+           and str(c["id"]).split("-")[-2] in ("BUILD", "PREDUE")]
+    return ids[0] if ids else None
+
+
+def _relativise(cd: dict) -> dict:
+    """`<field>_offset_days` → the dateTimeShift the app resolves to at session time."""
+    for key in [k for k in cd if k.endswith("_offset_days")]:
+        try:
+            n = int(cd[key])
+        except (TypeError, ValueError):
+            continue
+        cd[key[: -len("_offset_days")]] = _rel_date(f"@today{n:+d}")
+        if key == "due_date_offset_days":
+            cd["due_upcoming"] = n > 0
+    return cd
+
+
 def persona_for(company: str) -> dict:
     """The shipped demo persona's CRM row, so the mock and the app agree by
     construction rather than by two people remembering to edit both."""
@@ -216,6 +269,14 @@ def _route(method: str, endpoint: str, responses: list[dict], doc: str = "") -> 
 
 def _company_rule(company: str) -> dict:
     return {"target": "params", "modifier": "company", "value": company,
+            "operator": "equals", "invert": False}
+
+
+def _caller_rule(target: str, modifier: str, value: str) -> dict:
+    """Select a response by the caller the request names. `session_init` passes the
+    number in the query string; every tool call already carries it in `ref` (the
+    default request body spec_backend builds), so neither needs the model's help."""
+    return {"target": target, "modifier": modifier, "value": value,
             "operator": "equals", "invert": False}
 
 
@@ -399,16 +460,33 @@ def tool_responses(decl: dict, crm: dict) -> list[dict]:
     return out
 
 
+def _reads_crm(decl: dict) -> bool:
+    """Does this tool answer out of the customer's record? Those are the ones whose
+    response has to follow the caller. A tool that only writes (record_outcome) or
+    computes (get_current_datetime) answers the same for everyone."""
+    return decl["name"].startswith(("check_account", "check_doctor"))
+
+
 def build() -> dict:
     specs = load_specs()
     crm = {c: persona_for(c) for c in specs}
+    callers = {c: personas_for(c) for c in specs}
     routes: list[dict] = []
 
+    # One context row per caller, chosen by the number session_init passes. The demo
+    # persona stays the default so a request without the parameter still works.
+    init_resp: list[dict] = []
+    for c in specs:
+        for msisdn, row in callers[c]:
+            init_resp.append(_resp(
+                row, rules=[_company_rule(c), _caller_rule("query", "msisdn", msisdn)],
+                label=f"{c} context · {msisdn}"))
+        init_resp.append(_resp(crm[c], rules=[_company_rule(c)],
+                               label=f"{c} context · default"))
     routes.append(_route(
         "get", ":company/init",
-        [_resp(crm[c], rules=[_company_rule(c)], label=f"{c} context") for c in specs]
-        + [_resp({"error": "unknown_company"}, default=True, status=404,
-                 label="unknown company")],
+        init_resp + [_resp({"error": "unknown_company"}, default=True, status=404,
+                           label="unknown company")],
         doc="Call context fetched once at session start (spec.session_init)"))
 
     # One route per DISTINCT tool name; the company URL param selects the behaviour,
@@ -421,6 +499,19 @@ def build() -> dict:
     for name, per_company in sorted(by_name.items()):
         responses: list[dict] = []
         for comp, decl in sorted(per_company.items()):
+            # A tool that answers FROM the CRM has to answer for the caller this call is
+            # about, or the picker chooses a name while the balance stays someone
+            # else's. `ref.msisdn` rides in the default request body, so the row is
+            # selected without the model supplying anything.
+            if _reads_crm(decl):
+                for msisdn, row in callers.get(comp, []):
+                    for r in tool_responses(decl, row):
+                        if not r["rules"]:      # only the catch-all gets a caller rule
+                            r["rules"] = [_caller_rule("body", "ref.msisdn", msisdn)]
+                            r["default"] = False
+                            r["label"] = f"{comp}: {r['label']} · {msisdn}"
+                            r["rules"] = [_company_rule(comp)] + r["rules"]
+                            responses.append(r)
             for r in tool_responses(decl, crm.get(comp, {})):
                 r["rules"] = [_company_rule(comp)] + r["rules"]
                 r["default"] = False
