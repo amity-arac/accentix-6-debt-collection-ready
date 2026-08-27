@@ -768,8 +768,11 @@ def flow_prescripts(company: str, instruction_version: str | None = None) -> dic
         return {}
     spec = load_tenant_spec(spec_path)
     # catalog ที่ spec เวอร์ชันนั้นประกาศไว้ (v14.1 → v14_aeon_flow_catalog) — อ่านเพื่อแสดงเท่านั้น
+    # `catalog` is the inline list of templates now; it was a path to a catalog file
+    # in the older shape, and this still joined it onto REPO_ROOT — a TypeError that
+    # made /api/flow/spec and /api/flow/prescripts 500 for every company.
     cat_path = None
-    if spec.get("catalog"):
+    if isinstance(spec.get("catalog"), str):
         p_spec = REPO_ROOT / spec["catalog"]
         if p_spec.exists(): cat_path = p_spec
     if cat_path is None:
@@ -832,15 +835,16 @@ def get_flow_spec(company: str) -> dict[str, Any]:
     if not spec_path.exists():
         return {}
     spec = load_tenant_spec(spec_path)
+    # `_flow_paths` returns None for the catalog when the spec carries it inline,
+    # which is every spec now — this used to call .exists() on that None.
     fine_states: list[str] = []
     templates: dict[str, list[str]] = {}
-    if cat_path.exists():
-        cat = json.loads(cat_path.read_text(encoding="utf-8"))
-        fine_states = sorted({e.get("_fine_state", "") for e in cat if e.get("_fine_state")})
-        for e in cat:
-            fs = e.get("_fine_state")
-            if fs and e.get("template"):
-                templates.setdefault(fs, []).append(e["template"])
+    cat = _read_catalog(spec, cat_path)
+    fine_states = sorted({e.get("_fine_state", "") for e in cat if e.get("_fine_state")})
+    for e in cat:
+        fs = e.get("_fine_state")
+        if fs and e.get("template"):
+            templates.setdefault(fs, []).append(e["template"])
     tools = [d.get("name") for d in spec.get("tools", {}).get("declarations", [])]
     return {"company": company, "spec": spec, "fine_states": fine_states,
             "templates": templates, "tools": tools}
