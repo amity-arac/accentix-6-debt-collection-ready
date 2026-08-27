@@ -130,5 +130,28 @@
    "msisdn": "081-234-5678",
    "due_date_offset_days": 1
   }
+ },
+ {
+  "id": "TC-AEONLITE-BUILD-001",
+  "topic": "อิอ้อน — ก่อนครบกำหนด (Remind) demo",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "customer_name": "วีระ ตรงเวลา",
+   "loan_type": "บัตรเครดิต",
+   "total_amount_due": 45000,
+   "minimum_payment_due": 4500,
+   "due_status": "upcoming",
+   "customer_phone": "081-555-7788",
+   "msisdn": "081-555-7788",
+   "last_4_digits": "7777",
+   "case_status": "normal",
+   "case_status_note": null,
+   "company_name": "อิออน",
+   "agent_name": "น้องอิ",
+   "due_date_offset_days": 3
+  },
+  "user_system_prompt": "<persona>ลูกค้าบัตรอิอ้อน ยอดยังไม่ถึงกำหนด รับสายเตือนล่วงหน้า</persona>\n<situation>ยอด 45000 จะครบกำหนด 28 พ.ค. (ยังไม่เกิน) เจ้าหน้าที่โทรเตือนล่วงหน้า</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  }
 ]

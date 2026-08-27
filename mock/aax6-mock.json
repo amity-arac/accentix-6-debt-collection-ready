@@ -1,5 +1,5 @@
 {
-  "uuid": "a6601083-0fad-459d-9f61-06b7b3e9a08d",
+  "uuid": "fa1c887c-8e35-4906-a5f3-eed2b31ab654",
   "lastMigration": 33,
   "name": "AAX6 mock backend",
   "endpointPrefix": "",
@@ -9,14 +9,14 @@
   "folders": [],
   "routes": [
     {
-      "uuid": "d2d64893-6a82-48a8-b432-214b84e713af",
+      "uuid": "d107ecc7-9205-4629-9fe4-2f3d74a1f527",
       "type": "http",
       "documentation": "Call context fetched once at session start (spec.session_init)",
       "method": "get",
       "endpoint": ":company/init",
       "responses": [
         {
-          "uuid": "b0535fdd-95f0-42ad-9b2a-2a85080a0e92",
+          "uuid": "4e7ee350-d8c8-44dc-9f48-298d01129e96",
           "body": "{\n  \"customer_name\": \"วีระ ตรงเวลา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"upcoming\",\n  \"customer_phone\": \"081-555-7777\",\n  \"msisdn\": \"081-555-7777\",\n  \"last_4_digits\": \"7777\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"อิอ้อน\",\n  \"agent_name\": \"น้องอิ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -55,7 +55,7 @@
           "callbacks": []
         },
         {
-          "uuid": "39654b8e-354e-41f9-bf7e-37a5a89e82da",
+          "uuid": "3cbee061-8247-4726-ad9e-c8d6abe31ec0",
           "body": "{\n  \"customer_name\": \"สมชาย วงศ์ตระกูล\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-976-3347\",\n  \"last_4_digits\": \"4275\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้าร้องเรียนเรื่องค่าธรรมเนียมแฝงและยอดเรียกเก็บสูงผิดปกติ\",\n  \"msisdn\": \"06-976-3347\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-14 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -94,7 +94,7 @@
           "callbacks": []
         },
         {
-          "uuid": "987666d1-0865-476a-b749-dde090fe876e",
+          "uuid": "25883d2f-6a7a-487a-8354-67f513b172c6",
           "body": "{\n  \"customer_name\": \"ธนากร พิทักษ์ชน\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-693-5137\",\n  \"last_4_digits\": \"3956\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-693-5137\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -133,7 +133,7 @@
           "callbacks": []
         },
         {
-          "uuid": "df690225-b7e4-495c-8ead-2165cf76449f",
+          "uuid": "9bdd7c11-2d39-43a1-b1dd-958a8e7f75e1",
           "body": "{\n  \"customer_name\": \"ประยุทธ มั่นคงดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-859-6960\",\n  \"last_4_digits\": \"9891\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-859-6960\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-39 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -172,7 +172,7 @@
           "callbacks": []
         },
         {
-          "uuid": "fa88d1df-acb3-414f-a3f9-6c429f5ed38c",
+          "uuid": "009d3cd4-b535-45ad-91c2-375b5e7f1244",
           "body": "{\n  \"customer_name\": \"นภาพร ทองอินทร์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-280-6017\",\n  \"last_4_digits\": \"1844\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-280-6017\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -211,7 +211,7 @@
           "callbacks": []
         },
         {
-          "uuid": "000aeebe-38fe-48fb-8e7e-4626d5686c9c",
+          "uuid": "3e77e677-88c1-403f-bc59-a0d0951605fc",
           "body": "{\n  \"customer_name\": \"ปิ่นมณี ใจดีงาม\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 15000,\n  \"minimum_payment_due\": 1500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-892-4731\",\n  \"last_4_digits\": \"4180\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-892-4731\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-37 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -250,7 +250,7 @@
           "callbacks": []
         },
         {
-          "uuid": "2749ba91-4c9c-4ea5-8a9f-94c8cc6d2a63",
+          "uuid": "7448afe4-8ab9-493d-8306-3abd76e3a4aa",
           "body": "{\n  \"customer_name\": \"อนุชา สายส่งด่วน\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-797-4619\",\n  \"last_4_digits\": \"4674\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-797-4619\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -289,7 +289,7 @@
           "callbacks": []
         },
         {
-          "uuid": "6af76be4-1ea2-432a-9133-4ae6ef54b225",
+          "uuid": "5d3124ce-41f0-439f-81f1-50640122b09f",
           "body": "{\n  \"customer_name\": \"อรอนงค์ บัญชีพิสุทธิ์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-116-0346\",\n  \"last_4_digits\": \"2579\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้ารอตรวจสอบเอกสารใบแจ้งหนี้และรายละเอียดการคำนวณดอกเบี้ย\",\n  \"msisdn\": \"06-116-0346\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -328,7 +328,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f8a3806b-f53e-4f96-b8a6-0a0f7b4dc74b",
+          "uuid": "9bfef415-6bf7-4415-92e3-aadb4b98a852",
           "body": "{\n  \"customer_name\": \"ธนกฤต วงศ์ไพบูลย์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-444-5258\",\n  \"last_4_digits\": \"7824\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-444-5258\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -367,7 +367,7 @@
           "callbacks": []
         },
         {
-          "uuid": "48388973-63d0-45ae-8870-9bbabc411245",
+          "uuid": "e700102e-b1be-4c5b-aab5-4b1c9668f984",
           "body": "{\n  \"customer_name\": \"ปาริชาติ บุญมาก\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-955-4833\",\n  \"last_4_digits\": \"3338\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-955-4833\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-26 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -406,7 +406,7 @@
           "callbacks": []
         },
         {
-          "uuid": "7e36df87-702a-4331-bbf3-9b991e7a9d6f",
+          "uuid": "e2682cd5-78e2-45e8-939a-858c52f25359",
           "body": "{\n  \"customer_name\": \"อรปรียา จันทร์เพ็ญ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-369-1455\",\n  \"last_4_digits\": \"8090\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-369-1455\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -445,7 +445,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0ec39780-12f4-4179-a3dd-8bd15807a31c",
+          "uuid": "0f353350-7456-4de2-8506-594c62bb8379",
           "body": "{\n  \"customer_name\": \"วรเมธ อินทรประเสริฐ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-204-5657\",\n  \"last_4_digits\": \"5300\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-204-5657\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-34 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -484,7 +484,7 @@
           "callbacks": []
         },
         {
-          "uuid": "32371c37-73ee-4b53-80b9-780cca5d0f8c",
+          "uuid": "c0bd1ca4-8f95-4e51-af51-459f1c8423f0",
           "body": "{\n  \"customer_name\": \"ภาณุพงศ์ ใจดีงาม\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-310-6509\",\n  \"last_4_digits\": \"1391\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-310-6509\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -523,7 +523,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e70a8c03-817f-465d-b19e-5a169d09f3b4",
+          "uuid": "19903316-3f39-47cb-b762-04001bf01370",
           "body": "{\n  \"customer_name\": \"สมหญิง รัตนพิพัฒน์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-239-9894\",\n  \"last_4_digits\": \"3542\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-239-9894\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -562,7 +562,7 @@
           "callbacks": []
         },
         {
-          "uuid": "7ee1a5c9-64f9-4674-a19f-0e45644759c2",
+          "uuid": "4f46cc88-5fe4-4239-8f4e-9be2ad48e96e",
           "body": "{\n  \"customer_name\": \"ธนกฤต ขจรเดช\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-477-0311\",\n  \"last_4_digits\": \"4111\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-477-0311\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -601,7 +601,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a50009fe-202b-4419-a8ca-0f02ac37512e",
+          "uuid": "a50b90aa-4305-4b72-8a0e-50a9dffd7e0a",
           "body": "{\n  \"customer_name\": \"ธนกฤต ภูมิวัฒน์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-578-3464\",\n  \"last_4_digits\": \"9388\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-578-3464\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -640,7 +640,7 @@
           "callbacks": []
         },
         {
-          "uuid": "76512f43-a734-41fd-9aa4-8e98ee9ab4d4",
+          "uuid": "223c8858-6a01-4560-9042-35a9b7bcc4a8",
           "body": "{\n  \"customer_name\": \"ศิริพร นาคทอง\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4250,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-945-0611\",\n  \"last_4_digits\": \"3884\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-945-0611\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-32 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -679,7 +679,7 @@
           "callbacks": []
         },
         {
-          "uuid": "92062f14-87b0-4574-9bf4-8907ed45e706",
+          "uuid": "e77d1596-09e3-4c58-80ca-f2a0eca4adf9",
           "body": "{\n  \"customer_name\": \"ณัฐริกา ใจดีงาม\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-354-3074\",\n  \"last_4_digits\": \"5714\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-354-3074\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-9 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -718,7 +718,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5b2aaa1a-1fd6-48d0-a358-64c1edb917bd",
+          "uuid": "fcaa8186-0306-4618-950c-19642cbb1458",
           "body": "{\n  \"customer_name\": \"James Wilson\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-612-2778\",\n  \"last_4_digits\": \"5542\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-612-2778\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-22 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -757,7 +757,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e6ddb074-9c25-42cd-9f9c-19c6696fe4ec",
+          "uuid": "29324f75-3de1-4139-b926-28b0824520d8",
           "body": "{\n  \"customer_name\": \"ประยุทธ์ ศรีสุวรรณ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-676-4457\",\n  \"last_4_digits\": \"9794\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-676-4457\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -796,7 +796,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ccbd5169-2e3c-49d8-a282-df4de3e1bb96",
+          "uuid": "22ce923a-0d25-42bb-898e-b134e85a584c",
           "body": "{\n  \"customer_name\": \"วิชัย ตั้งจิตเจริญ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 15000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-151-6225\",\n  \"last_4_digits\": \"8051\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-151-6225\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -835,7 +835,7 @@
           "callbacks": []
         },
         {
-          "uuid": "35961ec4-493c-4f24-b6b9-cdc6bd1d1b7f",
+          "uuid": "ff462fe8-38df-4032-a0a1-827324becd4f",
           "body": "{\n  \"customer_name\": \"ธีรภัทร อินทรประเสริฐ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-724-4664\",\n  \"last_4_digits\": \"2549\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-724-4664\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-30 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -874,7 +874,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a12c245c-6c6b-4718-beed-ce98ce9538b0",
+          "uuid": "41d652ab-37f8-4e31-adba-9e0394088084",
           "body": "{\n  \"customer_name\": \"สมชาย ทองแท้\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 1500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-762-3210\",\n  \"last_4_digits\": \"3272\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-762-3210\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-12 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -913,7 +913,7 @@
           "callbacks": []
         },
         {
-          "uuid": "bda771c5-149a-4ee6-864c-e58eabb6e1ce",
+          "uuid": "2e2e616e-d14b-4a88-a29a-ca6794740ebd",
           "body": "{\n  \"customer_name\": \"นายวิชัย ใจตรง\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-917-7655\",\n  \"last_4_digits\": \"6505\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้าแจ้งว่าปิดบัญชีไปแล้วเมื่อ 2 ปีก่อน ต้องตรวจสอบประวัติการชำระเงินและสถานะบัญชี\",\n  \"msisdn\": \"06-917-7655\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -952,7 +952,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a71432ab-8225-4e64-be3d-a5136ac084ef",
+          "uuid": "7e2e8243-c021-4949-a455-46d8dfdf2311",
           "body": "{\n  \"customer_name\": \"สมศักดิ์ มีสุข\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-270-6758\",\n  \"last_4_digits\": \"6582\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-270-6758\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-25 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -991,7 +991,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5a56b2ae-5266-4765-89e5-6887d88ec545",
+          "uuid": "50a973ea-892b-4c92-886b-3df2f94024a4",
           "body": "{\n  \"customer_name\": \"ธนวัฒน์ มณีรัตน์\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 3500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-114-4207\",\n  \"last_4_digits\": \"0504\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-114-4207\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1030,7 +1030,7 @@
           "callbacks": []
         },
         {
-          "uuid": "c9f9676e-d7fa-45b9-b87b-6268a5961772",
+          "uuid": "15429d9c-f631-4e3e-b3aa-c22a5605dedd",
           "body": "{\n  \"customer_name\": \"นายธนชัย แสงสุวรรณ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 120000,\n  \"minimum_payment_due\": 6500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-033-2273\",\n  \"last_4_digits\": \"4532\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-033-2273\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-18 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1069,7 +1069,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9bcb1225-77d5-4aaf-8e30-fddd2ee13fc6",
+          "uuid": "ad1288b0-53d4-403c-a1e3-8b140d3f5256",
           "body": "{\n  \"customer_name\": \"นายพงศกร สุขเจริญ\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-500-2443\",\n  \"last_4_digits\": \"9989\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-500-2443\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1108,7 +1108,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0cc8ead0-4b4b-49fa-a468-af6af35bad0e",
+          "uuid": "e84b0069-26c8-46b8-842f-36af1c992646",
           "body": "{\n  \"customer_name\": \"นายเอกชัย วัฒนกุล\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-842-9809\",\n  \"last_4_digits\": \"5364\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-842-9809\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1147,7 +1147,7 @@
           "callbacks": []
         },
         {
-          "uuid": "2da5582d-e1c4-4448-8ac6-efb8a7fb438f",
+          "uuid": "3ac9eb8c-e5d3-4e09-ace7-501124e8215c",
           "body": "{\n  \"customer_name\": \"สุรศักดิ์ เจริญสุข\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-437-4636\",\n  \"last_4_digits\": \"6784\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-437-4636\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-19 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1186,7 +1186,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f9a46758-7b6a-4f18-9ff5-7c00e8d2d15d",
+          "uuid": "ecdc164e-0acf-44e0-95ce-45cd598c7839",
           "body": "{\n  \"customer_name\": \"นายประวิทย์ ศรีสมบูรณ์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-113-9378\",\n  \"last_4_digits\": \"6389\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-113-9378\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1225,7 +1225,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a401b992-13af-447f-a9e1-a9f0fc0c6652",
+          "uuid": "afe44547-a690-4f12-afe1-481c2f88aa58",
           "body": "{\n  \"customer_name\": \"นางสาวอัญชลี วรรณวิไล\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-290-9994\",\n  \"last_4_digits\": \"9101\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-290-9994\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1264,7 +1264,7 @@
           "callbacks": []
         },
         {
-          "uuid": "14f41c4d-0762-484c-8b11-b64547ad25f1",
+          "uuid": "19c608d2-fda4-4b87-a05b-c26d622a38c8",
           "body": "{\n  \"customer_name\": \"นายสุธี มงคลชัย\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-818-1575\",\n  \"last_4_digits\": \"2569\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-818-1575\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1303,7 +1303,7 @@
           "callbacks": []
         },
         {
-          "uuid": "3e646579-b79d-4670-857e-54ae90051c8f",
+          "uuid": "a5ee0547-7562-4a77-ab3b-b011c25eb8c2",
           "body": "{\n  \"customer_name\": \"นางสาวกรรณิกา สุวรรณภูมิ\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-989-7223\",\n  \"last_4_digits\": \"8311\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-989-7223\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1342,7 +1342,7 @@
           "callbacks": []
         },
         {
-          "uuid": "3e369434-554a-426a-9022-7864a0591d8b",
+          "uuid": "b2e105f4-e2e6-47fd-badb-b2fe5fd5bf56",
           "body": "{\n  \"customer_name\": \"นางสาวพรทิพย์ เลิศลักษณ์\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-404-6853\",\n  \"last_4_digits\": \"5453\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"ลูกค้าร้องเรียนและปฏิเสธการจ่ายค่าธรรมเนียมรายปีและค่าปรับล่าช้า\",\n  \"msisdn\": \"06-404-6853\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1381,7 +1381,7 @@
           "callbacks": []
         },
         {
-          "uuid": "8d64030e-6d76-45e1-9abd-cb027f117843",
+          "uuid": "73b5f809-14ab-4b6b-b84c-5bc8bc878377",
           "body": "{\n  \"customer_name\": \"ดำรง จันทร์แจ่ม\",\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 154333,\n  \"minimum_payment_due\": 15433,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-025-0129\",\n  \"last_4_digits\": \"9916\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-025-0129\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1420,7 +1420,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9c734236-bbf9-4b2a-8fd3-92716a83c5cc",
+          "uuid": "b025f643-f15f-4288-bb0e-64233952ba81",
           "body": "{\n  \"customer_name\": \"กฤษณะ อัครเดช\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 58000,\n  \"minimum_payment_due\": 5800,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-993-9322\",\n  \"last_4_digits\": \"0655\",\n  \"case_status\": \"pending_review\",\n  \"case_status_note\": \"เฝ้าระวังบุคคลอื่นแอบอ้างบัญชี\",\n  \"msisdn\": \"06-993-9322\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1459,7 +1459,7 @@
           "callbacks": []
         },
         {
-          "uuid": "786d6cfa-1937-4b60-90b2-6dc6dd52b122",
+          "uuid": "d74221ef-c339-4602-a3ec-ea9140d9c3ab",
           "body": "{\n  \"customer_name\": \"จิรศักดิ์ โชคดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8909,\n  \"minimum_payment_due\": 2500,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-380-6794\",\n  \"last_4_digits\": \"9389\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-380-6794\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1498,7 +1498,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0ad0955a-1f3d-4f58-8c93-96afb0706d27",
+          "uuid": "33d36c0f-4883-4b86-9bdd-3742e182bc74",
           "body": "{\n  \"customer_name\": \"กิตติยา พรหมมา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8761,\n  \"minimum_payment_due\": 876,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"06-326-1630\",\n  \"last_4_digits\": \"1221\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"msisdn\": \"06-326-1630\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-44 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1537,7 +1537,7 @@
           "callbacks": []
         },
         {
-          "uuid": "b1575e47-440d-4f52-9cee-54f3d9ec85ed",
+          "uuid": "67a04a04-2050-4c7c-8e6d-85ced4288a88",
           "body": "{\n  \"customer_name\": \"วีระ ตรงเวลา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"upcoming\",\n  \"customer_phone\": \"081-555-7777\",\n  \"msisdn\": \"081-555-7777\",\n  \"last_4_digits\": \"7777\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"อิอ้อน\",\n  \"agent_name\": \"น้องอิ\",\n  \"company_phone\": \"02-035-6666\",\n  \"num\": 3,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1569,7 +1569,78 @@
           "callbacks": []
         },
         {
-          "uuid": "d6d2a476-882a-4047-8652-f443cd97d2a7",
+          "uuid": "de6c0c1b-f4d1-4803-bcaa-5e5d7ea4a402",
+          "body": "{\n  \"customer_name\": \"วีระ ตรงเวลา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"upcoming\",\n  \"customer_phone\": \"081-555-7788\",\n  \"msisdn\": \"081-555-7788\",\n  \"last_4_digits\": \"7777\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"อิออน\",\n  \"agent_name\": \"น้องอิ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEONLITE context · 081-555-7788",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEONLITE",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "query",
+              "modifier": "msisdn",
+              "value": "081-555-7788",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "0ead7611-9ff9-47c9-8dd5-c230eafbc6f1",
+          "body": "{\n  \"customer_name\": \"วีระ ตรงเวลา\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_status\": \"upcoming\",\n  \"customer_phone\": \"081-555-7788\",\n  \"msisdn\": \"081-555-7788\",\n  \"last_4_digits\": \"7777\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"อิออน\",\n  \"agent_name\": \"น้องอิ\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEONLITE context · default",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEONLITE",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "ab82d8d8-c00c-4efa-8402-6a67119aca7d",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"โรงพยาบาล AMT\",\n  \"agent_name\": \"น้องAMT\",\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"appointment_time\": \"10:00\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"visit_time_start\": \"10:00\",\n  \"visit_time_end\": \"11:00\",\n  \"appointment_date\": \"{{dateTimeShift date=(now) days=2 format='yyyy-MM-dd (EEEE)'}}\",\n  \"company_phone\": \"02-514-4141\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1608,7 +1679,7 @@
           "callbacks": []
         },
         {
-          "uuid": "229f439b-5501-4398-ab12-0164676a9135",
+          "uuid": "1d61632c-1fcc-459c-88d7-3497dce0897e",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"โรงพยาบาล AMT\",\n  \"agent_name\": \"น้องAMT\",\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"appointment_time\": \"10:00\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"visit_time_start\": \"10:00\",\n  \"visit_time_end\": \"11:00\",\n  \"company_phone\": \"02-514-4141\",\n  \"num\": 3,\n  \"appointment_date\": \"{{dateTimeShift date=(now) days=2 format='yyyy-MM-dd (EEEE)'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1640,7 +1711,7 @@
           "callbacks": []
         },
         {
-          "uuid": "265df26c-4fea-48dc-aaf9-73ce889ed8d0",
+          "uuid": "0aee8a2f-115d-474d-86f0-55c145d6f0ee",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"กสิกรไทย\",\n  \"agent_name\": \"น้องKBANK\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-888-8888\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1679,7 +1750,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9e5af464-2800-4c5f-b324-38509a613811",
+          "uuid": "7eff65e7-6743-4c82-9e96-e6dd9af345f0",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"กสิกรไทย\",\n  \"agent_name\": \"น้องKBANK\",\n  \"company_phone\": \"02-888-8888\",\n  \"num\": 3,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1711,7 +1782,7 @@
           "callbacks": []
         },
         {
-          "uuid": "81846315-4cad-4295-8af0-198cccc8f227",
+          "uuid": "2ba87cc6-f74e-4dd2-b0f1-b275d9e860e7",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"shop_name\": \"ร้านทองเจริญ\",\n  \"amount\": \"3500\",\n  \"max_extend_days\": \"7\",\n  \"company_name\": \"ร้านทองเจริญ\",\n  \"agent_name\": \"น้องร้านทอง\",\n  \"company_phone\": \"02-111-2222\",\n  \"case_status\": \"normal\",\n  \"msisdn\": \"081-234-5678\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1750,7 +1821,7 @@
           "callbacks": []
         },
         {
-          "uuid": "3023db5c-4891-4d1d-a222-904573e61cd3",
+          "uuid": "eda862cf-5709-4ed8-a582-6c5d5c3ded11",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"customer_phone\": \"081-234-5678\",\n  \"shop_name\": \"ร้านทองเจริญ\",\n  \"amount\": \"3500\",\n  \"max_extend_days\": \"7\",\n  \"company_name\": \"ร้านทองเจริญ\",\n  \"agent_name\": \"น้องร้านทอง\",\n  \"company_phone\": \"02-111-2222\",\n  \"case_status\": \"normal\",\n  \"msisdn\": \"081-234-5678\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": true\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1782,7 +1853,7 @@
           "callbacks": []
         },
         {
-          "uuid": "cf438091-5b8c-457c-b7c7-d5db0c0216cb",
+          "uuid": "b0b11f3b-770b-496b-a4ff-3aac3386873e",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"case_status_note\": null,\n  \"company_name\": \"สยามคูโบต้าลีสซิ่ง\",\n  \"agent_name\": \"น้องSKL\",\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false,\n  \"company_phone\": \"02-762-8888\",\n  \"num\": 3\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1821,7 +1892,7 @@
           "callbacks": []
         },
         {
-          "uuid": "bf666747-9135-4f72-8ca7-60aa0304cac6",
+          "uuid": "daeafc1a-5a3f-412e-9b0e-5dd7420d6f67",
           "body": "{\n  \"customer_name\": \"สมชาย ใจดี\",\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_status\": \"overdue\",\n  \"customer_phone\": \"081-234-5678\",\n  \"msisdn\": \"081-234-5678\",\n  \"last_4_digits\": \"1234\",\n  \"case_status\": \"normal\",\n  \"company_name\": \"สยามคูโบต้าลีสซิ่ง\",\n  \"agent_name\": \"น้องSKL\",\n  \"company_phone\": \"02-762-8888\",\n  \"num\": 3,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_upcoming\": false\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1853,7 +1924,7 @@
           "callbacks": []
         },
         {
-          "uuid": "78be3e77-d468-4e54-8867-5cef55ecf086",
+          "uuid": "3ba2d7e2-8978-4f7e-b2e8-6b8aefb6cc38",
           "body": "{\n  \"error\": \"unknown_company\"\n}",
           "latency": 0,
           "statusCode": 404,
@@ -1882,14 +1953,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "e0415884-dbce-42da-a500-cdf50f91c89e",
+      "uuid": "05403ae8-dc29-44ea-89eb-465e5f6e4b98",
       "type": "http",
       "documentation": "callback_datetime — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/callback_datetime",
       "responses": [
         {
-          "uuid": "2696ba5f-977c-4703-89b5-9f1e9d25c2f8",
+          "uuid": "8d096b37-13bf-4a95-b428-063675da318e",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1928,7 +1999,7 @@
           "callbacks": []
         },
         {
-          "uuid": "b5285ba9-6226-4f39-9a00-cd95f5f900e4",
+          "uuid": "97b40ed7-e582-4612-b9b5-b5dda34ca6b9",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"time\": \"{{body 'args.time'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1960,7 +2031,7 @@
           "callbacks": []
         },
         {
-          "uuid": "e5dd0315-0a33-46ba-a220-61757f76308a",
+          "uuid": "cd098d38-e6e5-46f0-b061-5de4e2c7207e",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -1999,7 +2070,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9108c25b-7e9d-4299-ab52-210b4b170956",
+          "uuid": "224d168c-22ba-438d-b8ab-b25340d46f54",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2031,7 +2102,7 @@
           "callbacks": []
         },
         {
-          "uuid": "fe312054-3ac7-450c-b593-1cb3aa6a4abd",
+          "uuid": "fb3fc10f-7e1d-4ff2-8983-75e74596a71a",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2070,7 +2141,7 @@
           "callbacks": []
         },
         {
-          "uuid": "717e08fe-e579-4cd2-b1f6-b9796ae6fdcc",
+          "uuid": "cb180079-a880-4987-8d10-4af40c909dfb",
           "body": "{\n  \"recorded\": true,\n  \"callback_datetime_id\": \"CAL-{{now 't'}}\",\n  \"date\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2102,7 +2173,7 @@
           "callbacks": []
         },
         {
-          "uuid": "03a324f8-0eaf-4994-a499-802ffddf085c",
+          "uuid": "e9cfd110-e1fb-41be-8cd9-94deac5b0e49",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CALLBA-{{now 't'}}\",\n  \"tool\": \"callback_datetime\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2131,14 +2202,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "5d803123-a484-438a-913c-d8eeb6444279",
+      "uuid": "ec68cea4-f153-4cec-8d02-81ee24b2f822",
       "type": "http",
       "documentation": "check_account_status — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/check_account_status",
       "responses": [
         {
-          "uuid": "5c5de065-ac47-4ccf-a09b-fcdc11fefdca",
+          "uuid": "1ff2091b-c87e-4d4e-abc3-f0ec9eb86a9e",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"upcoming\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2177,7 +2248,7 @@
           "callbacks": []
         },
         {
-          "uuid": "49d88984-dbaa-4b99-b257-08895f63d58d",
+          "uuid": "47260d36-f511-43dc-aa9d-b29f6c45ece1",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-14 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2216,7 +2287,7 @@
           "callbacks": []
         },
         {
-          "uuid": "46c215ed-4cd6-467e-b6e5-bd6459275b95",
+          "uuid": "92c0811f-9e09-49db-884e-f27e9ee64201",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2255,7 +2326,7 @@
           "callbacks": []
         },
         {
-          "uuid": "97d6d0ae-9b3a-4d0b-bac2-35d1773fa333",
+          "uuid": "4cee48cc-68c5-4510-882f-b0ddba8dfdab",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-39 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2294,7 +2365,7 @@
           "callbacks": []
         },
         {
-          "uuid": "b517748e-5d9c-4b04-ba9e-a6868721abb2",
+          "uuid": "0363f3ac-caff-47c4-9f6b-4edd60727bc3",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2333,7 +2404,7 @@
           "callbacks": []
         },
         {
-          "uuid": "98cea865-f41d-413b-84d2-1c29211658f1",
+          "uuid": "cea1a782-ffea-4b03-9ee8-ea7329558842",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 15000,\n  \"minimum_payment_due\": 1500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-37 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2372,7 +2443,7 @@
           "callbacks": []
         },
         {
-          "uuid": "4e14c4c2-5dbd-4d76-8e7d-1128e1de3a65",
+          "uuid": "7da531c3-3392-485a-8c27-d4b52ae57f12",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2411,7 +2482,7 @@
           "callbacks": []
         },
         {
-          "uuid": "3e3c97d2-b561-4e6e-9016-bd0862d3dc49",
+          "uuid": "b479efd7-06b9-458f-95b3-65d01a6ca9e4",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2450,7 +2521,7 @@
           "callbacks": []
         },
         {
-          "uuid": "23dd61b1-5a60-486e-b02c-bf2ce246a76b",
+          "uuid": "fa49be51-3c46-47e0-9771-eb86e54f8992",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2489,7 +2560,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5cf6c89a-c2bd-4b0d-a266-80435b3ec18c",
+          "uuid": "0f771960-431e-4d44-8141-5639c26cfaba",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-26 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2528,7 +2599,7 @@
           "callbacks": []
         },
         {
-          "uuid": "dea6d159-c0ef-49ae-a823-08307deb6b52",
+          "uuid": "2129a27d-8669-488d-9dc5-b6c488916b0d",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-21 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2567,7 +2638,7 @@
           "callbacks": []
         },
         {
-          "uuid": "b7ee4771-de32-4d6b-a9ab-21f01781ec52",
+          "uuid": "388a2355-a355-4f3e-a4fd-26ca1158949e",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-34 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2606,7 +2677,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5ab89857-f5dc-4407-bed0-c595411f47c5",
+          "uuid": "751ead04-e962-4939-aa7b-26e02c400aae",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2645,7 +2716,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a9bd6b55-9d98-4ac7-9cd0-771a9265c291",
+          "uuid": "c3c3a14c-e1ea-4ac0-bb86-05a82039f2be",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-10 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2684,7 +2755,7 @@
           "callbacks": []
         },
         {
-          "uuid": "3df07274-6077-45f3-b376-62cb548f6125",
+          "uuid": "667f13de-de5d-4366-8c24-8a40126fe3fe",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2723,7 +2794,7 @@
           "callbacks": []
         },
         {
-          "uuid": "bcff2990-9af9-4a72-ba24-cd718a144d1a",
+          "uuid": "5444a02b-c360-4719-96c6-aa6130aee70f",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2762,7 +2833,7 @@
           "callbacks": []
         },
         {
-          "uuid": "82488f8b-1c81-4f2b-a466-63c803b1c5ce",
+          "uuid": "920ab05a-44f2-4728-b171-b03620c34bf2",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4250,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-32 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2801,7 +2872,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5281b605-b2d7-4b47-a8df-eed72f46d390",
+          "uuid": "e0e44975-5d89-4f4c-9aec-07897f93a68e",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-9 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2840,7 +2911,7 @@
           "callbacks": []
         },
         {
-          "uuid": "1bf80113-f078-48e9-be27-9607dcf6f2e3",
+          "uuid": "cfbb2416-3539-414e-b6cd-2e415b93b555",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-22 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2879,7 +2950,7 @@
           "callbacks": []
         },
         {
-          "uuid": "54fa9663-09a6-4678-9e6d-435c541d5648",
+          "uuid": "bdd4db69-93ce-4fe0-971f-1f0385d9f720",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-13 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2918,7 +2989,7 @@
           "callbacks": []
         },
         {
-          "uuid": "7ae2b8a1-90f0-4da0-b856-e0625719dd02",
+          "uuid": "7571453e-f340-4689-9d93-9e26e7f05403",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 15000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-43 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2957,7 +3028,7 @@
           "callbacks": []
         },
         {
-          "uuid": "b1144af3-bbfc-4f29-933b-8fab8800f3a1",
+          "uuid": "98923526-f785-4b19-b66c-7f52b2e12b1a",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 3500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-30 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -2996,7 +3067,7 @@
           "callbacks": []
         },
         {
-          "uuid": "006e4834-e048-467f-a6a8-6c3ddc34ce59",
+          "uuid": "334ca9ea-9e36-4b1e-87b6-684f8cfb09d1",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 1500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-12 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3035,7 +3106,7 @@
           "callbacks": []
         },
         {
-          "uuid": "bb6cb9da-99f4-486f-90df-c2d50bc10cab",
+          "uuid": "fab47049-864a-43fd-b2b6-e761d2a4a999",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3074,7 +3145,7 @@
           "callbacks": []
         },
         {
-          "uuid": "36944ca3-d4fe-4b70-a2c8-1d87b4c2d4ef",
+          "uuid": "3ebcd4f5-1204-4ba5-8a60-f7a3f910304a",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-25 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3113,7 +3184,7 @@
           "callbacks": []
         },
         {
-          "uuid": "855840fe-6c35-401b-8d14-ae85d288fd93",
+          "uuid": "c902bf8f-45e1-4c3d-93cd-bd9852ddee4a",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 3500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3152,7 +3223,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f0807859-09e1-4cc2-b245-596439b82bf6",
+          "uuid": "64a494b0-4368-43d5-ba24-35735912cd31",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 120000,\n  \"minimum_payment_due\": 6500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-18 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3191,7 +3262,7 @@
           "callbacks": []
         },
         {
-          "uuid": "60d489d0-bd01-4233-ba41-f13a8739bc8b",
+          "uuid": "fde93020-6b73-4d6e-869e-58df199436ae",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 85000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-31 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3230,7 +3301,7 @@
           "callbacks": []
         },
         {
-          "uuid": "92240ab4-1f38-4837-aef4-15564dcf2db1",
+          "uuid": "70751230-39cf-4c4a-8c20-58b99475a429",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-8 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3269,7 +3340,7 @@
           "callbacks": []
         },
         {
-          "uuid": "c008979e-6ee6-43e1-ab8e-680af19a38e2",
+          "uuid": "8a25411d-a46f-4cc3-b2f9-863cde08576d",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-19 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3308,7 +3379,7 @@
           "callbacks": []
         },
         {
-          "uuid": "bee9e45e-2314-4eb3-b88a-69867c843a43",
+          "uuid": "9fbd7874-d0a5-448a-b941-00730aac3666",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3347,7 +3418,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f6f9c5c0-1d2c-4fd5-ab69-8b9087f93b7e",
+          "uuid": "a4236854-9e8a-4dcf-bc73-daf3d87f2710",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3386,7 +3457,7 @@
           "callbacks": []
         },
         {
-          "uuid": "afb7caa1-c655-4964-90fd-cd107ae20445",
+          "uuid": "8bbe7ea9-3256-4ec6-8489-ceddfcd63f82",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 25000,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-23 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3425,7 +3496,7 @@
           "callbacks": []
         },
         {
-          "uuid": "57f3579d-442b-4ad2-896d-3f6c72ad0b37",
+          "uuid": "6a45bd59-ea3b-4e85-9b51-2fbdea2939d6",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-6 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3464,7 +3535,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a77b959a-b804-4aa6-b4b2-bae094c435b0",
+          "uuid": "aeb7ae86-9458-4579-bd0c-62be72d91583",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45500,\n  \"minimum_payment_due\": 4550,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3503,7 +3574,7 @@
           "callbacks": []
         },
         {
-          "uuid": "adad950f-cbc9-4653-9d97-f9f3bc9b64fe",
+          "uuid": "dab38cfa-5a7c-4657-a560-243e413378a0",
           "body": "{\n  \"loan_type\": \"สินเชื่อส่วนบุคคล\",\n  \"total_amount_due\": 154333,\n  \"minimum_payment_due\": 15433,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-29 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3542,7 +3613,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ea106682-9e83-403f-a103-1806634c3df8",
+          "uuid": "af0af3f3-c87e-4769-882e-c6fd231ebbf7",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 58000,\n  \"minimum_payment_due\": 5800,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-33 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"pending_review\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3581,7 +3652,7 @@
           "callbacks": []
         },
         {
-          "uuid": "d3fae515-1040-41c0-9ce9-1f75f8f7b1e7",
+          "uuid": "df9dd210-a7d5-4aab-be0f-4a96cf089af7",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8909,\n  \"minimum_payment_due\": 2500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-38 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3620,7 +3691,7 @@
           "callbacks": []
         },
         {
-          "uuid": "2c228581-ff94-42e6-943c-7a6331dd8864",
+          "uuid": "1c3058ae-2c44-4a58-a60f-90a0bac97da6",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 8761,\n  \"minimum_payment_due\": 876,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-44 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3659,7 +3730,7 @@
           "callbacks": []
         },
         {
-          "uuid": "72e05774-561c-437d-99cd-2750f814648d",
+          "uuid": "96326b6c-4d48-4b62-9635-9ee4fdac4d97",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 45000,\n  \"minimum_payment_due\": 4500,\n  \"due_date\": \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"upcoming\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3691,7 +3762,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a00e4766-6e99-4c70-b5b1-f620f7ff2917",
+          "uuid": "3fb2a365-b693-4f6d-b814-bdb69a8d52ff",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3730,7 +3801,7 @@
           "callbacks": []
         },
         {
-          "uuid": "8c7b6c14-7609-4919-87fd-737c82e8d658",
+          "uuid": "4321abcd-06da-43bc-8d5e-1f9e86251b28",
           "body": "{\n  \"loan_type\": \"บัตรเครดิต\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3762,7 +3833,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0448c505-eb95-43c6-977e-b050cd2f59e0",
+          "uuid": "4955d3b4-5e18-4d05-89cd-3d46c70df82a",
           "body": "{\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3801,7 +3872,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9bc6e9f1-9ea5-4dcd-9493-dbb7fe2f3118",
+          "uuid": "91575209-73e0-4197-b538-1e8cb662d1e1",
           "body": "{\n  \"loan_type\": \"เช่าซื้อ\",\n  \"total_amount_due\": 30000,\n  \"minimum_payment_due\": 3000,\n  \"due_date\": \"{{dateTimeShift date=(now) days=-7 format='yyyy-MM-dd (EEEE)'}}\",\n  \"due_status\": \"overdue\",\n  \"status\": \"normal\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3833,7 +3904,7 @@
           "callbacks": []
         },
         {
-          "uuid": "d323d78b-a97f-4f0e-8d96-40dcdd8ca30a",
+          "uuid": "64b6d1b8-ba9d-4f4a-9afa-49944ed3fa51",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_account_status\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3862,14 +3933,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "3858dbff-5ea5-49f3-a383-6c3d5d0f6049",
+      "uuid": "850a8353-7b6b-4482-ac2c-ba3a6436e2b9",
       "type": "http",
       "documentation": "check_doctor_time — declared by AMT",
       "method": "post",
       "endpoint": ":company/check_doctor_time",
       "responses": [
         {
-          "uuid": "96298b90-d71d-459b-8731-91fd8c7d72dc",
+          "uuid": "172a9d99-2990-4e22-bcfb-ea388f6ff56c",
           "body": "{\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"name\": \"{{body 'args.name'}}\",\n  \"available_dates\": [\n    \"{{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='EEEE'}})\"\n  ],\n  \"available_dates_text\": \"วันจันทร์ที่ {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='M') 1)}} {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy'}} / วันอังคารที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy'}} / วันพุธที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3908,7 +3979,7 @@
           "callbacks": []
         },
         {
-          "uuid": "4f578aa6-66dd-42ec-ab72-8f114fee8c78",
+          "uuid": "7b954589-5621-4f17-a03c-982ac90175ce",
           "body": "{\n  \"doctor_name\": \"นพ.สมศักดิ์ รักษาดี\",\n  \"doctor_schedule\": \"จันทร์-ศุกร์ 9:00-16:00\",\n  \"name\": \"{{body 'args.name'}}\",\n  \"available_dates\": [\n    \"{{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='EEEE'}})\",\n    \"{{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy-MM-dd'}} ({{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='EEEE'}})\"\n  ],\n  \"available_dates_text\": \"วันจันทร์ที่ {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='M') 1)}} {{dateTimeShift date=(now) days=(subtract 8 (now 'i')) format='yyyy'}} / วันอังคารที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 1) format='yyyy'}} / วันพุธที่ {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='d'}} {{lookup (array 'มกราคม' 'กุมภาพันธ์' 'มีนาคม' 'เมษายน' 'พฤษภาคม' 'มิถุนายน' 'กรกฎาคม' 'สิงหาคม' 'กันยายน' 'ตุลาคม' 'พฤศจิกายน' 'ธันวาคม') (subtract (dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='M') 1)}} {{dateTimeShift date=(now) days=(add (subtract 8 (now 'i')) 2) format='yyyy'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3940,7 +4011,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5470e58b-3e3d-4354-a2df-9792f89d0b84",
+          "uuid": "7538c1bd-d240-4566-8f84-99b4aeaf75b5",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_doctor_time\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -3969,14 +4040,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "7e6dbbb6-f472-415b-8cb1-000fb89bb710",
+      "uuid": "24aea5d3-39c9-4784-9d91-380b70c9c60f",
       "type": "http",
       "documentation": "check_new_date — declared by SHOP",
       "method": "post",
       "endpoint": ":company/check_new_date",
       "responses": [
         {
-          "uuid": "f577b4cd-953e-42fc-90dc-f874da835270",
+          "uuid": "56bb2ad4-1dca-4001-a89e-2a261ad819e7",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4015,7 +4086,7 @@
           "callbacks": []
         },
         {
-          "uuid": "93d3834a-a811-4987-9181-815b0df2dcba",
+          "uuid": "50e0dfdd-7749-4386-84a8-d4e4d57f6550",
           "body": "{\n  \"date\": \"{{body 'args.date'}}\",\n  \"in_range\": true,\n  \"max_extend_days\": 7,\n  \"new_date\": \"{{body 'args.date'}}\",\n  \"valid_dates\": [\n    \"{{dateTimeShift date=(now) days=1 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=2 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=3 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=4 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=5 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=6 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=7 format='yyyy-MM-dd (EEEE)'}}\",\n    \"{{dateTimeShift date=(now) days=8 format='yyyy-MM-dd (EEEE)'}}\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4054,7 +4125,7 @@
           "callbacks": []
         },
         {
-          "uuid": "6bdc681c-0bed-414f-aa81-803198e5b83f",
+          "uuid": "f36b28ab-8a77-4e74-bc9a-86e9dc5ab29a",
           "body": "{\n  \"date\": \"{{body 'args.date'}}\",\n  \"in_range\": false,\n  \"valid_dates\": [],\n  \"max_extend_days\": 7,\n  \"note\": \"เกินเกณฑ์ที่ร้านรับได้\",\n  \"new_date\": \"\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4086,7 +4157,7 @@
           "callbacks": []
         },
         {
-          "uuid": "82cda681-ff28-4861-8bb3-fed27d4e47d5",
+          "uuid": "71a92ce3-f9fe-474a-b563-65a7928ed91a",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"CHECK_-{{now 't'}}\",\n  \"tool\": \"check_new_date\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4115,14 +4186,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "e1397e9e-3519-406f-8f8f-eb12bc3a6116",
+      "uuid": "115533c4-6acd-472c-99aa-e77ebbb98a21",
       "type": "http",
       "documentation": "get_current_datetime — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/get_current_datetime",
       "responses": [
         {
-          "uuid": "da1dcf10-7c08-4ad2-80ad-f30143969aa6",
+          "uuid": "f2edb954-a321-41f0-a224-b51bc821a90c",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4154,7 +4225,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f33e060e-1797-4bef-8500-81c7c797fbbf",
+          "uuid": "0e55663b-105f-4677-957d-89c31e716d51",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4186,7 +4257,7 @@
           "callbacks": []
         },
         {
-          "uuid": "1e39da6a-9747-4b90-a705-b76fd4ef5f77",
+          "uuid": "db0fe6e5-fa57-46f2-87e6-7408d5e8d40f",
           "body": "{\n  \"datetime\": \"{{now 'yyyy-MM-dd'}} ({{now 'EEEE'}})\",\n  \"time\": \"{{now 'HH:mm'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4218,7 +4289,7 @@
           "callbacks": []
         },
         {
-          "uuid": "6a07d5b8-16f7-48a1-a551-bed43be81a8d",
+          "uuid": "c69f6f3d-cd8c-4ab1-9c1c-cde302a7d75d",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"GET_CU-{{now 't'}}\",\n  \"tool\": \"get_current_datetime\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4247,14 +4318,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "c56c4851-cd18-4073-a6cd-1a944a7bbf93",
+      "uuid": "32a6e46b-0a8f-493c-8410-070e82a61cd9",
       "type": "http",
       "documentation": "payment_date — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/payment_date",
       "responses": [
         {
-          "uuid": "89e35dac-64bd-4195-91ea-b34714c79b86",
+          "uuid": "8392b4e0-e003-47ff-8cdd-e77566ad5355",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4293,7 +4364,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ef9fb705-b726-4b0b-ac5e-49784dd59b35",
+          "uuid": "e0216dfa-5094-485f-a540-c532b1b97008",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4339,7 +4410,7 @@
           "callbacks": []
         },
         {
-          "uuid": "f3fc3ede-fe82-4726-8698-9bcfc16588c6",
+          "uuid": "293e8aeb-d559-4777-b079-a60a6d09717c",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4371,7 +4442,7 @@
           "callbacks": []
         },
         {
-          "uuid": "fdc61c64-a81c-4d77-a554-005879ac9954",
+          "uuid": "28099d39-9090-48b1-a84f-8377f44497b4",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4410,7 +4481,7 @@
           "callbacks": []
         },
         {
-          "uuid": "86216bac-7ad9-4257-8599-7f5f1636353d",
+          "uuid": "9314ff91-65ba-4b44-a5dc-4a0985e284fc",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4456,7 +4527,7 @@
           "callbacks": []
         },
         {
-          "uuid": "80945f4a-c0dd-4e43-838b-87bda9eef19c",
+          "uuid": "54a8745f-9b4a-4556-bf59-76fa6964066d",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4488,7 +4559,7 @@
           "callbacks": []
         },
         {
-          "uuid": "78b42be8-58a5-48ae-b507-a46fe5c055ec",
+          "uuid": "dda5a94e-81d7-477d-969f-9b4c0b8c976f",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4527,7 +4598,7 @@
           "callbacks": []
         },
         {
-          "uuid": "86f86566-5ef1-4060-b937-fc8324d0f424",
+          "uuid": "d5016337-d38d-4eef-b34f-ae4b5637892c",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4573,7 +4644,7 @@
           "callbacks": []
         },
         {
-          "uuid": "fc14bffe-eef2-4cfc-8853-0595f897c940",
+          "uuid": "1224b12d-7dea-4a0b-bbca-0ae6efc579e7",
           "body": "{\n  \"recorded\": true,\n  \"payment_date_id\": \"PAY-{{now 't'}}\",\n  \"last_4_digits\": \"{{body 'args.last_4_digits'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4605,7 +4676,7 @@
           "callbacks": []
         },
         {
-          "uuid": "d47dca69-51c3-4542-92b0-9485baaac738",
+          "uuid": "b5055b48-97c9-4bbe-b720-9eb222a3d403",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"PAYMEN-{{now 't'}}\",\n  \"tool\": \"payment_date\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4634,14 +4705,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "18ef0a1d-9634-4780-bc6a-38933b6b2b30",
+      "uuid": "46b9242c-cf2c-4ec7-9c89-89c937df272f",
       "type": "http",
       "documentation": "record_call_result — declared by SHOP",
       "method": "post",
       "endpoint": ":company/record_call_result",
       "responses": [
         {
-          "uuid": "3ce5b50d-e0a9-4247-bee8-096c39574c2d",
+          "uuid": "21cf7ec5-f814-45a4-80e6-a8ca461cf36a",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"new_date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.new_date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4687,7 +4758,7 @@
           "callbacks": []
         },
         {
-          "uuid": "8dc77223-5a8e-4a52-9ccd-6204acfeff73",
+          "uuid": "09978e18-94a5-496d-9302-d2ca986c3917",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"confirmed\",\n    \"rescheduled\",\n    \"paid_claimed\",\n    \"handoff\",\n    \"unreachable\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4726,7 +4797,7 @@
           "callbacks": []
         },
         {
-          "uuid": "12f1d017-7469-47a7-aca9-5becc1d68905",
+          "uuid": "7e0cc7a7-3825-452a-87ef-db0aec0a25e8",
           "body": "{\n  \"recorded\": true,\n  \"record_call_result_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"new_date\": \"{{body 'args.new_date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4758,7 +4829,7 @@
           "callbacks": []
         },
         {
-          "uuid": "960d3df0-973a-4621-9276-5b6d5aa4d368",
+          "uuid": "15fe0dd7-3b61-4424-97d2-6bdd0758131d",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_call_result\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4787,14 +4858,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "e96d0fa4-285b-4763-b9ae-64f97ef97bcb",
+      "uuid": "0a6b9807-7d64-4625-b818-2bf77a69f1ad",
       "type": "http",
-      "documentation": "record_outcome — declared by AEON, KBANK, SKL",
+      "documentation": "record_outcome — declared by AEON, AEONLITE, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/record_outcome",
       "responses": [
         {
-          "uuid": "5b4deedf-cb2c-43cd-99b0-536d40c406e0",
+          "uuid": "1f04992e-ba61-442a-bda8-9a731e96d56b",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4833,7 +4904,7 @@
           "callbacks": []
         },
         {
-          "uuid": "332572dc-58c9-414e-970d-9256614f3059",
+          "uuid": "5b91452c-e50f-4372-974b-e72408c0ee9e",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4865,7 +4936,78 @@
           "callbacks": []
         },
         {
-          "uuid": "7142bce2-3fce-47cd-8506-684ba02881ad",
+          "uuid": "f9f84fc9-b209-402c-8fc8-8e397241b409",
+          "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEONLITE: result out of vocabulary",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEONLITE",
+              "operator": "equals",
+              "invert": false
+            },
+            {
+              "target": "body",
+              "modifier": "args.result",
+              "value": "^(ptp|refused|unreachable|reached|tcb|tin)$",
+              "operator": "regex",
+              "invert": true
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "2048fd96-0ad8-477b-bfe1-06485d9486fe",
+          "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "AEONLITE: ok",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "company",
+              "value": "AEONLITE",
+              "operator": "equals",
+              "invert": false
+            }
+          ],
+          "rulesOperator": "AND",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "40f06c7b-605b-4280-824c-d90650e6076b",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4904,7 +5046,7 @@
           "callbacks": []
         },
         {
-          "uuid": "8ae57b90-5ff6-4f0a-8d10-5711099efb75",
+          "uuid": "80e84cc3-f508-4114-85a0-54fd54b47e5a",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4936,7 +5078,7 @@
           "callbacks": []
         },
         {
-          "uuid": "a61f6b44-ec34-4137-8ec6-99cf9971fb00",
+          "uuid": "db62a6d7-b537-4f38-9a00-be660de61d58",
           "body": "{\n  \"error\": \"invalid_result\",\n  \"got\": \"{{body 'args.result'}}\",\n  \"valid\": [\n    \"ptp\",\n    \"refused\",\n    \"unreachable\",\n    \"reached\",\n    \"tcb\",\n    \"tin\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -4975,7 +5117,7 @@
           "callbacks": []
         },
         {
-          "uuid": "be8b6b5a-259e-48ed-ba38-b7889d95fddd",
+          "uuid": "473c73dd-8174-431a-8667-4131eaf389ca",
           "body": "{\n  \"recorded\": true,\n  \"record_outcome_id\": \"REC-{{now 't'}}\",\n  \"result\": \"{{body 'args.result'}}\",\n  \"reason\": \"{{body 'args.reason'}}\",\n  \"remark\": \"{{body 'args.remark'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5007,7 +5149,7 @@
           "callbacks": []
         },
         {
-          "uuid": "471d3aae-8263-4533-96d0-46658aa6cb61",
+          "uuid": "4c85209b-dcbd-438e-80c3-39c36a07bd51",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_outcome\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5036,14 +5178,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "9e790fa2-e517-4d71-844f-e0ae9224f2c6",
+      "uuid": "baa3b20c-2d65-4819-b01d-2af780af3101",
       "type": "http",
       "documentation": "record_verbal_commitment — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/record_verbal_commitment",
       "responses": [
         {
-          "uuid": "9e300c9f-bd0a-4622-9115-cd67cb72d137",
+          "uuid": "62b6ba40-c90a-4f4d-a1ba-1fc7082e3a2e",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5082,7 +5224,7 @@
           "callbacks": []
         },
         {
-          "uuid": "69329136-d6a5-464f-a8fb-6060a5d851fb",
+          "uuid": "4ed8cc02-49ad-4c4b-859a-68a3cd0f2138",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5128,7 +5270,7 @@
           "callbacks": []
         },
         {
-          "uuid": "d13fb79d-0232-43f3-aa3e-61d84696637e",
+          "uuid": "0efb1356-f164-419a-acba-56d9472fec88",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5160,7 +5302,7 @@
           "callbacks": []
         },
         {
-          "uuid": "69761d5c-4540-4a26-bc9c-0e814c2f3e42",
+          "uuid": "ff5df07f-3b46-405d-ab6d-a385d4550270",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5199,7 +5341,7 @@
           "callbacks": []
         },
         {
-          "uuid": "9b1784c1-4603-461d-8c05-bab9f56192ff",
+          "uuid": "b6ea4017-06a5-41a3-9656-9c1685aa3976",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5245,7 +5387,7 @@
           "callbacks": []
         },
         {
-          "uuid": "459c0c54-4437-43bc-96e5-b9f741607cd8",
+          "uuid": "c3378e88-ec72-41be-93b5-e287ba3ad108",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5277,7 +5419,7 @@
           "callbacks": []
         },
         {
-          "uuid": "71a346a3-b5f7-480b-83b9-5a41232dd53b",
+          "uuid": "470b2694-0fa5-40d7-9eea-5c4b7c46cf5c",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"date\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.date'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5316,7 +5458,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ab7aff71-6f30-4a87-869e-200a54492a00",
+          "uuid": "6cdb1225-9596-47a0-bcd7-54c78d348703",
           "body": "{\n  \"error\": \"invalid_channel\",\n  \"got\": \"{{body 'args.channel'}}\",\n  \"valid\": [\n    \"atm\",\n    \"bank_transfer\",\n    \"branch\",\n    \"counter_service\",\n    \"mobile_app\",\n    \"other\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5362,7 +5504,7 @@
           "callbacks": []
         },
         {
-          "uuid": "5bd858dd-7a84-4af9-8731-b6c8f6d4aac5",
+          "uuid": "9cd090aa-266d-454f-91d0-4e7e80acc80c",
           "body": "{\n  \"recorded\": true,\n  \"record_verbal_commitment_id\": \"REC-{{now 't'}}\",\n  \"amount\": \"{{body 'args.amount'}}\",\n  \"date\": \"{{body 'args.date'}}\",\n  \"channel\": \"{{body 'args.channel'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5394,7 +5536,7 @@
           "callbacks": []
         },
         {
-          "uuid": "31b8f7a7-2088-40f7-886e-3e0dd2b6821c",
+          "uuid": "c83db503-505a-4ff6-8f1d-ceec00ba3c80",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"RECORD-{{now 't'}}\",\n  \"tool\": \"record_verbal_commitment\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5423,14 +5565,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "ae17137f-d41c-4124-91c3-b3fc94823ea6",
+      "uuid": "cb9f416f-c07d-4964-8f68-8da999ee3a8e",
       "type": "http",
       "documentation": "save_appointment — declared by AMT",
       "method": "post",
       "endpoint": ":company/save_appointment",
       "responses": [
         {
-          "uuid": "00194119-dfca-4536-9428-a37475ae5a16",
+          "uuid": "90eca567-788e-4e6d-b0f5-fbd4e0bd8d4c",
           "body": "{\n  \"error\": \"date_format_invalid\",\n  \"arg\": \"new_slot\",\n  \"expected\": \"YYYY-MM-DD (Weekday)\",\n  \"got\": \"{{body 'args.new_slot'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5476,7 +5618,7 @@
           "callbacks": []
         },
         {
-          "uuid": "4712645b-0a57-4fb2-a59c-30cda5380410",
+          "uuid": "a34e9d3b-b6c4-4edd-8440-7017a6bed800",
           "body": "{\n  \"error\": \"invalid_status\",\n  \"got\": \"{{body 'args.status'}}\",\n  \"valid\": [\n    \"confirmed\",\n    \"rescheduled\",\n    \"cancelled\",\n    \"unreachable\",\n    \"unresolved\"\n  ]\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5515,7 +5657,7 @@
           "callbacks": []
         },
         {
-          "uuid": "70996d36-013e-47f4-a3f9-fbe82c6aa9d6",
+          "uuid": "542e7aed-b9a1-4806-acae-56e9fc58a0b9",
           "body": "{\n  \"recorded\": true,\n  \"save_appointment_id\": \"SAV-{{now 't'}}\",\n  \"status\": \"{{body 'args.status'}}\",\n  \"new_slot\": \"{{body 'args.new_slot'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5547,7 +5689,7 @@
           "callbacks": []
         },
         {
-          "uuid": "ea0e7809-d588-4712-bee8-c60c998fca5d",
+          "uuid": "fb15ed72-a21c-42c8-8f46-f959a76b39fe",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"SAVE_A-{{now 't'}}\",\n  \"tool\": \"save_appointment\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5576,14 +5718,14 @@
       "streamingInterval": 0
     },
     {
-      "uuid": "c00cf7d2-fc66-4c92-9ff9-fa2f4b3852d1",
+      "uuid": "d139e53a-036a-4485-b331-d3c7c9d6340a",
       "type": "http",
       "documentation": "update_phone — declared by AEON, KBANK, SKL",
       "method": "post",
       "endpoint": ":company/update_phone",
       "responses": [
         {
-          "uuid": "ccfbab45-c424-4921-bf28-e47cb13e3be2",
+          "uuid": "b619fcf4-913a-48aa-a49d-9d1d862082e9",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5615,7 +5757,7 @@
           "callbacks": []
         },
         {
-          "uuid": "12f95a66-7de7-4965-819b-1ff1f4d36f66",
+          "uuid": "222d0cb5-ef3b-43e3-892e-739e8bd01624",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5647,7 +5789,7 @@
           "callbacks": []
         },
         {
-          "uuid": "07778ab2-3100-4f1a-b0ae-aa405119f2a6",
+          "uuid": "83c2f1af-d385-4bb0-afc2-90e206395c34",
           "body": "{\n  \"recorded\": true,\n  \"update_phone_id\": \"UPD-{{now 't'}}\",\n  \"phone\": \"{{body 'args.phone'}}\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5679,7 +5821,7 @@
           "callbacks": []
         },
         {
-          "uuid": "0da178b1-f9ea-4b8a-9762-a49749cb9752",
+          "uuid": "7f8c8eb1-3983-446f-ad1a-50dd9a54f0b5",
           "body": "{\n  \"ok\": true,\n  \"ref\": \"UPDATE-{{now 't'}}\",\n  \"tool\": \"update_phone\",\n  \"company\": \"{{urlParam 'company'}}\",\n  \"note\": \"generic mock response — this company has no tool-specific mock rule\"\n}",
           "latency": 0,
           "statusCode": 200,
@@ -5711,51 +5853,51 @@
   "rootChildren": [
     {
       "type": "route",
-      "uuid": "d2d64893-6a82-48a8-b432-214b84e713af"
+      "uuid": "d107ecc7-9205-4629-9fe4-2f3d74a1f527"
     },
     {
       "type": "route",
-      "uuid": "e0415884-dbce-42da-a500-cdf50f91c89e"
+      "uuid": "05403ae8-dc29-44ea-89eb-465e5f6e4b98"
     },
     {
       "type": "route",
-      "uuid": "5d803123-a484-438a-913c-d8eeb6444279"
+      "uuid": "ec68cea4-f153-4cec-8d02-81ee24b2f822"
     },
     {
       "type": "route",
-      "uuid": "3858dbff-5ea5-49f3-a383-6c3d5d0f6049"
+      "uuid": "850a8353-7b6b-4482-ac2c-ba3a6436e2b9"
     },
     {
       "type": "route",
-      "uuid": "7e6dbbb6-f472-415b-8cb1-000fb89bb710"
+      "uuid": "24aea5d3-39c9-4784-9d91-380b70c9c60f"
     },
     {
       "type": "route",
-      "uuid": "e1397e9e-3519-406f-8f8f-eb12bc3a6116"
+      "uuid": "115533c4-6acd-472c-99aa-e77ebbb98a21"
     },
     {
       "type": "route",
-      "uuid": "c56c4851-cd18-4073-a6cd-1a944a7bbf93"
+      "uuid": "32a6e46b-0a8f-493c-8410-070e82a61cd9"
     },
     {
       "type": "route",
-      "uuid": "18ef0a1d-9634-4780-bc6a-38933b6b2b30"
+      "uuid": "46b9242c-cf2c-4ec7-9c89-89c937df272f"
     },
     {
       "type": "route",
-      "uuid": "e96d0fa4-285b-4763-b9ae-64f97ef97bcb"
+      "uuid": "0a6b9807-7d64-4625-b818-2bf77a69f1ad"
     },
     {
       "type": "route",
-      "uuid": "9e790fa2-e517-4d71-844f-e0ae9224f2c6"
+      "uuid": "baa3b20c-2d65-4819-b01d-2af780af3101"
     },
     {
       "type": "route",
-      "uuid": "ae17137f-d41c-4124-91c3-b3fc94823ea6"
+      "uuid": "cb9f416f-c07d-4964-8f68-8da999ee3a8e"
     },
     {
       "type": "route",
-      "uuid": "c00cf7d2-fc66-4c92-9ff9-fa2f4b3852d1"
+      "uuid": "d139e53a-036a-4485-b331-d3c7c9d6340a"
     }
   ],
   "proxyMode": false,
