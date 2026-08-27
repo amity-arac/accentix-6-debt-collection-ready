@@ -1118,6 +1118,49 @@
     "reward"
    ],
    "desc": "**เส้นทางจ่ายต่ำกว่าขั้นต่ำต้องปิดด้วย `refer_below_min` (1134)** ที่แนะนำให้ติดต่อ [company_phone] — **ห้ามปิดด้วย close_credit_notice (1132)** เพราะลูกค้าไม่ได้ปฏิเสธชำระ เพียงจ่ายเต็มขั้นต่ำไม่ไหว"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ลูกค้าแจ้งเหตุติดขัด (ตกงาน/ป่วย/เงินช็อต/ยังไม่มีเงิน) → ต้องพูด convince ก่อนเสมอ** (convince_lost_job / convince_sick / convince_other ตามเหตุ) แล้วรอคำตอบ — **ห้ามข้ามไปบันทึกผล และห้ามปิดสาย** จนกว่าลูกค้าจะรับปากชำระเอง การบันทึก ptp ที่ลูกค้าไม่ได้ให้ถือว่าผิดร้ายแรง"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "**ความเงียบไม่ใช่การตกลง:** ลูกค้าตอบว่า '...' / '(เงียบ)' / ตอบไม่เป็นคำพูดที่ตีความได้ = เหตุการณ์ `no_input` เท่านั้น — **ห้ามถือเป็น agrees_to_pay และห้ามบันทึกผลเป็น ptp** ให้เดินตาม transition ของ no_input ใน state ปัจจุบัน (ถามซ้ำ หรือปิดสายตามที่ flow กำหนด)"
+  },
+  {
+   "id": "no_reverify_after_confirm",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "template_fine_states": [
+    "greet_verify",
+    "verify_name"
+   ],
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ยืนยันชื่อแล้วห้ามถามชื่อซ้ำ — แจ้งยอดทันที"
+  },
+  {
+   "id": "partial_payment_floor",
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ลูกค้าเสนอจ่าย**จำนวนเฉพาะ** (เช่น 'ขอจ่าย 3000 ได้ไหม', 'จ่ายแค่ 500'): **เทียบกับยอดขั้นต่ำ ({minimum_payment}) ก่อนเสมอ** ถ้า **≥ ขั้นต่ำ** → ถือเป็น agrees_to_pay เข้า ptp_capture ปิดด้วย close (1047) · ถ้า **< ขั้นต่ำ** → below_minimum แล้วปิดด้วย refer_below_min — **ห้ามใช้ 1130** (1130 ใช้เฉพาะคำถาม 'จ่ายเกินยอดเต็มได้ไหม')"
+  },
+  {
+   "enforce": [
+    "prompt",
+    "reward"
+   ],
+   "desc": "ลูกค้าขอให้ติดต่อกลับ/ขอเลื่อน (reschedule_request) → ปิดสายด้วย offer_callback (1051) และบันทึกผลเป็น tcb/callback — ห้ามถามเบอร์ ห้าม mis-route ไปสาย third_party"
   }
  ],
  "auxiliary_templates": {
