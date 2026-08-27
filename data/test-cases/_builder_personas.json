@@ -111,7 +111,7 @@
    "doctor_schedule": "จันทร์-ศุกร์ 9:00-16:00",
    "visit_time_start": "10:00",
    "visit_time_end": "11:00",
-   "appointment_date_offset_days": -2
+   "appointment_date_offset_days": 2
   },
   "user_system_prompt": "<persona>ผู้ป่วยของโรงพยาบาล AMT ที่มีนัดพบแพทย์ตามกำหนด</persona>\n<situation>รับสายจากเจ้าหน้าที่โรงพยาบาลโทรมายืนยันนัดพบแพทย์</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  },
@@ -121,14 +121,14 @@
    "customer_name": "สมชาย ใจดี",
    "customer_phone": "081-234-5678",
    "shop_name": "ร้านทองเจริญ",
-   "due_date": "@today+1",
    "amount": "3500",
    "max_extend_days": "7",
    "company_name": "ร้านทองเจริญ",
    "agent_name": "น้องร้านทอง",
    "company_phone": "02-111-2222",
    "case_status": "normal",
-   "msisdn": "081-234-5678"
+   "msisdn": "081-234-5678",
+   "due_date_offset_days": 1
   }
  }
 ]

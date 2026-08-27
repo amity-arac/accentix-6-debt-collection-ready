@@ -15,20 +15,6 @@ type Props = {
   onHeaderClick?: () => void;
 };
 
-function fmtAmount(v: unknown): string {
-  if (typeof v !== "number") return "—";
-  return v.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  normal: "Account normal",
-  pending_review: "Under review",
-  closed: "Closed",
-};
-
 export function CustomerPanel({
   caseId,
   mode,
@@ -60,19 +46,6 @@ export function CustomerPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer, caseId, mode, agent]);
 
-  const rawDue = customer.due_date;
-  const dueDateLabel = looksLikeCanonicalDate(rawDue)
-    ? renderDate(String(rawDue))
-    : rawDue
-      ? String(rawDue)
-      : null;
-
-  const caseStatus = String(customer.case_status ?? "normal");
-  const caseStatusLabel = STATUS_LABEL[caseStatus] ?? caseStatus;
-  const note = customer.case_status_note;
-
-  const loanType = customer.loan_type ? String(customer.loan_type) : null;
-  const last4 = customer.last_4_digits ? String(customer.last_4_digits) : null;
   const customerName = customer.customer_name
     ? String(customer.customer_name)
     : "—";
@@ -80,12 +53,18 @@ export function CustomerPanel({
     ? String(customer.customer_phone)
     : null;
 
-  const balanceMetaParts: string[] = [];
-  if (typeof customer.minimum_payment_due === "number") {
-    balanceMetaParts.push(`Min ${fmtAmount(customer.minimum_payment_due)}`);
-  }
-  if (dueDateLabel) balanceMetaParts.push(`Due ${dueDateLabel}`);
-  if (customer.due_status) balanceMetaParts.push(String(customer.due_status));
+  // The record, as the API returned it. This panel used to render a fixed set of
+  // debt-collection columns — loan type, balance, minimum payment, last 4, due status
+  // — so a shop or a clinic showed a dash in every slot while the agent quoted real
+  // values from the same call. There is no shape every tenant shares, so nothing is
+  // interpreted: the row is listed, with dates rendered the way the agent says them.
+  const HIDDEN = new Set(["customer_name", "customer_phone", "company_name", "msisdn"]);
+  const rows = Object.entries(customer)
+    .filter(([k, v]) => !HIDDEN.has(k) && v !== null && v !== undefined && v !== "")
+    .map(([k, v]) => [
+      k,
+      looksLikeCanonicalDate(v) ? renderDate(String(v)) : String(v),
+    ] as [string, string]);
 
   const headerInner = (
     <>
@@ -148,37 +127,17 @@ export function CustomerPanel({
             <h1 className="name-display" title={customerName}>
               {customerName}
             </h1>
-            {(loanType || last4) && (
-              <p className="name-sub">
-                {loanType ?? "—"}
-                {last4 && (
-                  <>
-                    <span className="dot-sep" aria-hidden="true">·</span>
-                    ending {last4}
-                  </>
-                )}
-              </p>
-            )}
           </section>
 
-          <section className="panel-balance" aria-label="Balance">
-            <div className="balance-line">
-              <span className="balance-numeral">
-                {fmtAmount(customer.total_amount_due)}
-              </span>
-              <span className="balance-currency">THB</span>
-            </div>
-            {balanceMetaParts.length > 0 && (
-              <p className="balance-meta">{balanceMetaParts.join(" · ")}</p>
-            )}
-          </section>
-
-          <section className={`panel-case status-${caseStatus}`}>
-            <span className="status-pill">
-              <span className="status-pill-dot" aria-hidden="true" />
-              {caseStatusLabel}
-            </span>
-            {note && <p className="panel-note">{String(note)}</p>}
+          <section className="panel-crm" aria-label="CRM record">
+            <dl className="crm-rows">
+              {rows.map(([k, v]) => (
+                <div className="crm-row" key={k}>
+                  <dt>{k}</dt>
+                  <dd title={v}>{v}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
 
           {phone && (

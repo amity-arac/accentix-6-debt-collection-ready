@@ -184,6 +184,11 @@ def _persona_summary(case: dict[str, Any]) -> dict[str, Any]:
         "situation": _extract_tag(usp, "situation"),
         "constraints": _extract_tag(usp, "constraints"),
     }
+    # Resolve the same way a session does, or the picker lists a date the agent will
+    # never say: personas store `<field>_offset_days`, so the raw row has no `due_date`
+    # at all and the column read empty while the call quoted a real one.
+    cd = dict(cd)
+    _resolve_offset_dates(cd)
     for field, value in cd.items():
         if field in _NON_CRM_KEYS or field.endswith("_offset_days"):
             continue
@@ -606,13 +611,27 @@ def flow_companies_meta() -> list[dict[str, Any]]:
     """Company code + label + whether it may be deleted. Deletability is decided
     HERE, next to `delete_flow_company`, so the UI never has to keep its own copy
     of the rule (and never offers a delete the server will refuse)."""
-    return [
-        {"company": code,
-         "display_name": entry.get("display_name") or code,
-         # every tenant owns its own file, so every tenant can be removed
-         "deletable": True}
-        for code, entry in load_flow_registry().items()
-    ]
+    out = []
+    for code, entry in load_flow_registry().items():
+        # The customer panel used to render a fixed set of debt columns (loan type,
+        # balance, minimum payment, last 4, due status). A shop's row has none of them,
+        # so every slot showed a dash while the agent quoted real values. The spec
+        # already names its own fields and their Thai labels — send those and let the
+        # panel show what this tenant actually has.
+        labels: dict[str, str] = {}
+        fields: list[str] = []
+        try:
+            spec = load_tenant_spec(REPO_ROOT / "data" / "flows" / entry["spec"])
+            labels = spec.get("crm_labels") or {}
+            fields = list(spec.get("crm_fields") or [])
+        except Exception:      # noqa: BLE001 — a listing must not die on one bad spec
+            pass
+        out.append({"company": code,
+                    "display_name": entry.get("display_name") or code,
+                    # every tenant owns its own file, so every tenant can be removed
+                    "deletable": True,
+                    "crm_fields": fields, "crm_labels": labels})
+    return out
 
 
 _CUE_LIBRARY_FILE = REPO_ROOT / "data" / "flows" / "intent_cues.json"
@@ -646,6 +665,11 @@ def _resolve_offset_dates(cd: dict) -> None:
             cd[key[: -len("_offset_days")]] = _du.future_date(int(n))
         except (TypeError, ValueError):
             continue
+        # The offset is how a date is authored, not a fact about the customer. Left in
+        # the row it showed up in the panel beside the date it produced, and in the
+        # render context the templates read. Measured to change nothing either way.
+        cd.pop(key, None)
+
 
 
 def _flow_spec_path(company: str, instruction_version: str | None = None) -> "Any":

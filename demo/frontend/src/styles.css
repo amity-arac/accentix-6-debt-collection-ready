@@ -2184,3 +2184,32 @@ button.bubble.tool-result {
 :root[data-theme="dark"] .bubble.step-warning,
 :root:not([data-theme="light"]) .bubble.step-warning { color: #fbbf24; }
 .step-warning-text { line-height: 1.4; }
+
+/* The CRM record as the API returned it — one row per field, no shape assumed.
+   Replaces the fixed balance/loan block, which showed a dash per slot for any
+   tenant that is not a debt collector. */
+.panel-crm { margin-bottom: 18px; }
+.panel-crm .crm-rows { display: grid; gap: 6px; margin: 0; }
+.panel-crm .crm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+.panel-crm .crm-row dt {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #8b8b8b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.panel-crm .crm-row dd {
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
