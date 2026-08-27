@@ -104,11 +104,11 @@ def _build_engines():
     with _engine_lock:
         if _stt_singleton is None:
             if engine == "chirp":
-                from services.speech.stt import STTService
+                from demo_v2.services.speech.stt import STTService
 
                 _stt_singleton = STTService()
             else:
-                from services.speech.zipformer_stt import ZipformerSTTService
+                from demo_v2.services.speech.zipformer_stt import ZipformerSTTService
 
                 # URL + optional hotwords/boost are read from env inside the service
                 # (AAX6_ZIPFORMER_URL / _HOTWORDS / _BOOST).
@@ -121,7 +121,7 @@ def _build_engines():
             logger.info("[stt] warmup done")
 
     # Fresh VAD per connection — Silero state is stateful and not shareable.
-    from services.speech.vad import VADService
+    from demo_v2.services.speech.vad import VADService
 
     vad = VADService(threshold=SILERO_THRESHOLD, sample_rate=STT_SAMPLE_RATE)
     return stt, vad

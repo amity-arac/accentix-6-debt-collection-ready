@@ -495,7 +495,7 @@ async def tts_stream(
 
     `gender` ("M"/"F") picks which Chirp 3 HD voice speaks — independent of the
     reply text's own grammatical gender (ครับ/ค่ะ particles)."""
-    from services.speech.config import VOICE_BY_GENDER
+    from demo_v2.services.speech.config import VOICE_BY_GENDER
     voice_name = VOICE_BY_GENDER.get(gender.strip().upper(), VOICE_BY_GENDER["F"])
 
     async def _gen() -> AsyncIterator[bytes]:

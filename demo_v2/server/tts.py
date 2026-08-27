@@ -48,7 +48,7 @@ except ImportError:  # pragma: no cover - depends on the install
     texttospeech = None
 
 
-from services.speech.config import (
+from demo_v2.services.speech.config import (
     DEFAULT_LANGUAGE_CODE,
     DEFAULT_SAMPLE_RATE,
     DEFAULT_TTS_VOICE,

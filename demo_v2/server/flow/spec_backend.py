@@ -22,7 +22,11 @@ The dispatch surface stays `dispatch(name, args) -> dict`, so callers are unchan
 """
 from __future__ import annotations
 
-from simulator.backend import _gen_id
+def _gen_id(prefix: str) -> str:
+    """Reference id for a recorded write. Two lines, vendored rather than importing
+    `simulator.backend`, which drags the whole pre-flow backend in for this."""
+    import secrets
+    return f"{prefix}-{secrets.token_hex(3).upper()}"
 from demo.server.flow.flowspec import declared_tools
 from demo.server.flow.spec_gate import SpecGate
 

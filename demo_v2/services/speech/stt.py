@@ -4,7 +4,7 @@ Uses Google Cloud Speech-to-Text V2 API with Chirp 3 model.
 Requires: GOOGLE_CLOUD_PROJECT env var + GCP credentials.
 
 Usage:
-    from services.speech.stt import STTService
+    from demo_v2.services.speech.stt import STTService
     stt = STTService()
     text = stt.transcribe(audio_bytes)
     text = stt.transcribe_file("recording.wav")

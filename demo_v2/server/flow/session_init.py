@@ -204,7 +204,7 @@ def resolvable(context: dict) -> set[str]:
     reads tokens aloud. DYNAMIC names are genuinely covered: the model supplies
     them, and `fill_template` degrades them to a safe Thai phrase if it doesn't.
     """
-    from agents.prescript import DYNAMIC_PLACEHOLDERS, SYSTEM_PLACEHOLDERS
+    from demo_v2.lib.prescript import DYNAMIC_PLACEHOLDERS, SYSTEM_PLACEHOLDERS
 
     have = {k for k, v in (context or {}).items() if v is not None}
     names = set(have) | set(DYNAMIC_PLACEHOLDERS)

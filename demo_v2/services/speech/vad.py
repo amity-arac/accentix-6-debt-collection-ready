@@ -4,7 +4,7 @@ Language-agnostic VAD — works with Thai and any other language.
 Uses a lightweight PyTorch model (~1MB).
 
 Usage:
-    from services.speech.vad import VADService
+    from demo_v2.services.speech.vad import VADService
     vad = VADService()
     segments = vad.detect(audio_bytes)       # [{start_ms, end_ms}, ...]
     has_speech = vad.is_speech(audio_chunk)   # True/False

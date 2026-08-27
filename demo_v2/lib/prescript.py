@@ -4,7 +4,7 @@ import hashlib
 import logging
 import re
 
-from simulator import datetime_utils
+from demo_v2.lib import datetime_utils
 
 logger = logging.getLogger(__name__)
 

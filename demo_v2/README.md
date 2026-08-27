@@ -23,7 +23,7 @@ demo_v2/server/sessions.py 2,118
 server/     app.py · sessions.py · tts.py · stt_ws.py
 server/flow flowspec · flowspec_render · spec_backend · spec_gate · session_init
 lib/        prescript.py · datetime_utils.py   (vendored from agents/ and simulator/)
-services/   speech — TTS/STT
+services/   speech — TTS/STT (vendored from services/)
 frontend/   unchanged
 ```
 
@@ -53,3 +53,17 @@ rsync -a --delete demo_v2/frontend/dist/ <host>:<app>/demo_v2/frontend/dist/
 ```
 
 `--delete` matters: without it the old hashed bundles pile up beside the new one.
+
+
+## Self-contained
+
+Nothing under `demo_v2/` imports `agents/`, `simulator/` or the root `services/`:
+
+```bash
+grep -rn "^from \(agents\|simulator\|services\)" --include=*.py demo_v2   # no hits
+```
+
+`_gen_id` (two lines) is vendored into `flow/spec_backend.py` rather than importing
+`simulator.backend`, which would pull the whole pre-flow backend in for it.
+
+Verified after the rewire: 35/36/37 on the same gold, TTS 200 through the proxy.
