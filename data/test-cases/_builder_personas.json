@@ -11,7 +11,6 @@
    "total_amount_due": 45000,
    "minimum_payment_due": 4500,
    "due_status": "upcoming",
-   "due_upcoming": true,
    "customer_phone": "081-555-7777",
    "msisdn": "081-555-7777",
    "last_4_digits": "7777",
@@ -19,7 +18,7 @@
    "case_status_note": null,
    "company_name": "อิอ้อน",
    "agent_name": "น้องอิ",
-   "due_offset_days": 3
+   "due_date_offset_days": 3
   },
   "user_system_prompt": "<persona>ลูกค้าบัตรอิอ้อน ยอดยังไม่ถึงกำหนด รับสายเตือนล่วงหน้า</persona>\n<situation>ยอด 45000 จะครบกำหนด 28 พ.ค. (ยังไม่เกิน) เจ้าหน้าที่โทรเตือนล่วงหน้า</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
  },

@@ -112,8 +112,12 @@ def persona_for(company: str) -> dict:
             n = int(cd[key])
         except (TypeError, ValueError):
             continue
-        stem = key[: -len("_offset_days")]
-        cd["due_date" if stem == "due" else stem] = _rel_date(f"@today{n:+d}")
+        cd[key[: -len("_offset_days")]] = _rel_date(f"@today{n:+d}")
+        # A template may branch on "is this date still ahead of us"; that is a fact the
+        # CRM owns, so the API states it rather than the app re-deriving it from two of
+        # the tenant's own fields.
+        if key == "due_date_offset_days":
+            cd["due_upcoming"] = n > 0
     cd = {k: _rel_date(v) for k, v in cd.items() if not k.endswith("_offset_days")}
     # The confirm-close templates need both ends of a visit window; the CRM row
     # stores only the start, so derive the end rather than let those templates read

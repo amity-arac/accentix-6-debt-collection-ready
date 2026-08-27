@@ -150,19 +150,12 @@ def case_customer_data(case_id: str) -> dict[str, Any]:
     return dict(_load_test_case(case_id).get("customer_data") or {})
 
 
-# Display fields lifted verbatim from each case's `customer_data` for the picker.
-_CUSTOMER_DISPLAY_FIELDS = (
-    "customer_name",
-    "loan_type",
-    "total_amount_due",
-    "minimum_payment_due",
-    "due_date",
-    "due_status",
-    "customer_phone",
-    "last_4_digits",
-    "case_status",
-    "case_status_note",
-)
+# Keys that describe the persona rather than the caller — everything else in
+# `customer_data` is the tenant's CRM row and is shown as-is. The picker used to lift a
+# fixed list (loan_type, total_amount_due, minimum_payment_due, due_status, …), which is
+# one domain's schema: a clinic's `doctor_name` was simply not displayed, and every
+# tenant carried those column names whether they meant anything or not.
+_NON_CRM_KEYS = frozenset({"msisdn", "case_ref"})
 
 
 def _extract_tag(usp: str, tag: str) -> str:
@@ -191,8 +184,10 @@ def _persona_summary(case: dict[str, Any]) -> dict[str, Any]:
         "situation": _extract_tag(usp, "situation"),
         "constraints": _extract_tag(usp, "constraints"),
     }
-    for field in _CUSTOMER_DISPLAY_FIELDS:
-        row[field] = cd.get(field)
+    for field, value in cd.items():
+        if field in _NON_CRM_KEYS or field.endswith("_offset_days"):
+            continue
+        row.setdefault(field, value)
     return row
 
 
@@ -634,14 +629,6 @@ def cue_library() -> dict[str, list[str]]:
     return {}
 
 
-def _offset_target(key: str) -> str:
-    """Which field an `<x>_offset_days` key fills. `due_offset_days` predates the rule
-    and fills `due_date`, not `due` — stripping the suffix blindly wrote a key nothing
-    reads and left the frozen date in place."""
-    stem = key[: -len("_offset_days")]
-    return "due_date" if stem == "due" else stem
-
-
 def _resolve_offset_dates(cd: dict) -> None:
     """`<field>_offset_days: N` → `<field>` = today+N, resolved per session.
 
@@ -656,7 +643,7 @@ def _resolve_offset_dates(cd: dict) -> None:
         if n is None:
             continue
         try:
-            cd[_offset_target(key)] = _du.future_date(int(n))
+            cd[key[: -len("_offset_days")]] = _du.future_date(int(n))
         except (TypeError, ValueError):
             continue
 
@@ -1044,29 +1031,30 @@ def _strip_unbound(spec: dict, keep: set[str]) -> None:
 
 
 def _demo_persona(company: str, display_name: str, agent_name: str) -> dict[str, Any]:
-    cid = f"TC-{company}-BUILD-001"
-    cd = {
-        "customer_name": "คุณสมมติ ทดสอบระบบ",
-        "loan_type": "สินเชื่อ",
-        "total_amount_due": 30000,
-        "minimum_payment_due": 3000,
-        "due_date": "2026-05-15 (Thursday)",
-        "due_status": "overdue",
-        "customer_phone": "081-234-5678",
-        "msisdn": "081-234-5678",
-        "last_4_digits": "1234",
-        "case_status": "normal",
-        "case_status_note": None,
-        "company_name": display_name,
-        "agent_name": agent_name,
-    }
+    """The playground's stand-in caller for a company that has just been uploaded.
+
+    It carries no CRM row. It used to invent one — a 30,000-baht loan, a minimum
+    payment, an overdue status, and a prompt telling the simulated customer it was
+    "รับสายจากเจ้าหน้าที่ติดตามหนี้" — so a clinic that uploaded an appointment flow got
+    a patient in debt collection, and every template that speaks a real field read a
+    number this file made up. Whatever the caller's account holds is the tenant's to
+    say: the spec's `session_init` fetches it, and `crm_fields` decides what the model
+    is allowed to see. What stays here is only what identifies the request
+    (`msisdn`) and the two names the instruction renders.
+    """
     return {
-        "id": cid, "topic": f"{display_name} — flow demo persona", "eval_track": "Track_A",
-        "patience": 3, "was_flipped": False, "customer_data": cd,
+        "id": f"TC-{company}-BUILD-001",
+        "topic": f"{display_name} — flow demo persona",
+        "eval_track": "Track_A", "patience": 3, "was_flipped": False,
+        "customer_data": {
+            "msisdn": "081-234-5678",
+            "company_name": display_name,
+            "agent_name": agent_name,
+        },
         "user_system_prompt": (
-            f"<persona>ลูกค้าของ{display_name} ที่มียอดค้างชำระ</persona>\n"
-            "<situation>รับสายจากเจ้าหน้าที่ติดตามหนี้</situation>\n"
-            "<constraints>คุยตามธรรมชาติ</constraints>"
+            f"<persona>ผู้รับสายจาก{display_name}</persona>\n"
+            "<situation>รับสายเข้ามาโดยไม่ได้นัดไว้ล่วงหน้า</situation>\n"
+            "<constraints>คุยตามธรรมชาติ ตอบตามที่ตัวเองรู้</constraints>"
         ),
     }
 
@@ -1385,15 +1373,6 @@ class FlowLiveSession:
         # Leaving the field missing is the better failure: the placeholder audit names it.
         cd.setdefault("today", datetime_utils.today_iso())
         _resolve_offset_dates(cd)      # <field>_offset_days → live date
-        # Derive the {{if due_upcoming}} template flag from the actual dates so
-        # disclose templates say "จะครบกำหนด [due_date]" pre-due and only say
-        # "เกินกำหนดแล้ว" when truly past due (issue: pre-due customer told the
-        # debt was overdue). ISO YYYY-MM-DD prefixes compare correctly as text.
-        if cd.get("due_upcoming") is None:
-            dd = str(cd.get("due_date") or "")[:10]
-            td = str(cd.get("today") or "")[:10]
-            if (dd and td and dd > td) or cd.get("due_status") == "upcoming":
-                cd["due_upcoming"] = True
         self.customer_data = cd
 
         entry = load_flow_registry()[self._company]
@@ -1429,13 +1408,10 @@ class FlowLiveSession:
         self.init_result = session_init.fetch_context(self._spec, seed=self.customer_data)
         if self.init_result["data"]:
             self.customer_data.update(self.init_result["data"])
-        # Re-derive the pre-due flag AFTER the CRM answered. It was computed from the
-        # persona minutes earlier, so a live `due_date` from the API left a stale flag
-        # — and the flag decides whether the agent says "จะถึงกำหนด" or "ครบกำหนด".
-        _dd = str(self.customer_data.get("due_date") or "")[:10]
-        _td = str(self.customer_data.get("today") or "")[:10]
-        if _dd and _td:
-            self.customer_data["due_upcoming"] = _dd > _td      # ISO compares as text
+        # No flag is derived here. Whether a date is "still upcoming" is a fact about
+        # the tenant's own account, and `due_upcoming` was this file deciding it by
+        # comparing two of that tenant's fields — a clinic has no due date to compare.
+        # A template that branches on a flag gets the flag from `session_init`.
 
         # Say plainly which placeholders nothing can fill — those are the tokens the
         # agent would speak literally. `known` = names other layers resolve, so this
