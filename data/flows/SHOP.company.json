@@ -106,7 +106,7 @@
     },
     "gating": {
      "after_event": "gives_date",
-     "note": "เรียกเงียบๆ ก่อนตอบทุกครั้ง — การนับวันเป็นหน้าที่ของระบบ ไม่ใช่ของ agent"
+     "note": "เรียกเมื่อลูกค้าระบุวันแล้วเท่านั้น — ถ้ายังไม่ได้วัน ให้ถามด้วย ask_new_date ก่อน ห้ามเรียกด้วย date ว่าง · การนับวันเป็นหน้าที่ของระบบ ไม่ใช่ของ agent"
     },
     "returns": {
      "in_range": {
@@ -281,7 +281,7 @@
    "entry_tools": [
     "check_new_date"
    ],
-   "note": "เรียก check_new_date ก่อนเสมอ แล้วเลือกประโยคตามผล: in_range=true → confirm_new_date (9004) · in_range=false → date_too_far (9005) แล้วรอวันใหม่",
+   "note": "เมื่อลูกค้าระบุวันแล้ว เรียก check_new_date ก่อนตอบ แล้วเลือกประโยคตามผล: in_range=true → confirm_new_date (9004) · in_range=false → date_too_far (9005) แล้วรอวันใหม่",
    "on": [
     {
      "event": "confirms_new_date",
@@ -493,6 +493,21 @@
    "text_id": 9008,
    "_fine_state": "close_handoff",
    "template": "เดี๋ยวให้เจ้าหน้าที่ติดต่อกลับไปนะคะ ขอบคุณค่ะ"
+  },
+  {
+   "text_id": 9009,
+   "_fine_state": "faq_repeat",
+   "template": "ขออภัยค่ะ รบกวนคุณลูกค้าแจ้งอีกครั้งได้ไหมคะ",
+   "hint": "ใช้เมื่อไม่เข้าใจ/ไม่ได้ยินสิ่งที่ลูกค้าพูด — ประโยคสำรองประจำสาย"
   }
- ]
+ ],
+ "auxiliary_templates": {
+  "note": "template ที่ไม่ผูกกับ state — พูดได้จากทุกจุดของสาย",
+  "allowed": [
+   {
+    "fine_state": "faq_repeat",
+    "desc": "ขอให้ลูกค้าพูดอีกครั้ง"
+   }
+  ]
+ }
 }

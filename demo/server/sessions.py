@@ -636,22 +636,16 @@ def cue_library() -> dict[str, list[str]]:
 
 
 def _flow_spec_path(company: str, instruction_version: str | None = None) -> "Any":
-    """Resolve the FlowSpec file for a company, optionally pinning an
-    instruction version. The registry `spec` is the canonical/latest; a versioned
-    override lives beside it as `{stem}__{version}.json`. Unknown/empty version →
-    the canonical file (so old sessions and non-versioned companies still work)."""
-    entry = load_flow_registry()[company]
-    base = REPO_ROOT / "data" / "flows" / entry["spec"]
-    # A company is ONE file now. The version-override lookup used to redirect here to
-    # `{stem}__{version}.json` whenever the canonical file named an
-    # `instruction_version` — AEON's did, so every edit to the canonical AEON spec was
-    # read by nobody while `__v11.2` was served. The parameter is kept so old callers
-    # still work, and honoured only if such a file is actually present.
-    if instruction_version:
-        cand = base.with_name(base.name.replace(".company.json", "") + f"__{instruction_version}.json")
-        if cand.exists():
-            return cand
-    return base
+    """The FlowSpec file for a company. A company is ONE file.
+
+    There used to be versioned overrides beside it (`{stem}__{version}.json`), and the
+    canonical file naming an `instruction_version` redirected here — AEON's did, so
+    every edit to the canonical AEON spec was read by nobody while `__v11.2` was
+    served. No override file exists any more, so the lookup only ever fell through to
+    the canonical file while still reporting a version that pointed nowhere. The
+    parameter stays so old callers keep working; it is ignored.
+    """
+    return REPO_ROOT / "data" / "flows" / load_flow_registry()[company]["spec"]
 
 
 def _read_catalog(spec: "dict | None", cat_path) -> list[dict]:
@@ -2124,6 +2118,23 @@ class FlowLiveSession:
                                            "content": json.dumps(result, ensure_ascii=False)})
                     push({"kind": "tool_call", "name": fn["name"], "args": args})
                     push({"kind": "tool_result", "name": fn["name"], "result": result})
+                # The tool loop can run out (FLOW_MAX_TOOL_LOOPS) without the model ever
+                # calling `reply` — observed on SHOP: it called check_new_date with an
+                # empty `date` eight times, every one correctly rejected, and the turn
+                # then returned with nothing said. The caller is a live person, so a
+                # turn that produces no speech is dead air on the line, which is worse
+                # than any sentence the catalog holds. Say the fallback instead.
+                # A mechanism, not a policy: every tenant wants the agent to answer when
+                # spoken to, and which sentence that is comes from the spec
+                # (`fallback_fine_state`, else the catalog's re-ask beat).
+                if not agent_text:
+                    ids, text = self._fallback_reply()
+                    push({"kind": "warning",
+                          "text": "จบเทิร์นโดยไม่ได้ตอบ (tool loop หมด) — ใช้ประโยคสำรอง"})
+                    push({"kind": "reply", "text": text, "text_ids": ids,
+                          "dynamic_vars": {}})
+                    self._messages.append({"role": "assistant", "content": text})
+                    agent_text = text
                 return agent_text, llm_ms, llm_hops
             finally:
                 loop.call_soon_threadsafe(queue.put_nowait, _SENTINEL)

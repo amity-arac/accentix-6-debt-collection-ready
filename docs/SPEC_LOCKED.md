@@ -206,12 +206,15 @@
 | `max_calls_per_conversation` | `int` | ✅ เกิน → `already_checked` (cap=1) / `<tool>_call_limit_reached` — นับรวมครั้งที่ถูกปฏิเสธ |
 | `requires_prior` | `ชื่อ tool` | ✅ ต้องเรียกตัวนั้นสำเร็จก่อน |
 | `must_precede` | `ชื่อ tool` / `[…]` | ✅ ต้องมาก่อนตัวนั้น |
-| `args_must_match_commitment` | `true` | ✅ `amount`/`date`/`channel` ต้องตรงกับที่รับปากไว้ |
+| `args_must_match` | `[ชื่อ arg]` | ✅ arg เหล่านี้ต้องตรงกับที่ `requires_prior` บันทึกไว้ — **spec เป็นคนบอกว่า field ไหน** |
 | `required_at` | `"end_of_call"` | ✅ ตัวปิดสาย — ประกาศได้ **ตัวเดียว**ต่อ spec |
 | `after_event` | `ชื่อ event` | ❌ ขึ้น prompt เท่านั้น |
 | `note` | `str` | ❌ ขึ้น prompt เท่านั้น |
 | `required_before_state` | `ชื่อ state` | ❌ prompt เท่านั้น |
 | `required_before` | `str` | ❌ prompt เท่านั้น |
+
+`args_must_match` ต้องมากับ `requires_prior` — ตัวหลังบอกว่า "ต้องมาหลังใคร"
+ตัวแรกบอกว่า "arg ไหนต้องตรงกับ call นั้น"
 
 **10 key นี้เท่านั้น** — พิมพ์ผิดจะถูกปฏิเสธ (`GATING_KEYS`) ไม่ใช่เงียบแล้วไม่ทำงาน
 
@@ -234,7 +237,7 @@ argument ที่ส่งมากลับไป — จำเป็นเว
 | key | สถานะจริง |
 |---|---|
 | `validation.date_format`, `validation.payment_channels` | ✅ ขึ้น prompt |
-| `validation.result_codes`, `validation.case_status_gates` | ⚠️ **ไม่มีใครอ่าน** |
+| `validation.result_codes` | อ่านโดย**ฝั่งเทรน** (`verl/envs/debt/backend.py`) — demo ไม่อ่าน |
 | `notes` | ขึ้น prompt |
 | `require_kyc` | ⚠️ อ่านโดยสาย **v12 เท่านั้น** — โมเดลที่เสิร์ฟอยู่ (non-v12) ไม่ใช้ |
 
@@ -339,6 +342,10 @@ argument ที่ส่งมากลับไป — จำเป็นเว
 `value_not_offered` · `<tool>_already_recorded` · `already_checked` · `commitment_mismatch` ·
 `call_already_closed` · `outcome_already_recorded` · `http_error`
 
+**จบเทิร์นต้องมีคำพูดเสมอ** — ถ้าลูปเรียก tool หมดโควตาแล้วโมเดลยังไม่ `reply`
+แอปจะพูด `fallback_fine_state` (ค่าเริ่มต้น `faq_repeat`) แทนที่จะเงียบใส่สาย
+⇒ **ทุก spec ต้องมี beat นี้** ไม่งั้น lint ขึ้น ERROR `no_fallback_beat`
+
 ทั้งหมดนี้งอกจากโครงสร้างที่ทุก spec มี **ไม่มีอะไรกันตาม "นโยบาย" ของบริษัทไหน**
 ไม่มี KYC gate ไม่มีรายชื่อ field อ่อนไหว ไม่มีนิยาม "ยืนยันตัวตนแล้ว"
 
@@ -415,7 +422,7 @@ PYTHONPATH=. python3 .claude/skills/new-company/scripts/smoke_company.py <CODE> 
 
 `demo/server/flow/flowspec.py` — `TOP_KEYS` (22) · `_REQUIRED_TOP_KEYS` (5) ·
 `STATE_KEYS` (13) · `TEMPLATE_KEYS` (7) · `TRANSITION_KEYS` (6) · `CATALOG_KEYS` (16) ·
-`CONSTRAINT_TYPES` (7) · `CONSTRAINT_KEYS` (15) · `GATING_KEYS` (10) · `KNOWN_IMPLS` (2) · `RETIRED` (4)
+`CONSTRAINT_TYPES` (7) · `CONSTRAINT_KEYS` (14) · `GATING_KEYS` (10) · `KNOWN_IMPLS` (2) · `RETIRED` (4)
 `spec_gate.py` (gating ที่บังคับจริง) · `spec_backend.py` (args, `one_of_from`) ·
 `flowspec_render.py` (อะไรเข้า prompt) · `sessions.py` (reply gate) ·
 `gen_mockoon.py` (`mock`, `returns`)

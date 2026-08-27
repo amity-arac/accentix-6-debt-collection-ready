@@ -14,7 +14,7 @@ The FlowSpec ALREADY declares those same rules declaratively, per tool, e.g.
     record_outcome:            gating.max_successful_calls: 1
     check_account_status:      gating.max_calls_per_conversation: 1
     payment_date:              gating.requires_prior: record_verbal_commitment
-                               gating.args_must_match_commitment: true
+                               gating.args_must_match: ["amount","date","channel"]
     get_current_datetime:      gating.must_precede: record_verbal_commitment
     save_appointment  (AMT):   gating.required_at: end_of_call
 
@@ -144,12 +144,16 @@ class SpecGate:
         # 3. args must match what a prior tool recorded ----------------------
         # e.g. payment_date.args_must_match_commitment → its amount/date/channel must
         # equal the record_verbal_commitment call that gated it (spec decides which).
-        if g.get("args_must_match_commitment") and prereqs:
+        # Which arguments have to agree is the tenant's business, so the spec names
+        # them. The list used to be ("amount","date","channel") in this file — a debt
+        # collector's fields, which a clinic could not use for its own booking.
+        match_args = g.get("args_must_match")
+        if match_args and prereqs:
             src = next((p for p in prereqs if self._successful(call_log, p)), None)
             if src:
                 prior_args = self._successful(call_log, src)[-1].get("args") or {}
                 mismatch = []
-                for key in ("amount", "date", "channel"):
+                for key in match_args:
                     want, got = prior_args.get(key), args.get(key)
                     if want in (None, "") or got in (None, ""):
                         continue      # only compare what BOTH sides actually supplied
@@ -160,7 +164,7 @@ class SpecGate:
                         "commitment_mismatch",
                         f"{', '.join(mismatch)} ไม่ตรงกับที่บันทึกไว้ใน {src} — "
                         "ต้องใช้ค่าเดียวกับที่ลูกค้าตกลง",
-                        expected={k: prior_args.get(k) for k in ("amount", "date", "channel")
+                        expected={k: prior_args.get(k) for k in match_args
                                   if prior_args.get(k)},
                     )
         return None

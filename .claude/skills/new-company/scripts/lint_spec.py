@@ -139,6 +139,17 @@ def lint(spec: dict, catalog: list[dict]) -> list[tuple[str, str, str]]:
             warn("outcome_unreachable",
                  f"outcomes declares `{code}` but no state or FAQ route records it")
 
+    # --- a sentence for the turn nothing else covers -------------------------
+    # The app must say something on every turn — a turn that produces no speech is dead
+    # air on a live call. When the model does not reply, it falls back to
+    # `fallback_fine_state` (default `faq_repeat`); with no such beat it has to invent
+    # Thai, breaking the one rule the instruction gives it.
+    want = spec.get("fallback_fine_state", "faq_repeat")
+    if want not in {e.get("_fine_state") for e in catalog}:
+        err("no_fallback_beat",
+            f"ไม่มี beat `{want}` ในคลัง — เทิร์นที่โมเดลไม่ตอบจะไม่มีประโยคให้พูด "
+            f"(เพิ่ม beat นี้ หรือประกาศ fallback_fine_state ชี้ไป beat ที่มี)")
+
     # --- tool argument contracts --------------------------------------------
     for name, d in decls.items():
         for a, m in (d.get("args") or {}).items():

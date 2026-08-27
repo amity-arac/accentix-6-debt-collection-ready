@@ -169,7 +169,12 @@ def render_instruction(spec: dict) -> str:
         if g.get("must_precede"):
             extras.append(f"ต้องเรียกก่อน `{g['must_precede']}` เสมอ")
         if g.get("requires_prior"):
-            extras.append(f"ต้องมี `{g['requires_prior']}` ค่าตรงกันมาก่อน")
+            # Wording kept byte-identical to what it was when `args_must_match` was the
+            # hardcoded ("amount","date","channel"): a refactor that moves a list from
+            # code into the spec must not also change what the model reads, or the next
+            # measurement cannot attribute the difference (§6.14).
+            extras.append(f"ต้องมี `{g['requires_prior']}` "
+                          + ("ค่าตรงกัน" if g.get("args_must_match") else "") + "มาก่อน")
         if g.get("required_before") == "non_today_date_in_args_or_reply":
             extras.append("เรียกก่อนพูด/บันทึกวันที่ที่ไม่ใช่วันนี้")
         if g.get("required_at") == "end_of_call":

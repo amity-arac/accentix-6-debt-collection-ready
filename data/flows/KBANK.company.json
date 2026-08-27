@@ -164,7 +164,11 @@
     },
     "gating": {
      "requires_prior": "record_verbal_commitment",
-     "args_must_match_commitment": true
+     "args_must_match": [
+      "amount",
+      "date",
+      "channel"
+     ]
     },
     "url": "{API_BASE}/KBANK/payment_date",
     "method": "POST"
@@ -252,10 +256,6 @@
     "mobile_app",
     "other"
    ],
-   "case_status_gates": {
-    "pending_review": "account_under_review",
-    "closed": "account_closed"
-   },
    "result_codes": [
     "ptp",
     "refused",

@@ -121,14 +121,14 @@ CONSTRAINT_KEYS = frozenset({
     "id", "type", "desc", "enforce",              # every rule
     "event", "max", "counts", "to", "on_exceed",  # typed rules
     "template_fine_states", "inverted",
-    "source_ref", "note", "spec_note", "inferred",
+    "note", "spec_note", "inferred",
 })
 # `gating` had no key lock, so a misspelling (`max_sucessful_calls`) validated clean and
 # then enforced nothing — the exact failure TOP_KEYS/STATE_KEYS exist to prevent.
 GATING_KEYS = frozenset({
     # enforced by SpecGate at call time
     "max_successful_calls", "max_calls_per_conversation",
-    "requires_prior", "must_precede", "args_must_match_commitment", "required_at",
+    "requires_prior", "must_precede", "args_must_match", "required_at",
     # rendered into the instruction only — a live caller gives no reliable event tag
     "after_event", "required_before_state", "required_before", "note",
 })
