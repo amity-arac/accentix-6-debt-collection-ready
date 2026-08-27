@@ -278,7 +278,6 @@
      }
     },
     "gating": {
-     "must_precede": "payment_date",
      "note": "ต้องเรียก get_current_datetime ก่อนเสมอ เพื่อได้ date รูปแบบ canonical (กัน date_format_invalid)"
     },
     "url": "{API_BASE}/AEON/record_verbal_commitment",
@@ -1170,18 +1169,6 @@
     "reward"
    ],
    "desc": "ตอบ FAQ แล้วกลับเข้า flow จากจุดเดิม — ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ"
-  },
-  {
-   "id": "commitment_pair",
-   "type": "tool_pair",
-   "first": "record_verbal_commitment",
-   "second": "payment_date",
-   "args_must_match": true,
-   "enforce": [
-    "backend"
-   ],
-   "desc": "payment_date ต้องมี record_verbal_commitment ค่าตรงกัน (amount/date; ส่วน channel เป็น optional — ถ้าระบุต้องตรงกัน ถ้าไม่ระบุก็ผ่าน) มาก่อน ไม่งั้นถูก reject",
-   "source_ref": "3-Element Enforcer — enforced in backend.payment_date"
   },
   {
    "id": "faq_company_explain",

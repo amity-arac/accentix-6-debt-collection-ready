@@ -130,9 +130,6 @@
       "optional": true
      }
     },
-    "gating": {
-     "must_precede": "payment_date"
-    },
     "url": "{API_BASE}/SKL/record_verbal_commitment",
     "method": "POST"
    },
@@ -861,18 +858,6 @@
     "reward"
    ],
    "desc": "จบสายต้อง record_outcome(result, reason, remark) เสมอ ครั้งเดียว"
-  },
-  {
-   "id": "commitment_pair",
-   "type": "tool_pair",
-   "first": "record_verbal_commitment",
-   "second": "payment_date",
-   "args_must_match": true,
-   "enforce": [
-    "backend"
-   ],
-   "desc": "payment_date ต้องมี record_verbal_commitment ค่าตรงกัน (amount/date/channel) มาก่อน ไม่งั้นถูก reject",
-   "source_ref": "3-Element Enforcer — enforced in backend.payment_date"
   },
   {
    "id": "kyc_verbal_gate",

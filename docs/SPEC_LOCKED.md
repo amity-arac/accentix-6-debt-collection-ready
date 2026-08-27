@@ -209,9 +209,15 @@
 | `args_must_match_commitment` | `true` | ✅ `amount`/`date`/`channel` ต้องตรงกับที่รับปากไว้ |
 | `required_at` | `"end_of_call"` | ✅ ตัวปิดสาย — ประกาศได้ **ตัวเดียว**ต่อ spec |
 | `after_event` | `ชื่อ event` | ❌ ขึ้น prompt เท่านั้น |
+| `note` | `str` | ❌ ขึ้น prompt เท่านั้น |
 | `required_before_state` | `ชื่อ state` | ❌ prompt เท่านั้น |
 | `required_before` | `str` | ❌ prompt เท่านั้น |
-| `note` | `str` | ขึ้น prompt |
+
+**10 key นี้เท่านั้น** — พิมพ์ผิดจะถูกปฏิเสธ (`GATING_KEYS`) ไม่ใช่เงียบแล้วไม่ทำงาน
+
+**ลำดับระหว่าง tool ประกาศได้ทางเดียว** — `requires_prior` ที่ตัวที่ต้องพึ่งคนอื่น
+ใช้ `must_precede` เฉพาะตอนตัวเดียวต้องมาก่อนหลายตัว (เขียนที่เดียวแทนหลายที่)
+`constraints type: tool_pair` เลิกใช้แล้ว — เคยประกาศเส้นเดียวกันซ้ำเป็นทางที่สาม
 
 ### `mock`
 
@@ -250,12 +256,14 @@ argument ที่ส่งมากลับไป — จำเป็นเว
 |---|---|
 | `prompt` | `desc` ไปอยู่ในหัวข้อ **หลักการ (⛔ กฎสูงสุด)** |
 | `reward` | ป้ายสำหรับฝั่งเทรน **ไม่มีผลตอนรัน** |
-| `backend` | บังคับจริง — **เฉพาะ `type: "tool_pair"` เท่านั้น** |
 
-> พูดตรงๆ: กฎ 92 จาก 96 ข้อในทั้ง 6 spec คือ**ข้อความใน prompt** โมเดลทำตามหรือไม่ทำก็ได้
+`backend` ไม่ใช่ค่าที่ใช้ได้แล้ว — การบังคับตอนรันอยู่ที่ `gating` ของ tool ทั้งหมด
+`session` ก็ถูกตัดออก ตั้งแต่ถอด reply-gate
+
+> พูดตรงๆ: `constraints` **ทุกข้อ**คือข้อความใน prompt โมเดลทำตามหรือไม่ทำก็ได้
 > ถ้ากฎไหนแตกไม่ได้ ต้องให้ **API ของคุณเอง**ปฏิเสธ อย่าหวังว่าแอปจะกันให้
 
-### 10 `type`
+### 9 `type`
 
 | type | field ที่ใช้คู่กัน | ความหมาย |
 |---|---|---|
@@ -268,7 +276,6 @@ argument ที่ส่งมากลับไป — จำเป็นเว
 | `max_templates_per_reply` | `max` | หนึ่งเทิร์นพูดได้กี่ประโยค |
 | `resume_after_interrupt` | `exceptions` | ตอบ FAQ แล้วกลับ flow เดิม |
 | `require_tool_before_end` | `tool` | ห้ามจบสายถ้ายังไม่เรียก |
-| `tool_pair` | `first` `second` `args_must_match` | **ตัวเดียวที่ backend บังคับ** |
 
 กฎที่ไม่มี `type` = กฎเชิงข้อความล้วน (57 ข้อจาก 96) ใส่ `id` + `desc` + `enforce` พอ
 `source_ref` เก็บที่มา ⚠️ ไม่มีใครอ่าน
@@ -397,7 +404,7 @@ PYTHONPATH=. python3 .claude/skills/new-company/scripts/smoke_company.py <CODE> 
 
 `demo/server/flow/flowspec.py` — `TOP_KEYS` (22) · `_REQUIRED_TOP_KEYS` (5) ·
 `STATE_KEYS` (13) · `TEMPLATE_KEYS` (7) · `TRANSITION_KEYS` (6) · `CATALOG_KEYS` (17) ·
-`CONSTRAINT_TYPES` (10) · `KNOWN_IMPLS` (2) · `RETIRED` (4)
+`CONSTRAINT_TYPES` (9) · `GATING_KEYS` (10) · `KNOWN_IMPLS` (2) · `RETIRED` (4)
 `spec_gate.py` (gating ที่บังคับจริง) · `spec_backend.py` (args, `one_of_from`) ·
 `flowspec_render.py` (อะไรเข้า prompt) · `sessions.py` (reply gate) ·
 `gen_mockoon.py` (`mock`, `returns`)

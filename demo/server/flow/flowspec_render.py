@@ -177,6 +177,16 @@ def render_instruction(spec: dict) -> str:
         if extras:
             line += " — " + " · ".join(extras)
         fmt.append(line)
+    # The "a rejected call comes back with a reason" framing used to ride on a
+    # `tool_pair` constraint, which was a third way of declaring an ordering that
+    # `gating.requires_prior` already declares. The framing is not that rule — it is true
+    # of every spec that declares any enforced gating — so it is derived here instead.
+    _ENFORCED = ("max_successful_calls", "max_calls_per_conversation",
+                 "requires_prior", "must_precede", "required_at")
+    if any(k in (d.get("gating") or {}) for d in decls for k in _ENFORCED):
+        fmt.append("\nเรียกผิดลำดับ/เรียกซ้ำ จะถูก reject พร้อมเหตุผล — อ่าน hint "
+                   "แล้วทำตาม ห้ามเรียกซ้ำแบบเดิม")
+
     notes = tools.get("notes", [])
     if notes:
         fmt.append("\n" + " / ".join(f"**{n}**" for n in notes))

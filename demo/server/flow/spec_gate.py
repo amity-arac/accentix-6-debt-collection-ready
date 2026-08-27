@@ -18,7 +18,6 @@ The FlowSpec ALREADY declares those same rules declaratively, per tool, e.g.
     get_current_datetime:      gating.must_precede: record_verbal_commitment
     save_appointment  (AMT):   gating.required_at: end_of_call
 
-…and `constraints[]` with `enforce: ["backend"]` adds pair rules (`tool_pair`).
 
 So this module enforces gating BY READING THE SPEC — no tool names, no company names, no
 domain assumptions in the code. A brand-new company uploaded as JSON gets its declared
@@ -68,14 +67,6 @@ class SpecGate:
         self._gating: dict[str, dict] = {
             d["name"]: (d.get("gating") or {}) for d in decls if d.get("name")
         }
-        # constraints with enforce:["backend"] that add tool ordering, e.g.
-        # {"type":"tool_pair","first":"record_verbal_commitment","second":"payment_date"}
-        self._pairs: list[tuple[str, str]] = []
-        for c in self._spec.get("constraints") or []:
-            if c.get("type") == "tool_pair" and "backend" in (c.get("enforce") or []):
-                first, second = c.get("first"), c.get("second")
-                if first and second:
-                    self._pairs.append((first, second))
 
     # ---------- helpers over the call log ----------
     @staticmethod
@@ -134,8 +125,6 @@ class SpecGate:
         # 2. ordering: this tool needs another tool to have run first --------
         prior = g.get("requires_prior")
         prereqs = [prior] if isinstance(prior, str) else list(prior or [])
-        # tool_pair(first, second) in constraints means: second requires first
-        prereqs += [first for first, second in self._pairs if second == name]
         for req in prereqs:
             if req and not self._successful(call_log, req):
                 return self._reject(

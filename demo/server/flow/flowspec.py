@@ -63,8 +63,11 @@ CONSTRAINT_TYPES = frozenset({
     "max_templates_per_reply",
     "resume_after_interrupt",
     "require_tool_before_end",
-    "tool_pair",
 })
+# `tool_pair` was retired: it declared "second requires first", which is the same edge
+# `gating.requires_prior` declares on the tool that needs it. Every spec carried that one
+# ordering three times (tool_pair + requires_prior + the mirror must_precede) and only the
+# first check could ever fire — see RETIRED_CONSTRAINT_TYPES for what an author is told.
 
 # `company` and `flow_id` are NOT required in the file: `load_tenant_spec` fills them
 # from the filename, which is the one place they cannot disagree with. `spec_version` is
@@ -113,6 +116,15 @@ TEMPLATE_KEYS = frozenset({"fine_state", "any_of", "when_event", "optional",
 # state — a design rule of this schema (see the module docstring), so it is valid
 # anywhere. `spec_note` is the same idea in prose.
 TRANSITION_KEYS = frozenset({"event", "to", "tools", "note", "inferred", "spec_note"})
+# `gating` had no key lock, so a misspelling (`max_sucessful_calls`) validated clean and
+# then enforced nothing — the exact failure TOP_KEYS/STATE_KEYS exist to prevent.
+GATING_KEYS = frozenset({
+    # enforced by SpecGate at call time
+    "max_successful_calls", "max_calls_per_conversation",
+    "requires_prior", "must_precede", "args_must_match_commitment", "required_at",
+    # rendered into the instruction only — a live caller gives no reliable event tag
+    "after_event", "required_before_state", "required_before", "note",
+})
 CATALOG_KEYS = frozenset({
     "text_id", "_fine_state", "template",                 # the three that matter
     "hint",                                               # เมื่อไหร่ควรใช้สำนวนนี้
@@ -126,6 +138,9 @@ RETIRED = {
     "render_all_templates": "เหมือน compose",
     "group": "ใช้ when_event แยกทางเลือก / ไม่ใส่ = chain",
     "template_mode": "อนุมานจาก when_event",
+}
+RETIRED_CONSTRAINT_TYPES = {
+    "tool_pair": "ประกาศลำดับที่ `gating.requires_prior` ของ tool ที่ต้องพึ่งอีกตัว",
 }
 
 
@@ -156,6 +171,9 @@ def validate_strict(spec: dict, catalog: list[dict] | None = None) -> list[str]:
                 errors.append(f"state {sid} template[{i}]: ต้องมี fine_state หรือ any_of")
         for i, tr in enumerate(st.get("on") or []):
             _check_keys(f"state {sid} on[{i}]", tr, TRANSITION_KEYS, errors)
+    for d in (spec.get("tools") or {}).get("declarations") or []:
+        _check_keys(f"tool {d.get('name','?')} gating", d.get("gating") or {},
+                    GATING_KEYS, errors)
     for i, e in enumerate(catalog or []):
         _check_keys(f"catalog[{i}]", e, CATALOG_KEYS, errors, allow_underscore=True)
         if not (e.get("_fine_state") or e.get("fine_state")):
@@ -434,12 +452,15 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
         if ctype is None:
             if not c.get("desc"):
                 errors.append(f"constraint {cid}: prose constraint missing desc")
+        elif ctype in RETIRED_CONSTRAINT_TYPES:
+            errors.append(f"constraint {cid}: เลิกใช้ type '{ctype}' แล้ว — "
+                          f"{RETIRED_CONSTRAINT_TYPES[ctype]}")
         elif ctype not in CONSTRAINT_TYPES:
             errors.append(f"constraint {cid}: unknown type: {ctype}")
         layers = set(c.get("enforce", []))
         if not layers:
             errors.append(f"constraint {cid}: missing enforce layers")
-        elif not layers <= {"prompt", "reward", "backend", "session"}:
+        elif not layers <= {"prompt", "reward", "backend"}:
             errors.append(f"constraint {cid}: invalid enforce layers: {sorted(layers)}")
         ev = c.get("event")
         if ev and ev not in events:
@@ -529,6 +550,8 @@ __all__ = [
     "load_tenant_spec",
     "derive_outcomes",
     "CONSTRAINT_TYPES",
+    "GATING_KEYS",
+    "RETIRED_CONSTRAINT_TYPES",
     "load_flow_spec",
     "load_catalog",
     "validate_flow_spec",
