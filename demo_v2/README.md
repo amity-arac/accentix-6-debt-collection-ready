@@ -40,3 +40,16 @@ Same env as `demo/`: `AAX6_VLLM_BASE_URLS`, `AAX6_API_BASE`, `AAX6_DEMO_STATIC`,
 
 `tools/eval_demo.py` must score the same as it does against `demo/`. Anything else
 means something still-used was cut.
+
+## Frontend
+
+Built from `demo_v2/frontend/src`, not copied. The bundle differs from `demo/`'s by 70
+bytes — the lucide-react version string inside its license comments (v1.16.0 → v1.25.0,
+same length, same file size). The dev-server proxy points at 4200.
+
+```bash
+cd demo_v2/frontend && pnpm install && pnpm build
+rsync -a --delete demo_v2/frontend/dist/ <host>:<app>/demo_v2/frontend/dist/
+```
+
+`--delete` matters: without it the old hashed bundles pile up beside the new one.

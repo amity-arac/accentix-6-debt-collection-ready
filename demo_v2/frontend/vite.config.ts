@@ -27,7 +27,7 @@ export default defineConfig({
     https: httpsOptions,
     proxy: {
       "/api": {
-        target: process.env.BACKEND_URL || "http://127.0.0.1:4100",
+        target: process.env.BACKEND_URL || "http://127.0.0.1:4200",
         changeOrigin: true,
         // Forward the WebSocket upgrade for /api/stt (Chirp 3 backend STT).
         ws: true,
