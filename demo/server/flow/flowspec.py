@@ -61,8 +61,6 @@ CONSTRAINT_TYPES = frozenset({
     "no_repeat_answered_request",
     "immediate_transition_on",
     "max_templates_per_reply",
-    "resume_after_interrupt",
-    "require_tool_before_end",
 })
 # `tool_pair` was retired: it declared "second requires first", which is the same edge
 # `gating.requires_prior` declares on the tool that needs it. Every spec carried that one
@@ -116,6 +114,15 @@ TEMPLATE_KEYS = frozenset({"fine_state", "any_of", "when_event", "optional",
 # state — a design rule of this schema (see the module docstring), so it is valid
 # anywhere. `spec_note` is the same idea in prose.
 TRANSITION_KEYS = frozenset({"event", "to", "tools", "note", "inferred", "spec_note"})
+# `constraints[]` had no key lock either: a rule could name `template_fine_stat` and
+# validate clean while matching nothing. These are every key the shipped specs use plus
+# the ones spec_rules reads.
+CONSTRAINT_KEYS = frozenset({
+    "id", "type", "desc", "enforce",              # every rule
+    "event", "max", "counts", "to", "on_exceed",  # typed rules
+    "template_fine_states", "inverted",
+    "source_ref", "note", "spec_note", "inferred",
+})
 # `gating` had no key lock, so a misspelling (`max_sucessful_calls`) validated clean and
 # then enforced nothing — the exact failure TOP_KEYS/STATE_KEYS exist to prevent.
 GATING_KEYS = frozenset({
@@ -129,7 +136,7 @@ CATALOG_KEYS = frozenset({
     "text_id", "_fine_state", "template",                 # the three that matter
     "hint",                                               # เมื่อไหร่ควรใช้สำนวนนี้
     "company", "state", "intent_name", "category",        # derived; accepted if present
-    "fine_state", "_hint_where", "_example_AEON", "is_closer", "is_demand",
+    "_hint_where", "_example_AEON", "is_closer", "is_demand",
     "is_acknowledgment", "expects_response", "note", "desc",
 })
 # Retired keys, named so the error can say what replaced them.
@@ -139,8 +146,15 @@ RETIRED = {
     "group": "ใช้ when_event แยกทางเลือก / ไม่ใส่ = chain",
     "template_mode": "อนุมานจาก when_event",
 }
+# Three types said, in a second place, a thing the states / tools / faq_routing section
+# already say. A second copy is not free — it can disagree with the first, and one did:
+# `max_templates_per_reply.exceptions` was a hand-kept list of the chain states that had
+# drifted from the states themselves. The rules they carried are unchanged; they live on
+# as prose (`id` + `desc` + `enforce`), which is all that ever reached the model.
 RETIRED_CONSTRAINT_TYPES = {
     "tool_pair": "ประกาศลำดับที่ `gating.requires_prior` ของ tool ที่ต้องพึ่งอีกตัว",
+    "require_tool_before_end": "ประกาศที่ `gating.required_at: end_of_call` ของ tool นั้น",
+    "resume_after_interrupt": 'ประกาศที่ `faq_routing.routes[].then: "resume"` ทีละเส้น',
 }
 
 
@@ -171,12 +185,21 @@ def validate_strict(spec: dict, catalog: list[dict] | None = None) -> list[str]:
                 errors.append(f"state {sid} template[{i}]: ต้องมี fine_state หรือ any_of")
         for i, tr in enumerate(st.get("on") or []):
             _check_keys(f"state {sid} on[{i}]", tr, TRANSITION_KEYS, errors)
+    for c in spec.get("constraints") or []:
+        _check_keys(f"constraint {c.get('id', c.get('type', '?'))}", c,
+                    CONSTRAINT_KEYS, errors)
     for d in (spec.get("tools") or {}).get("declarations") or []:
         _check_keys(f"tool {d.get('name','?')} gating", d.get("gating") or {},
                     GATING_KEYS, errors)
     for i, e in enumerate(catalog or []):
         _check_keys(f"catalog[{i}]", e, CATALOG_KEYS, errors, allow_underscore=True)
-        if not (e.get("_fine_state") or e.get("fine_state")):
+        # A catalog entry keys its beat `_fine_state`; the bare name belongs to a
+        # `states[].templates[]` entry. Accepting both here let an entry validate and
+        # then vanish — `normalize_catalog` only ever fills `_fine_state`.
+        if "fine_state" in e:
+            errors.append(f"catalog[{i}]: ใช้ `_fine_state` ไม่ใช่ `fine_state` "
+                          "(ชื่อไม่มี _ ใช้ใน states[].templates)")
+        if not e.get("_fine_state"):
             errors.append(f"catalog[{i}]: ต้องมี _fine_state")
         if not e.get("template"):
             errors.append(f"catalog[{i}]: ต้องมี template")
@@ -551,6 +574,7 @@ __all__ = [
     "derive_outcomes",
     "CONSTRAINT_TYPES",
     "GATING_KEYS",
+    "CONSTRAINT_KEYS",
     "RETIRED_CONSTRAINT_TYPES",
     "load_flow_spec",
     "load_catalog",

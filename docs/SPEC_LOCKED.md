@@ -132,12 +132,12 @@
 | key | จำเป็น | ใช้ทำอะไร |
 |---|---|---|
 | `text_id` ✱ | ✅ | เลขที่โมเดลเรียก — `reply([1018])` |
-| `_fine_state` ✱ | ✅ | beat ที่ประโยคนี้สังกัด (หนึ่ง beat มีได้หลายสำนวน) |
+| `_fine_state` ✱ | ✅ | beat ที่ประโยคนี้สังกัด (หนึ่ง beat มีได้หลายสำนวน) — **มี `_` นำหน้า** ชื่อไม่มี `_` ใช้ใน `states[].templates` เท่านั้น ใส่ผิดที่ถูกปฏิเสธ |
 | `template` ✱ | ✅ | ข้อความจริง `[slot]` เติมตอนรันจาก CRM |
 | `hint` | | บอกโมเดลว่าเมื่อไหร่ควรใช้สำนวนนี้ |
 | `state` `intent_name` `category` | | **เข้า prompt** — จัดกลุ่มและติดป้าย `[A]`/`[B]` |
 | `is_closer` `is_demand` `is_acknowledgment` `expects_response` | | ป้ายพฤติกรรม |
-| `company` `fine_state` `note` `desc` `_hint_where` `_example_AEON` | | รับไว้ |
+| `company` `note` `desc` `_hint_where` `_example_AEON` | | รับไว้ |
 | `_`-นำหน้าอื่นๆ | | ผ่านได้ ไม่มีใครอ่าน |
 
 > ⚠ **ห้ามเขียนชื่อ beat ข้างเลขที่ไม่ใช่ของมัน** — เป็นบั๊กที่แพงที่สุดที่เคยเจอ
@@ -263,22 +263,33 @@ argument ที่ส่งมากลับไป — จำเป็นเว
 > พูดตรงๆ: `constraints` **ทุกข้อ**คือข้อความใน prompt โมเดลทำตามหรือไม่ทำก็ได้
 > ถ้ากฎไหนแตกไม่ได้ ต้องให้ **API ของคุณเอง**ปฏิเสธ อย่าหวังว่าแอปจะกันให้
 
-### 9 `type`
+### 7 `type`
 
 | type | field ที่ใช้คู่กัน | ความหมาย |
 |---|---|---|
 | `max_occurrences` | `counts` `max` `on_exceed.to` | นับเกินโควตา → ไป state นั้น |
-| `once_per_call` | `template_fine_state(s)` | พูดได้ครั้งเดียวต่อสาย |
-| `repeat_only_on` | `event` `template_fine_state(s)` | พูดซ้ำได้เฉพาะเมื่อเกิด event นี้ |
+| `once_per_call` | `template_fine_states` | พูดได้ครั้งเดียวต่อสาย |
+| `repeat_only_on` | `event` `template_fine_states` | พูดซ้ำได้เฉพาะเมื่อเกิด event นี้ |
 | `forbid_after_event` | `event` `template_fine_states` `inverted` | ห้ามหลัง event (`inverted: true` = ห้าม**ก่อน**) |
 | `no_repeat_answered_request` | `template_fine_states` | ตอบไปแล้วห้ามตอบซ้ำ |
 | `immediate_transition_on` | `event` `to` | เจอ event ปุ๊บ ย้ายทันที |
-| `max_templates_per_reply` | `max` | หนึ่งเทิร์นพูดได้กี่ประโยค |
-| `resume_after_interrupt` | `exceptions` | ตอบ FAQ แล้วกลับ flow เดิม |
-| `require_tool_before_end` | `tool` | ห้ามจบสายถ้ายังไม่เรียก |
+| `max_templates_per_reply` | `max` | หนึ่งเทิร์นพูดได้กี่ประโยค (chain มาจาก `states` — ไม่มี `exceptions`) |
 
-กฎที่ไม่มี `type` = กฎเชิงข้อความล้วน (57 ข้อจาก 96) ใส่ `id` + `desc` + `enforce` พอ
-`source_ref` เก็บที่มา ⚠️ ไม่มีใครอ่าน
+กฎที่ไม่มี `type` = กฎเชิงข้อความล้วน ใส่ `id` + `desc` + `enforce` พอ — เป็นรูปแบบ
+ปกติ ไม่ใช่ของด้อยกว่า `desc` คือสิ่งเดียวที่ไปถึงโมเดล
+
+**key ที่ใส่ใน constraint ได้** (`CONSTRAINT_KEYS`, พิมพ์ผิดถูกปฏิเสธ):
+`id` `type` `desc` `enforce` · `event` `max` `counts` `to` `on_exceed`
+`template_fine_states` `inverted` · `source_ref` `note` `spec_note` `inferred`
+— `source_ref` เก็บที่มา ⚠️ ไม่มีใครอ่าน
+
+**ไม่มี `template_fine_state` เอกพจน์แล้ว** ใช้ `template_fine_states` (list) ตัวเดียว
+รูปเดียวรับได้ทั้งหนึ่งและหลาย
+
+**ประกาศทางเดียว** — สามอย่างนี้เลิกใช้เพราะพูดซ้ำสิ่งที่ส่วนอื่นบอกอยู่แล้ว:
+`tool_pair` → `gating.requires_prior` · `require_tool_before_end` →
+`gating.required_at` · `resume_after_interrupt` → `faq_routing.routes[].then="resume"`
+(กฎเดิมยังอยู่ในไฟล์ในรูปกฎเชิงข้อความ — `desc` ไม่ได้หายไปไหน)
 
 > **รูปของกฎสำคัญกว่าจำนวนกฎ** เพิ่มกฎที่ถูกต้องทีละข้อ 6 ข้อพร้อมกัน เคยทำให้คะแนน**ลด**
 > และเกิดการรับปากที่ลูกค้าไม่เคยพูด เพราะ 3 ข้อลงท้ายด้วย "แล้วปิดสาย" แล้วโมเดล
@@ -403,8 +414,8 @@ PYTHONPATH=. python3 .claude/skills/new-company/scripts/smoke_company.py <CODE> 
 ## 12 · ที่มาของทุกตัวเลขในเอกสารนี้
 
 `demo/server/flow/flowspec.py` — `TOP_KEYS` (22) · `_REQUIRED_TOP_KEYS` (5) ·
-`STATE_KEYS` (13) · `TEMPLATE_KEYS` (7) · `TRANSITION_KEYS` (6) · `CATALOG_KEYS` (17) ·
-`CONSTRAINT_TYPES` (9) · `GATING_KEYS` (10) · `KNOWN_IMPLS` (2) · `RETIRED` (4)
+`STATE_KEYS` (13) · `TEMPLATE_KEYS` (7) · `TRANSITION_KEYS` (6) · `CATALOG_KEYS` (16) ·
+`CONSTRAINT_TYPES` (7) · `CONSTRAINT_KEYS` (15) · `GATING_KEYS` (10) · `KNOWN_IMPLS` (2) · `RETIRED` (4)
 `spec_gate.py` (gating ที่บังคับจริง) · `spec_backend.py` (args, `one_of_from`) ·
 `flowspec_render.py` (อะไรเข้า prompt) · `sessions.py` (reply gate) ·
 `gen_mockoon.py` (`mock`, `returns`)

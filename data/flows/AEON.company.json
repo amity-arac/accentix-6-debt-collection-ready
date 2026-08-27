@@ -1100,12 +1100,14 @@
   {
    "id": "disclose_once",
    "type": "once_per_call",
-   "template_fine_state": "disclose_balance",
    "enforce": [
     "prompt",
     "reward"
    ],
-   "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่"
+   "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่",
+   "template_fine_states": [
+    "disclose_balance"
+   ]
   },
   {
    "id": "repeat_only_on_no_input",
@@ -1163,7 +1165,6 @@
   },
   {
    "id": "faq_resume",
-   "type": "resume_after_interrupt",
    "enforce": [
     "prompt",
     "reward"

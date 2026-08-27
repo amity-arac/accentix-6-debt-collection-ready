@@ -766,12 +766,14 @@
   {
    "id": "disclose_once",
    "type": "once_per_call",
-   "template_fine_state": "disclose_balance",
    "enforce": [
     "prompt",
     "reward"
    ],
-   "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่"
+   "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่",
+   "template_fine_states": [
+    "disclose_balance"
+   ]
   },
   {
    "id": "repeat_only_on_no_input",
@@ -821,16 +823,6 @@
    "id": "one_template_per_turn",
    "type": "max_templates_per_reply",
    "max": 1,
-   "exceptions": [
-    [
-     "disclose_balance",
-     "ask_pay_today"
-    ],
-    [
-     "confirm_info",
-     "close"
-    ]
-   ],
    "enforce": [
     "prompt",
     "reward"
@@ -839,7 +831,6 @@
   },
   {
    "id": "faq_resume",
-   "type": "resume_after_interrupt",
    "enforce": [
     "prompt",
     "reward"
@@ -848,8 +839,6 @@
   },
   {
    "id": "outcome_required",
-   "type": "require_tool_before_end",
-   "tool": "record_outcome",
    "enforce": [
     "prompt",
     "reward"
