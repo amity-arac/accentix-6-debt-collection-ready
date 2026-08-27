@@ -1408,6 +1408,21 @@ class FlowLiveSession:
         self.init_result = session_init.fetch_context(self._spec, seed=self.customer_data)
         if self.init_result["data"]:
             self.customer_data.update(self.init_result["data"])
+        # A declared session_init that did not answer leaves the seed in place, and the
+        # seed is a fixture in this repo. Speaking it means telling a real caller a
+        # balance this deployment made up — measured: with the API down the agent still
+        # said 45,000/4,500, the numbers in `_builder_personas.json`. So the call does
+        # not proceed on stale context. What it says instead is the tenant's to choose:
+        # `session_init.on_failure` names the beat and, optionally, the result to record.
+        # A spec that declares session_init without on_failure gets no sentence invented
+        # for it — the session refuses to open and the caller is told why.
+        self.init_failed = bool(self.init_result["declared"]) and not self.init_result["ok"]
+        self.init_on_failure = ((self._spec.get("session_init") or {}).get("on_failure")
+                                if self.init_failed else None)
+        if self.init_failed and not self.init_on_failure:
+            raise RuntimeError(
+                f"{self._company}: session_init ไม่ตอบ ({self.init_result['error']}) และ spec "
+                "ไม่ได้ประกาศ session_init.on_failure — ไม่เปิดสายด้วยข้อมูลค้างในเครื่อง")
         # No flag is derived here. Whether a date is "still upcoming" is a fact about
         # the tenant's own account, and `due_upcoming` was this file deciding it by
         # comparing two of that tenant's fields — a clinic has no due date to compare.
@@ -1566,11 +1581,46 @@ class FlowLiveSession:
 
     # ---- public ----
 
+    def _init_failure_hops(self, cfg: dict) -> "list[dict[str, Any]]":
+        """What the caller hears when `session_init` did not answer."""
+        hops: list[dict[str, Any]] = [{
+            "kind": "warning",
+            "text": f"session_init ไม่ตอบ ({self.init_result.get('error')}) — ปิดสายตามที่ spec กำหนด",
+        }]
+        outcome = cfg.get("outcome") or {}
+        closer = next((d["name"] for d in (self._spec.get("tools") or {}).get("declarations", [])
+                       if (d.get("gating") or {}).get("required_at") == "end_of_call"), None)
+        if closer and outcome.get("result"):
+            args = {"result": outcome["result"]}
+            if outcome.get("reason"):
+                args["reason"] = outcome["reason"]
+            result = self._backend.dispatch(closer, args)
+            hops.append({"kind": "tool_call", "name": closer, "args": args})
+            hops.append({"kind": "tool_result", "name": closer, "result": result})
+        entry = next((e for e in self._catalog
+                      if e.get("_fine_state") == cfg.get("fine_state")), None)
+        if entry:
+            text = self._fill_template(entry["template"], self.customer_data,
+                                       gender=self.voice_gender)
+            hops.append({"kind": "reply", "text": text,
+                         "text_ids": [entry["text_id"]], "dynamic_vars": {}})
+        return hops
+
     async def aiter_opening(self) -> AsyncIterator[dict[str, Any]]:
         """Bot-first outbound greeting: emit the spec-seeded opener. No LLM call."""
         if self._greeted:
             return
         self._greeted = True
+        if self.init_on_failure:
+            # The CRM did not answer. Say the tenant's own line for that, record the
+            # result if it named one, and end — rather than greet with a balance that
+            # came from a fixture. Mechanism, not policy: every tenant needs the call
+            # to end when the system behind it is down; which sentence and which
+            # disposition are theirs.
+            for hop in self._init_failure_hops(self.init_on_failure):
+                yield hop
+            self.done = True
+            return
         hops = self._greeting_hops()
         self._transcript.append({"user": "", "hops": hops})
         self._last_turn_timing = {"llm_ms": 0.0, "llm_hops": 0}

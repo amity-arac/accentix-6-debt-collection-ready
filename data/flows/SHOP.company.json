@@ -21,7 +21,14 @@
   "url": "{API_BASE}/SHOP/init",
   "method": "GET",
   "timeout": 8,
-  "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ"
+  "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ",
+  "on_failure": {
+   "fine_state": "close_handoff",
+   "outcome": {
+    "result": "handoff",
+    "reason": "ระบบไม่ตอบ ให้เจ้าหน้าที่ติดต่อกลับ"
+   }
+  }
  },
  "events": {
   "confirms_pay": {

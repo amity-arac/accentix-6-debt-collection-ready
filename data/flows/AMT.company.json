@@ -18,7 +18,14 @@
   "note": "ยิงครั้งเดียวตอนเริ่มสาย — response เป็น context ตรงๆ ไม่มี mapping. เปลี่ยน endpoint ที่ env AAX6_API_BASE ไม่ต้องแก้ spec",
   "url": "{API_BASE}/AMT/init",
   "method": "GET",
-  "timeout": 8
+  "timeout": 8,
+  "on_failure": {
+   "fine_state": "handoff_schedule",
+   "outcome": {
+    "result": "unresolved",
+    "reason": "ระบบนัดหมายไม่ตอบ ให้เจ้าหน้าที่ติดต่อกลับ"
+   }
+  }
  },
  "events": {
   "confirms": {

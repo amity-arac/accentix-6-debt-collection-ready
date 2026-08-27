@@ -48,7 +48,7 @@
 | `legal_note` | `str` | ข้อกฎหมายที่ต้องเตือนโมเดล | ข้าม |
 | `crm_fields` | `[str]` | field ที่ CRM ส่งมาและโมเดล**ได้เห็น** | โมเดลไม่เห็นข้อมูลลูกค้า |
 | `crm_labels` | `{field: ป้ายไทย}` | ป้ายกำกับใน CRM Snapshot | ใช้ชื่อ field ดิบ |
-| `session_init` | `{url, method, timeout}` | ยิงครั้งเดียวตอนเปิดสาย ดึงข้อมูลลูกค้า | ใช้ persona ที่มีอยู่ |
+| `session_init` | `{url, method, timeout, on_failure}` | ยิงครั้งเดียวตอนเปิดสาย ดึงข้อมูลลูกค้า | ไม่มี CRM — template ที่อ้าง field จะพูด `[placeholder]` |
 | `auxiliary_templates` | `{allowed: […]}` | ประโยคที่พูดได้ทุกที่ ไม่ผูก state | beat นอก state = คำเตือน |
 | `fallback_fine_state` | `str` | beat ที่ใช้เมื่อไม่รู้จะพูดอะไร | ไม่มีทางถอย |
 | `compliance` | `{verify/disclose/close_fine_states}` | **แอปไม่อ่าน** — ฝั่งเทรนอ่าน | ไม่กระทบ demo |
@@ -353,11 +353,28 @@ argument ที่ส่งมากลับไป — จำเป็นเว
 | key | ทำอะไร |
 |---|---|
 | `session_init.url` | ยิงครั้งเดียวตอนเปิดสาย ได้ dict ของข้อมูลลูกค้า |
+| `session_init.on_failure` | API ไม่ตอบ → พูดประโยคนี้แล้วปิดสาย (ดูข้างล่าง) |
 | `crm_fields` | **whitelist** — เฉพาะ field ในนี้ที่โมเดลได้เห็น |
 | `crm_labels` | ป้ายไทยในหัวข้อ `## ข้อมูลลูกค้า (CRM Snapshot)` |
 
 ต้องมีทั้ง `crm_fields` และค่าจริง โมเดลถึงเห็น — ประกาศ label เฉยๆ ไม่พอ
 `[slot]` ใน template เติมจาก dict ก้อนเดียวกันนี้
+
+### `session_init.on_failure` — API ไม่ตอบ
+
+```jsonc
+"on_failure": {"fine_state": "apology_close",
+               "outcome": {"result": "unreachable", "reason": "ระบบไม่ตอบ"}}
+```
+
+แอป**ไม่เปิดสายด้วยข้อมูลค้างในเครื่อง** — วัดแล้วว่าเมื่อ API ล่ม agent ยังพูดยอด
+45,000/4,500 ซึ่งเป็นตัวเลขจากไฟล์ในเรโป ไม่ใช่ของลูกค้า
+
+เมื่อ `session_init` ประกาศไว้แต่ไม่ตอบ: พูด `fine_state` ที่ระบุ · เรียก tool ปิดสาย
+ด้วย `outcome` ที่ระบุ (ถ้ามี) · จบสาย
+
+**spec ที่ประกาศ `session_init` แต่ไม่ประกาศ `on_failure` → เปิด session ไม่ได้เลย**
+แอปไม่แต่งประโยคให้ และไม่ยอมพูดข้อมูลเก่า
 
 ---
 

@@ -90,7 +90,8 @@ TOP_KEYS = frozenset({
     # who the agent is, in the model's words
     "role", "agent_role", "goal", "legal_note",
     # what the agent knows about the customer
-    "crm_fields", "crm_labels", "session_init",
+    "crm_fields", "crm_labels", "session_init",   # session_init: {url, method, headers,
+                                                  #   body, timeout, note, on_failure}
     # what it can say, and when
     "catalog", "events", "states", "faq_routing", "constraints",
     "auxiliary_templates", "fallback_fine_state",
@@ -185,6 +186,15 @@ def validate_strict(spec: dict, catalog: list[dict] | None = None) -> list[str]:
                 errors.append(f"state {sid} template[{i}]: ต้องมี fine_state หรือ any_of")
         for i, tr in enumerate(st.get("on") or []):
             _check_keys(f"state {sid} on[{i}]", tr, TRANSITION_KEYS, errors)
+    si = spec.get("session_init") or {}
+    of = si.get("on_failure") or {}
+    if of:
+        beats = {e.get("_fine_state") for e in (catalog or [])}
+        if catalog is not None and of.get("fine_state") not in beats:
+            errors.append(f"session_init.on_failure: ไม่มี beat '{of.get('fine_state')}' ในคลัง")
+        res = (of.get("outcome") or {}).get("result")
+        if res and res not in set(derive_outcomes(spec)):
+            errors.append(f"session_init.on_failure: result '{res}' ไม่อยู่ในผลลัพธ์ที่ flow นี้ประกาศ")
     for c in spec.get("constraints") or []:
         _check_keys(f"constraint {c.get('id', c.get('type', '?'))}", c,
                     CONSTRAINT_KEYS, errors)
