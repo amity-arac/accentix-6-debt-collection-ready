@@ -27,7 +27,8 @@ GOLD_DIR = pathlib.Path(os.environ.get("AAX6_GOLD_DIR")
                         or pathlib.Path(DEMO_APP).parent / "accentix-6-debt-collector"
                         / "data" / "test-cases")
 BASE = os.environ.get("AAX6_DEMO_URL", "http://127.0.0.1:4100")
-CASE = {"AEON": "TC-AEON-PREDUE-001", "KBANK": "TC-KBANK-BUILD-001",
+CASE = {"AEON": "TC-AEON-PREDUE-001", "AEONLITE": "TC-AEONLITE-BUILD-001",
+        "KBANK": "TC-KBANK-BUILD-001",
         "SKL": "TC-SKL-BUILD-001", "AMT": "TC-AMT-BUILD-001"}
 
 

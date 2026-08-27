@@ -1,0 +1,358 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, X } from "lucide-react";
+import type { PersonaCase } from "../api";
+import { useMountTransition } from "../hooks/useMountTransition";
+
+// Must be >= the longest transition in the .persona-modal CSS (see styles.css).
+const MODAL_EXIT_MS = 380;
+
+type Props = {
+  open: boolean;
+  cases: PersonaCase[];
+  currentCaseId: string | null;
+  /** Optional context line under the title (e.g. Flow mode's AEON-only note). */
+  note?: string;
+  onClose: () => void;
+  onSelect: (caseId: string) => void;
+};
+
+type CompanyFilter = "All" | string;
+type TrackFilter = "All" | "A" | "B";
+
+// Fixed display order; only companies actually present are rendered as chips.
+const COMPANY_ORDER = ["AEON", "AIS", "JAI", "KS"];
+
+function fmtTHB(v: unknown, decimals = 0): string {
+  if (typeof v !== "number") return "—";
+  return v.toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+function trackShort(t: string | null): string {
+  if (t === "Track_A") return "A";
+  if (t === "Track_B") return "B";
+  return "—";
+}
+
+export function PersonaPickerModal({
+  open,
+  cases,
+  currentCaseId,
+  note,
+  onClose,
+  onSelect,
+}: Props) {
+  const [companyFilter, setCompanyFilter] = useState<CompanyFilter>("All");
+  const [trackFilter, setTrackFilter] = useState<TrackFilter>("All");
+  const [selectedId, setSelectedId] = useState<string | null>(currentCaseId);
+
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const prevFocusRef = useRef<HTMLElement | null>(null);
+
+  // Stay mounted through the close animation; `visible` drives the .open class.
+  const { mounted, visible } = useMountTransition(open, MODAL_EXIT_MS);
+
+  // When the dialog actually mounts: reset selection to the current persona,
+  // remember the trigger, and move focus in. On unmount, restore focus.
+  useEffect(() => {
+    if (!mounted) return;
+    setSelectedId(currentCaseId);
+    prevFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    dialogRef.current?.focus();
+    return () => {
+      prevFocusRef.current?.focus();
+    };
+    // currentCaseId is read at mount time; re-running on its change isn't wanted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
+  // Keep the selected persona in view (it may sit far down a long list).
+  useEffect(() => {
+    if (!mounted) return;
+    dialogRef.current
+      ?.querySelector(".persona-list-item.selected")
+      ?.scrollIntoView({ block: "nearest" });
+  }, [mounted, selectedId]);
+
+  const companies = useMemo(() => {
+    const present = [...new Set(cases.map((c) => c.company))];
+    // Known companies in fixed order, then any others (e.g. Builder-created) after.
+    const ordered = COMPANY_ORDER.filter((c) => present.includes(c));
+    const extra = present.filter((c) => c && !COMPANY_ORDER.includes(c)).sort();
+    return [...ordered, ...extra];
+  }, [cases]);
+
+  const filtered = useMemo(
+    () =>
+      cases.filter((c) => {
+        if (companyFilter !== "All" && c.company !== companyFilter) return false;
+        if (trackFilter === "A" && c.eval_track !== "Track_A") return false;
+        if (trackFilter === "B" && c.eval_track !== "Track_B") return false;
+        return true;
+      }),
+    [cases, companyFilter, trackFilter],
+  );
+
+  const selected = useMemo(
+    () => cases.find((c) => c.id === selectedId) ?? null,
+    [cases, selectedId],
+  );
+
+  if (!mounted) return null;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+    if (e.key === "Tab") {
+      // Trap focus inside the dialog so Tab never lands on the page behind.
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+
+  return (
+    <div
+      className={`persona-modal-backdrop${visible ? " open" : ""}`}
+      onClick={onClose}
+      onKeyDown={handleKeyDown}
+      role="presentation"
+    >
+      <div
+        ref={dialogRef}
+        className="persona-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="persona-modal-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="persona-modal-head">
+          <h2 id="persona-modal-title" className="persona-modal-title">
+            Choose a persona
+          </h2>
+          <span className="persona-modal-count">
+            {filtered.length === cases.length
+              ? `${cases.length} personas`
+              : `${filtered.length} of ${cases.length}`}
+          </span>
+          <button
+            type="button"
+            className="persona-modal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+
+        {note && (
+          <p className="persona-modal-note" role="note">
+            {note}
+          </p>
+        )}
+
+        <div className="persona-filters">
+          <div className="persona-filter-group" role="group" aria-label="Company">
+            <button
+              type="button"
+              className={`persona-chip ${companyFilter === "All" ? "on" : ""}`}
+              onClick={() => setCompanyFilter("All")}
+            >
+              All
+            </button>
+            {companies.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`persona-chip ${companyFilter === c ? "on" : ""}`}
+                onClick={() => setCompanyFilter(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="persona-filter-group" role="group" aria-label="Track">
+            {(["All", "A", "B"] as TrackFilter[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={`persona-chip track ${trackFilter === t ? "on" : ""}`}
+                onClick={() => setTrackFilter(t)}
+              >
+                {t === "All" ? "All tracks" : `Track ${t}`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="persona-modal-body">
+          <ul className="persona-list" aria-label="Personas">
+            {filtered.length === 0 && (
+              <li className="persona-list-empty">
+                {cases.length === 0
+                  ? "Couldn't load personas."
+                  : "No personas match these filters."}
+              </li>
+            )}
+            {filtered.map((c) => {
+              const isSelected = c.id === selectedId;
+              const isCurrent = c.id === currentCaseId;
+              return (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    className={`persona-list-item${isSelected ? " selected" : ""}${
+                      isCurrent ? " current" : ""
+                    }`}
+                    onClick={() => setSelectedId(c.id)}
+                    aria-pressed={isSelected}
+                  >
+                    <span className="persona-item-title">
+                      {c.topic || c.id}
+                      {isCurrent && (
+                        <Check
+                          size={13}
+                          className="persona-item-current"
+                          aria-label="Current persona"
+                        />
+                      )}
+                    </span>
+                    <span className="persona-item-sub">
+                      {c.customer_name ?? "—"} · ฿{fmtTHB(c.total_amount_due)}
+                    </span>
+                    <span className="persona-item-badges">
+                      <span className="persona-company-tag">{c.company}</span>
+                      <span
+                        className={`persona-track-tag track-${trackShort(c.eval_track)}`}
+                      >
+                        Track {trackShort(c.eval_track)}
+                      </span>
+                      {typeof c.patience === "number" && (
+                        <span className="persona-patience-tag">
+                          patience {c.patience}/5
+                        </span>
+                      )}
+                      {c.case_status && c.case_status !== "normal" && (
+                        <span className="persona-status-tag">
+                          {c.case_status.replace("_", " ")}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="persona-detail">
+            {selected ? (
+              <>
+                <div className="persona-detail-scroll">
+                  <h3 className="persona-detail-topic">
+                    {selected.topic || selected.id}
+                  </h3>
+                  <p className="persona-detail-meta">
+                    <span className="persona-company-tag">{selected.company}</span>
+                    <span
+                      className={`persona-track-tag track-${trackShort(selected.eval_track)}`}
+                    >
+                      Track {trackShort(selected.eval_track)}
+                    </span>
+                    {typeof selected.patience === "number" && (
+                      <span className="persona-patience-tag">
+                        patience {selected.patience}/5
+                      </span>
+                    )}
+                    <span className="persona-detail-id">{selected.id}</span>
+                  </p>
+
+                  <h4 className="persona-section-label">Account</h4>
+                  <dl className="persona-account-grid">
+                    <dt>Customer</dt>
+                    <dd>{selected.customer_name ?? "—"}</dd>
+                    <dt>Loan</dt>
+                    <dd>{selected.loan_type ?? "—"}</dd>
+                    <dt>Balance</dt>
+                    <dd>฿{fmtTHB(selected.total_amount_due, 2)} THB</dd>
+                    <dt>Min. payment</dt>
+                    <dd>฿{fmtTHB(selected.minimum_payment_due, 2)}</dd>
+                    <dt>Due</dt>
+                    <dd>
+                      {selected.due_date ?? "—"}
+                      {selected.due_status ? ` · ${selected.due_status}` : ""}
+                    </dd>
+                    <dt>Phone</dt>
+                    <dd>{selected.customer_phone ?? "—"}</dd>
+                    <dt>Last 4 (KYC)</dt>
+                    <dd className="persona-kyc">{selected.last_4_digits ?? "—"}</dd>
+                    <dt>Status</dt>
+                    <dd>
+                      {(selected.case_status ?? "normal").replace("_", " ")}
+                      {selected.case_status_note
+                        ? ` — ${selected.case_status_note}`
+                        : ""}
+                    </dd>
+                  </dl>
+
+                  <h4 className="persona-section-label">
+                    Scenario <span>(your role)</span>
+                  </h4>
+                  {selected.persona && (
+                    <p className="persona-scenario-persona">{selected.persona}</p>
+                  )}
+                  {selected.situation && (
+                    <p className="persona-scenario">{selected.situation}</p>
+                  )}
+                  {selected.constraints && (
+                    <>
+                      <h5 className="persona-section-sublabel">Constraints</h5>
+                      <p className="persona-scenario">{selected.constraints}</p>
+                    </>
+                  )}
+                </div>
+
+                <div className="persona-detail-actions">
+                  <button
+                    type="button"
+                    className="btn persona-select-btn"
+                    onClick={() => onSelect(selected.id)}
+                    disabled={selected.id === currentCaseId}
+                  >
+                    {selected.id === currentCaseId
+                      ? "Current persona"
+                      : "Talk to this persona"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="persona-detail-empty">
+                Select a persona to see their details.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
