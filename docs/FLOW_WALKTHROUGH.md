@@ -92,6 +92,48 @@
 | `check_date` | `check_new_date` | ต้องรู้ก่อนว่าวันอยู่ในเกณฑ์ไหม ถึงจะเลือกได้ว่าพูดประโยคไหน |
 | `close_*` ทั้ง 4 | `record_call_result` | บันทึกผลก่อนวางสาย — ทางจบทุกทางต้องบันทึก |
 
+<details>
+<summary><b>ผังเดียวกัน แบบ flowchart</b> — เนื้อหาเท่ากันเป๊ะ เลือกดูอันที่ถนัด (GitHub เรนเดอร์ให้)</summary>
+
+```mermaid
+flowchart TD
+    G["<b>greet</b><br/>พูด greet_remind"]
+    A["<b>ask_new_date</b><br/>พูด ask_new_date"]
+    C["<b>check_date</b><br/>«check_new_date»<br/>พูด confirm_new_date หรือ date_too_far"]
+
+    T1["<b>close_confirmed</b><br/>«record_call_result»<br/>⇒ confirmed"]
+    T2["<b>close_rescheduled</b><br/>«record_call_result»<br/>⇒ rescheduled"]
+    T3["<b>close_paid_claim</b><br/>«record_call_result»<br/>⇒ paid_claimed"]
+    T4["<b>close_handoff</b><br/>«record_call_result»<br/>⇒ handoff"]
+
+    G -->|confirms_pay| T1
+    G -->|already_paid| T3
+    G -->|reschedule_request| A
+    G -->|gives_date| C
+    G -->|asks_human| T4
+    G -->|no_input| T4
+
+    A -->|gives_date| C
+    A -->|asks_human| T4
+    A -->|no_input| T4
+
+    C -->|"gives_date<br/>(เสนอวันใหม่)"| C
+    C -->|confirms_new_date| T2
+    C -->|asks_human| T4
+    C -->|no_input| T4
+
+    classDef ask   fill:#ffffff,stroke:#6b7684,color:#1b2430
+    classDef tool  fill:#f6eddc,stroke:#8a5a12,color:#1b2430
+    classDef close fill:#e6f1f0,stroke:#22706c,color:#1b2430
+    class G,A ask
+    class C tool
+    class T1,T2,T3,T4 close
+```
+
+ป้ายบนลูกศรคือ **event** · กล่องคือ **state** · `«…»` คือ tool ที่รันก่อนพูด
+
+</details>
+
 อ่านผังนี้ได้สองอย่าง
 
 - **`[event]` ทุกอันมาจากลูกค้า** — ไม่มีอันไหนที่เอเจนต์ทำให้เกิดเอง
