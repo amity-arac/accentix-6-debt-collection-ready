@@ -59,11 +59,16 @@ rsync -a --delete demo_v2/frontend/dist/ <host>:<app>/demo_v2/frontend/dist/
 
 ## Self-contained
 
-Nothing under `demo_v2/` imports `agents/`, `simulator/` or the root `services/`:
+Nothing under `demo_v2/` imports `agents/`, `simulator/`, the root `services/`, or the
+old `demo/` package:
 
 ```bash
-grep -rn "^from \(agents\|simulator\|services\)" --include=*.py demo_v2   # no hits
+grep -rn "^from \(agents\|simulator\|services\|demo\)\." --include=*.py demo_v2
+mv demo /tmp/ && PYTHONPATH=. python3 -c "import demo_v2.server.app" && mv /tmp/demo .
 ```
+
+The grep alone once passed while five modules still imported `demo.server.*` — the
+second command is what actually proves it: hide `demo/` and see if the package loads.
 
 `_gen_id` (two lines) is vendored into `flow/spec_backend.py` rather than importing
 `simulator.backend`, which would pull the whole pre-flow backend in for it.

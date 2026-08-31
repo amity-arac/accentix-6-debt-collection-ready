@@ -27,8 +27,8 @@ def _gen_id(prefix: str) -> str:
     `simulator.backend`, which drags the whole pre-flow backend in for this."""
     import secrets
     return f"{prefix}-{secrets.token_hex(3).upper()}"
-from demo.server.flow.flowspec import declared_tools
-from demo.server.flow.spec_gate import SpecGate
+from demo_v2.server.flow.flowspec import declared_tools
+from demo_v2.server.flow.spec_gate import SpecGate
 
 
 class SpecBackend:
@@ -199,7 +199,7 @@ class SpecBackend:
         """
         if not isinstance(result, dict) or result.get("error"):
             return
-        from demo.server.flow.session_init import flatten
+        from demo_v2.server.flow.session_init import flatten
 
         fresh = {k: v for k, v in flatten(result).items() if v is not None}
         # Bookkeeping about the call itself, not facts about the customer.
@@ -217,7 +217,7 @@ class SpecBackend:
         Shares the HTTP primitive with the session-init fetch (flow/session_init.py)
         so a spec's webhook tools and its context call behave identically —
         same token substitution, same timeout guard, same error shape."""
-        from demo.server.flow.session_init import http_json, substitute
+        from demo_v2.server.flow.session_init import http_json, substitute
 
         url = decl.get("url")
         if not url:

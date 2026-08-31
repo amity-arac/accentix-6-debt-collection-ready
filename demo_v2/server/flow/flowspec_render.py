@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from demo.server.flow.flowspec import derive_outcomes, load_flow_spec, validate_flow_spec, is_chain_state
+from demo_v2.server.flow.flowspec import derive_outcomes, load_flow_spec, validate_flow_spec, is_chain_state
 
 RENDER_VERSION = "v12"
 
