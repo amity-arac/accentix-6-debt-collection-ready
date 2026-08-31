@@ -55,23 +55,41 @@
 ตอนนี้ค่อยคิดว่าเอเจนต์พูดอะไร แต่ละกล่องคือ **หนึ่งเทิร์นที่เอเจนต์พูด**
 
 ```
-                    greet ─────────── confirms_pay ────────► close_confirmed
-                      │                                       (confirmed)
-                      ├──── reschedule_request ──► ask_new_date
-                      │                                │
-                      ├──── gives_date ───────────►  check_date  ◄── gives_date (วนซ้ำ)
-                      │                            [check_new_date]
-                      │                                │
-                      │                                └── confirms_new_date ──► close_rescheduled
-                      │                                                          (rescheduled)
-                      ├──── already_paid ─────────────────────► close_paid_claim
-                      │                                          (paid_claimed)
-                      └──── asks_human / no_input ────────────► close_handoff
-                                                                 (handoff)
+  ( state )  เอเจนต์พูด — หนึ่งกล่อง = หนึ่งเทิร์น
+  [ event ]  ลูกค้าทำ — สิ่งที่พาไป state ถัดไป
+  « tool »   รันก่อนพูดเสมอ (entry_tools)
+  ⇒ result   ผลที่บันทึกลง CRM ตอนจบสาย
+
+
+      (greet)                                                    พูด: greet_remind
+         │
+         ├── [confirms_pay] ────────────────►  (close_confirmed)       ⇒ confirmed
+         │
+         ├── [already_paid] ────────────────►  (close_paid_claim)      ⇒ paid_claimed
+         │
+         ├── [asks_human] · [no_input] ─────►  (close_handoff)         ⇒ handoff
+         │
+         ├── [reschedule_request] ─────►  (ask_new_date)               พูด: ask_new_date
+         │                                     │
+         │                                [gives_date]
+         │                                     ▼
+         └── [gives_date] ────────────►  (check_date) «check_new_date»
+                                               │  ▲
+                                               │  └── [gives_date]  วนซ้ำ: เสนอวันใหม่
+                                               │
+                                               └── [confirms_new_date] ──►  (close_rescheduled)
+                                                                            ⇒ rescheduled
+
+      ทุก (close_*) รัน «record_call_result» ก่อนพูด แล้วจบสาย
 ```
 
-สังเกต **`check_date` วนกลับหาตัวเอง** ด้วย `gives_date` — ลูกค้าเสนอวันเกินเกณฑ์
-เอเจนต์บอกว่าเลื่อนได้ไม่เกินกี่วัน ลูกค้าเสนอวันใหม่ ก็เช็คอีกรอบ
+อ่านผังนี้ได้สองอย่าง
+
+- **`[event]` ทุกอันมาจากลูกค้า** — ไม่มีอันไหนที่เอเจนต์ทำให้เกิดเอง
+  flow ทั้งอันจึงเป็นการตอบสนอง ไม่ใช่บทที่เดินไปข้างหน้าเอง
+- **`(check_date)` วนกลับหาตัวเอง** ด้วย `[gives_date]` — ลูกค้าเสนอวันเกินเกณฑ์
+  เอเจนต์บอกว่าเลื่อนได้ไม่เกินกี่วัน ลูกค้าเสนอวันใหม่ ก็เข้ามาเช็คอีกรอบ
+  (กฎ `max_date_retries` เป็นตัวจำกัดว่าวนได้กี่ครั้ง — ดูขั้น 6)
 
 กลายเป็น JSON แบบนี้ (ตัดมา 2 state จาก 7)
 
