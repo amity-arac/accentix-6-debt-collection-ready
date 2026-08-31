@@ -34,6 +34,9 @@ _PHASE_TITLES = {"opening": "OPENING DIALOG", "main": "MAIN DIALOG", "close": "C
 
 
 def _label_template(t: dict, chain: bool = False) -> str:
+    """Label one beat for the instruction: its name, whether it is optional, and —
+    in a chain — that it must be said in the same turn as its neighbours.
+    """
     if t.get("any_of"):                       # one step that accepts any of several beats
         s = "(" + " หรือ ".join(f"`{b}`" for b in t["any_of"]) + ")"
     else:
@@ -80,6 +83,13 @@ def _closing_tool(spec: dict) -> tuple[str, list[str]]:
 
 
 def _render_state(spec: dict, st: dict) -> list[str]:
+    """One state as the lines the model reads.
+
+    What it says (the beats, marked as a chain or as alternatives), what runs first
+    (`entry_tools`), where each customer event leads, and what gets recorded if the
+    call ends here. This is the only place the flow graph becomes prose — the guards
+    read the same spec directly, so the two cannot drift.
+    """
     lines = [f"**{st['id']}**" + (" ← เริ่มที่นี่" if st.get("initial") else "")]
     if st.get("templates"):
         if is_chain_state(st):

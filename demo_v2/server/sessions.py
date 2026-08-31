@@ -77,6 +77,11 @@ BUILDER_CASES_FILE = REPO_ROOT / "data" / "test-cases" / "_builder_personas.json
 
 
 def _all_cases() -> list[dict[str, Any]]:
+    """Every persona: the shipped pool plus whatever the Builder wrote. A missing or
+        unreadable Builder file is ignored rather than fatal — one bad upload should not
+        take the picker down.
+
+    """
     with TEST_CASES_FILE.open(encoding="utf-8") as fh:
         cases = json.load(fh)
     if BUILDER_CASES_FILE.exists():
@@ -284,6 +289,10 @@ def _write_tenant(company: str, spec: dict, catalog: list[dict],
 
 
 def flow_companies() -> list[str]:
+    """Tenant codes, derived from the files present. Dropping in a
+        `<CODE>.company.json` registers a company; deleting the file removes it.
+
+    """
     return list(load_flow_registry())
 
 
@@ -999,6 +1008,14 @@ def _strip_toolcall_markup(content: str) -> str:
 
 
 def _flow_vllm_chat(base_url: str, payload: dict, timeout: int = 180) -> dict:
+    """One chat-completions call to vLLM, returning the assistant message.
+
+        Thinking is off by default because that is how the model was trained, and the
+        tools parameter is always sent — Qwen3.5 will not emit a tool call without it.
+        Transport errors are raised rather than swallowed: a turn that cannot reach the
+        model has nothing useful to say, and the caller surfaces that.
+
+    """
     # Thinking OFF, explicitly. The chat template turns it ON whenever
     # `enable_thinking` is undefined, so saying nothing was not "the default" —
     # it was a choice nobody made. The eval harness has always sent False, and the
@@ -1305,6 +1322,13 @@ class FlowLiveSession:
             yield h
 
     async def aiter_turn(self, user_msg: str) -> AsyncIterator[dict[str, Any]]:
+        """One customer turn in, a stream of hops out.
+
+        Thin — the work is in `_aiter_run`. What lives here is the ordering guarantee:
+        if the caller speaks before the opening was streamed, the greeting is seeded
+        into history first, so the model always sees greeting → customer → agent, the
+        order it trained on.
+        """
         if self.done:
             return
         # If the caller speaks before the opening was fired, seed the greeting
@@ -1318,6 +1342,10 @@ class FlowLiveSession:
             yield hop
 
     def reset_pointer(self) -> None:
+        """Start the call over on the same case: clear the transcript, rebuild the
+        agent from the spec. The CRM row fetched at construction is kept — restarting
+        the conversation is not a reason to hit the tenant's API again.
+        """
         self._turn_count = 0
         self.done = False
         self._transcript = []
@@ -1939,6 +1967,14 @@ def build(
     model: str | None = None,
     instruction_version: str | None = None,
 ) -> Session:
+    """Build the session for one call.
+
+        There is one kind now: a tenant's spec drives it. `mode`, `agent` and `flow` are
+        still accepted because the frontend sends `?flow=1` and older links carry `mode`,
+        but nothing branches on them — the replay and pre-script lineages they used to
+        select are gone.
+
+    """
     # One kind of session: a spec drives the call. `mode` and `agent` are accepted so
     # existing callers and query strings keep working.
     return FlowLiveSession(case_id, voice_gender=voice_gender, model=model,

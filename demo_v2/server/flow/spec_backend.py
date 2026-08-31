@@ -59,6 +59,22 @@ class SpecBackend:
         return self._gate.pending_obligations(self.call_log)
 
     def dispatch(self, name: str, args: dict) -> dict:
+        """Run one tool call and return what the model should see.
+
+            The only way a tool reaches the tenant's API. Four checks run before the call
+            is made, in this order, and each returns instead of raising:
+
+              unknown_tool           the spec does not declare it
+              missing_required_args  an arg without `optional` arrived empty
+              value_not_offered      `one_of_from` — a value the owning tool never returned
+              SpecGate.check()       counts, ordering, argument matching (spec_gate.py)
+
+            The return value is a flat dict either way. A rejection carries `error` and a
+            Thai `message` beginning "Error: <code>" — the same shape the training
+            environment used, so the policy reads a refusal it already knows. Wrapping the
+            API's payload under a key would show the model a shape it has never seen.
+
+        """
         decl = self._decls.get(name)
         if decl is None:
             result = {"error": "unknown_tool", "name": name,

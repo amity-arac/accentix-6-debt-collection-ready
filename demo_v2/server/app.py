@@ -170,6 +170,13 @@ async def _stream_session_only(session: sessions.Session) -> AsyncIterator[bytes
 
 
 async def _stream_turn(session: sessions.Session, msg: str) -> AsyncIterator[bytes]:
+    """Stream one turn as NDJSON, one hop per line.
+
+    The wire format between the server and the UI: `{"hop": {...}}` per line, then a
+    final `{"type": "done", ...}` carrying this turn's latency. Newline-delimited
+    rather than SSE because the browser only needs to read them in order, and the
+    first bubble should appear while the model is still working.
+    """
     if session.done:
         yield _line({"type": "done", "session_done": True}).encode("utf-8")
         return
@@ -328,6 +335,12 @@ async def create_session(
     model: str | None = Query(default=None),
     instruction_version: str | None = Query(default=None),
 ) -> StreamingResponse:
+    """Open a session and stream its identity as NDJSON.
+
+    Query params are all optional; `flow` and `mode` are accepted for older links and
+    no longer select anything. The construction itself happens off the event loop —
+    see the comment at the `to_thread` call below for why that matters.
+    """
     mode, default_case_id, default_agent = _config()
     chosen_case = (case_id or default_case_id).strip()
     chosen_agent = (agent or default_agent).strip().lower()
