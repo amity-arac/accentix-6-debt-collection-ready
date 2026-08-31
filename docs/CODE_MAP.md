@@ -1,118 +1,122 @@
-# อ่านโค้ด demo_v2
+# Reading demo_v2
 
-เอกสารนี้ไม่ใช่ API reference — เป็นแผนที่สำหรับคนที่เพิ่งเปิดโปรเจกต์
-และอยากรู้ว่า **จะเริ่มอ่านตรงไหน แล้วเรื่องหนึ่งเรื่องวิ่งผ่านไฟล์ไหนบ้าง**
+Not an API reference. This is the map for someone opening the repo for the first
+time: where to start, and how one thing travels through the files.
 
-รูปแบบไฟล์ผู้เช่าอยู่ที่ [SPEC_LOCKED.md](SPEC_LOCKED.md) ·
-วิธีสร้าง flow ใหม่อยู่ที่ [FLOW_WALKTHROUGH.md](FLOW_WALKTHROUGH.md)
+Everything here points at a **name**, not a line number — line numbers drifted within
+a single commit the first time this was written. `grep -n` the symbol.
+
+The tenant file format is [SPEC_LOCKED.md](SPEC_LOCKED.md).
+Building a new flow is [FLOW_WALKTHROUGH.md](FLOW_WALKTHROUGH.md).
 
 ---
 
-## อ่านแค่ 4 ไฟล์ก็เข้าใจทั้งระบบ
+## Four files carry the system
 
 ```
 demo_v2/server/
-  app.py               567   HTTP + streaming — บางมาก แทบไม่มี logic
-  sessions.py        2,115   หัวใจ — FlowLiveSession อยู่ที่นี่
-  flow/flowspec.py     672   โหลด + ตรวจ spec, สร้าง tool schema
-  flow/spec_backend.py 270   ยิง tool จริง
+  app.py                  557   HTTP + streaming. Very thin — almost no logic.
+  sessions.py           2,106   The heart. FlowLiveSession lives here.
+  flow/flowspec.py        672   Load + validate a spec, build tool schemas.
+  flow/spec_backend.py    270   Actually call a tool.
 
-  flow/spec_gate.py    194   ← อ่านตอนสนใจว่าอะไรกันการเขียนผิด
-  flow/flowspec_render.py 317 ← อ่านตอนสนใจว่า prompt หน้าตายังไง
-  flow/session_init.py 232   ← อ่านตอนสนใจว่า CRM มาจากไหน
+  flow/spec_gate.py       194   ← read when you care what blocks a bad write
+  flow/flowspec_render.py 317   ← read when you care what the prompt looks like
+  flow/session_init.py    232   ← read when you care where the CRM row comes from
 
-  tts.py · stt_ws.py   739   เสียง — แยกขาดจาก logic ของสาย
-lib/                   699   prescript (เติม slot) · datetime_utils — vendored
-services/speech/     1,030   TTS/STT engine
+  tts.py · stt_ws.py      739   Voice. Independent of call logic.
+lib/                      699   prescript (slot filling) · datetime_utils — vendored
+services/speech/        1,030   TTS/STT engines
 ```
 
-**80% ของสิ่งที่ต้องเข้าใจอยู่ใน `sessions.py`** ที่เหลือเป็นบริการรอบข้าง
+**About 80% of what you need is in `sessions.py`.** The rest is services around it.
 
 ---
 
-## เส้นทางของหนึ่งสาย
+## One call, end to end
 
-### เปิด session — `app.py:323 → sessions.build() → FlowLiveSession.__init__`
+### Opening a session — `app.py create_session()` → `sessions.build()` → `FlowLiveSession.__init__`
 
-`__init__` ยาว ~230 บรรทัด ทำ 6 อย่างตามลำดับ อ่านไล่จากบนลงล่างได้เลย
+`__init__` is ~230 lines and does six things in order. Read it top to bottom.
 
 ```
-1  โหลด spec ของบริษัท          _flow_spec_path() → load_tenant_spec()
-2  โหลด catalog                 _read_catalog()  — inline อยู่ใน spec
-3  ยิง CRM                      session_init.fetch_context()          :1108
-                                → merge ลง self.customer_data
-                                → ล้ม + มี on_failure = พูดแล้วปิดสาย
-                                → ล้ม + ไม่มี on_failure = ไม่เปิด session
-4  สร้าง system prompt          render_instruction(spec)
-                                + build_script_catalog(catalog)
-                                + เติมค่า CRM ลงไป                     :1165
-5  สร้าง backend                SpecBackend(customer_data, spec)
-6  สร้าง tool schema            build_tool_schemas(spec)
+1  load the tenant spec       _flow_spec_path() → load_tenant_spec()
+2  load the catalog           _read_catalog()  — it is inline in the spec
+3  fetch the CRM row          session_init.fetch_context()
+                              → merged into self.customer_data
+                              → failed + on_failure declared = say that line, hang up
+                              → failed + nothing declared    = refuse to open at all
+4  build the system prompt    render_instruction(spec)
+                              + build_script_catalog(catalog)
+                              + fill the CRM values into it
+5  build the backend          SpecBackend(customer_data, spec)
+6  build the tool schemas     build_tool_schemas(spec)
 ```
 
-จบขั้นนี้ `self._messages` มี system message หนึ่งอัน พร้อมคุย
+After this, `self._messages` holds one system message and the session is ready.
 
-> `instruction_version` ที่ยังรับเป็นพารามิเตอร์อยู่ **ถูกเพิกเฉย** — ไฟล์
-> `{stem}__{version}.json` ไม่มีแล้ว หนึ่งบริษัท = หนึ่งไฟล์
+> `instruction_version` is still a parameter and is **ignored**. The
+> `{stem}__{version}.json` override files are gone; a company is one file.
 
-### ประโยคแรก — `_greeting_hops()` `:1373`
+### The first line — `_greeting_hops()`
 
-**ไม่ได้เรียกโมเดล** แอปหยิบ `initial: true` state → beat แรก → ประโยคจาก catalog
-แล้วยัดเข้า `self._messages` เป็นเทิร์นของ assistant
-เพื่อให้ลำดับ greeting → customer → agent ตรงกับตอนเทรน
+**No model call.** The app takes the `initial: true` state, its first beat, and that
+beat's sentence from the catalog — then appends it to `self._messages` as an assistant
+turn, so the order is greeting → customer → agent, matching what the model trained on.
 
-### เทิร์นถัดไป — `_aiter_run()` `:1472`
+### Every turn after — `_aiter_run()`
 
-นี่คือฟังก์ชันที่ต้องอ่านให้เข้าใจ ทุกอย่างเกิดในนี้
+This is the function to understand. Everything happens here.
 
 ```python
-for _loop in range(FLOW_MAX_TOOL_LOOPS):        # :1511  (= 8)
-    resp = _flow_vllm_chat(...)                 # :1010  ยิง vLLM
+for _loop in range(FLOW_MAX_TOOL_LOOPS):          # 8
+    resp = _flow_vllm_chat(...)                   # call vLLM
     for tc in tool_calls:
         if tc.name == "reply":
-            ids, text, dyn = self._render_reply(args)   # :1392  เติม slot
-            # ── ด่านที่ 1 ────────────────────────────
+            ids, text, dyn = self._render_reply(args)    # fill the slots
+            # ── GUARD 1, before speaking ─────────────
             #   empty_slot · date_format_invalid
-            #   missing_required_tools            :1592
-            #   incomplete_chain                  :1720
+            #   missing_required_tools
+            #   incomplete_chain
             #   too_many_beats
-            # ไม่ผ่าน → push tool_result กลับเข้า messages → continue
-            push({"kind": "reply", ...})         # ผ่าน → ลูกค้าได้ยิน
+            # rejected → push a tool_result back into messages → continue
+            push({"kind": "reply", ...})           # passed → the caller hears it
         else:
-            result = self._backend.dispatch(...)  # :1795  ── ด่านที่ 2 อยู่ในนี้
+            result = self._backend.dispatch(...)   # GUARD 2 lives in here
             push({"kind": "tool_result", ...})
 
-if not agent_text:                               # :1844
-    ids, text = self._fallback_reply()           # ลูปหมดแล้วยังไม่พูด → ห้ามเงียบ
+if not agent_text:
+    ids, text = self._fallback_reply()             # loop ran out with nothing said
 ```
 
-**สิ่งที่ต้องเข้าใจข้อเดียว:** คำปฏิเสธไม่ได้ throw และไม่ได้ break —
-มันถูก append เข้า `self._messages` ในรูปเดียวกับ tool result ปกติ
-โมเดลจึงเห็นมันในรอบถัดไปของ `for _loop` เดียวกัน แล้วแก้เอง
+**The one thing to internalise:** a rejection does not raise and does not break out.
+It is appended to `self._messages` in the same shape as any tool result, so the model
+sees it on the next pass of the *same* `for _loop` and corrects itself.
 
 ---
 
-## โครงข้อมูล 3 อย่าง
+## Three data shapes
 
-### 1 · spec — dict ที่โหลดจาก `<CODE>.company.json`
+### 1 — spec: a plain dict loaded from `<CODE>.company.json`
 
-ไม่มี class ไม่มี dataclass — เป็น dict ดิบ อ่านด้วย `.get()` ทั้งระบบ
-ตัวที่แตะบ่อย: `spec["states"]` · `spec["catalog"]` · `spec["tools"]["declarations"]`
+No class, no dataclass. Read with `.get()` everywhere.
+The parts you touch most: `spec["states"]`, `spec["catalog"]`,
+`spec["tools"]["declarations"]`.
 
-`load_tenant_spec(path)` เติม `company`/`flow_id` จากชื่อไฟล์ให้ (`flowspec.py`)
+`load_tenant_spec(path)` fills `company` / `flow_id` from the filename.
 
-### 2 · catalog — list ของประโยค
+### 2 — catalog: a list of sentences
 
 ```python
 {"text_id": 9004, "_fine_state": "confirm_new_date", "template": "รับทราบค่ะ ... [new_date] ..."}
 ```
 
-โมเดลอ้างด้วย `text_id` · โค้ดอ้างด้วย `_fine_state` · `normalize_catalog()` เติม
-field ที่อนุมานได้ (`state`, `category`) ให้ตอนโหลด
+The model refers to a sentence by `text_id`; the code refers to it by `_fine_state`.
+`normalize_catalog()` fills in the fields that can be derived (`state`, `category`).
 
-### 3 · hop — สิ่งที่ stream ออกไปหา UI
+### 3 — hop: what streams to the UI
 
-มี 4 ชนิดเท่านั้น
+Four kinds, and only four.
 
 ```python
 {"kind": "reply",       "text": ..., "text_ids": [...], "dynamic_vars": {...}}
@@ -121,72 +125,76 @@ field ที่อนุมานได้ (`state`, `category`) ให้ตอ
 {"kind": "warning",     "text": ...}
 ```
 
-`app.py:172 _stream_turn` แปลงเป็น NDJSON บรรทัดละ hop ·
-`frontend/src/components/Bubble.tsx` เป็นตัวเดียวที่ตัดสินว่าแต่ละชนิดวาดยังไง
-
-เพิ่ม hop ชนิดใหม่ = ต้องแก้สองที่นี้เสมอ
+`app.py _stream_turn()` turns them into NDJSON, one hop per line.
+`frontend/src/components/Bubble.tsx` is the only place that decides how each kind
+renders. Adding a new kind always means editing both.
 
 ---
 
-## `flow/` แต่ละไฟล์เป็นเจ้าของอะไร
+## What each `flow/` module owns
 
-| ไฟล์ | เป็นเจ้าของ | จุดเข้า |
+| file | owns | entry point |
 |---|---|---|
-| `flowspec.py` | **รูปแบบ** — key ที่อนุญาต, validate, สร้าง tool schema | `load_tenant_spec` · `validate_strict` · `build_tool_schemas` |
-| `flowspec_render.py` | **prompt** — spec → คำสั่งภาษาไทยที่โมเดลอ่าน | `render_instruction(spec)` |
-| `spec_backend.py` | **การเรียก tool** — ตรวจ args แล้วยิง HTTP | `dispatch(name, args)` |
-| `spec_gate.py` | **ด่านที่ 2** — นับ/เรียงลำดับ/เทียบค่า | `check(name, args, call_log)` |
-| `session_init.py` | **CRM** — ยิงครั้งเดียวตอนเปิดสาย, แทน token, flatten | `fetch_context(spec, seed)` |
+| `flowspec.py` | **the format** — allowed keys, validation, tool schemas | `load_tenant_spec` · `validate_strict` · `build_tool_schemas` |
+| `flowspec_render.py` | **the prompt** — spec → the Thai instruction the model reads | `render_instruction(spec)` |
+| `spec_backend.py` | **calling a tool** — check the args, then make the HTTP call | `dispatch(name, args)` |
+| `spec_gate.py` | **guard 2** — counting, ordering, value matching | `check(name, args, call_log)` |
+| `session_init.py` | **the CRM** — one call at session start, token substitution, flatten | `fetch_context(spec, seed)` |
 
-`spec_gate.check()` ถูกเรียกจาก `spec_backend.dispatch()` — ไม่ได้ถูกเรียกตรงจากที่อื่น
-
----
-
-## invariant ที่โค้ดถือไว้ให้ (ไม่มีเขียนไว้ที่ไหน อ่านโค้ดอย่างเดียวอาจพลาด)
-
-**หนึ่ง state = หนึ่งเทิร์น** — `templates` ทุกตัวใน state เดียวกันต้องพูดในเทิร์นเดียว
-ยกเว้นมี `when_event` ซึ่งแปลว่าเป็นทางเลือก · `is_chain_state()` ใน `flowspec.py` คือนิยามเดียวของเรื่องนี้
-ทั้ง prompt และด่านตรวจอ่านจากฟังก์ชันเดียวกัน
-
-**`entry_tools` รันก่อนพูด** — ไม่ใช่ตอนเข้า state แต่ตอน *กำลังจะพูด beat ที่สังกัด state นั้น*
-เพราะแอปไม่ได้ติดตาม state ปัจจุบัน — มันย้อนจาก beat ที่โมเดลเลือกกลับไปหา state
-
-**`customer_data` เป็น dict เดียวที่ share กัน** — `FlowLiveSession` กับ `SpecBackend`
-ถือ reference เดียวกัน ไม่ได้ copy ผลของ tool ที่ `_merge_context()` เขียนลงไป
-จึงไปโผล่ในประโยคถัดไปทันที **ถ้าเผลอ copy จะพังเงียบ**
-
-**ปฏิเสธแล้วไม่ break** — ทั้งสองด่าน append เข้า `_messages` แล้ว `continue`
-ไม่มี exception ไม่มี early return
-
-**เพดานต่างกัน** — ด่านที่ 1 นับ `_step_nudges < 2` แล้วปล่อยผ่าน (ห้ามค้างสาย)
-ด่านที่ 2 ไม่มีเพดาน (เขียนผิดแล้วเอาคืนไม่ได้)
+`spec_gate.check()` is called from `spec_backend.dispatch()` and from nowhere else.
 
 ---
 
-## อยากแก้เรื่องนี้ ไปที่ไหน
+## Invariants the code holds but never states
 
-| อยากทำอะไร | ไฟล์ |
+**One state is one turn.** Every template in a state must be spoken together, unless it
+carries `when_event`, which makes them alternatives. `is_chain_state()` in `flowspec.py`
+is the single definition — both the prompt and the guard read that one function.
+
+**`entry_tools` run before *speaking*, not on entering the state.** The app does not
+track a current state: it resolves the beat the model chose back to the state that owns
+it, then checks that state's tools. This is why a model that simply never speaks a
+state's beat is never asked for its tools.
+
+**`customer_data` is one dict, shared.** `FlowLiveSession` and `SpecBackend` hold the
+same reference — not a copy. That is how a tool's result reaches the next sentence:
+`_merge_context()` writes into it. **A defensive copy here breaks tool results silently**,
+which has happened.
+
+**A rejection never breaks the loop.** Both guards append to `_messages` and `continue`.
+No exception, no early return.
+
+**The two guards have different ceilings.** Guard 1 counts `_step_nudges < 2` and then
+lets the reply through — a live caller must not be left hanging. Guard 2 has no ceiling,
+because a bad write cannot be taken back.
+
+---
+
+## Where to change things
+
+| you want to | file |
 |---|---|
-| เพิ่ม/แก้ key ใน spec | `flow/flowspec.py` — `TOP_KEYS`, `STATE_KEYS`, … แล้ว `validate_strict` |
-| เปลี่ยนหน้าตา prompt | `flow/flowspec_render.py` — `render_instruction()` |
-| เพิ่มด่านตอนเรียก tool | `flow/spec_gate.py` — `check()` |
-| เพิ่มด่านก่อนพูด | `sessions.py` `_aiter_run` ช่วง `:1560–1760` |
-| เปลี่ยนวิธียิง LLM | `sessions.py` `_flow_vllm_chat()` `:1010` |
-| เพิ่ม endpoint | `app.py` แล้วบอก `frontend/src/api.ts` |
-| เปลี่ยนการเติม slot | `lib/prescript.py` — `fill_template()` |
-| เรื่องเสียง | `tts.py` · `stt_ws.py` · `services/speech/` |
+| add or change a spec key | `flow/flowspec.py` — `TOP_KEYS`, `STATE_KEYS`, … then `validate_strict` |
+| change how the prompt reads | `flow/flowspec_render.py` — `render_instruction()` |
+| add a check before a tool call | `flow/spec_gate.py` — `check()` |
+| add a check before speaking | `sessions.py` — the `if fn["name"] == "reply"` branch inside `_aiter_run` |
+| change how the LLM is called | `sessions.py` — `_flow_vllm_chat()` |
+| add an endpoint | `app.py`, then tell `frontend/src/api.ts` |
+| change slot filling | `lib/prescript.py` — `fill_template()` |
+| anything about audio | `tts.py` · `stt_ws.py` · `services/speech/` |
 
 ---
 
-## ที่ไม่ต้องอ่าน
+## What you can skip
 
 ```
-services/speech/*      engine ของ STT/TTS — แตะเฉพาะตอนแก้เรื่องเสียง
-lib/datetime_utils.py  แปลงวันไทย/canonical
-frontend/src/data/     ข้อมูลนิ่ง
+services/speech/*       STT/TTS engines — only when working on audio
+lib/datetime_utils.py   Thai ↔ canonical date rendering
+frontend/src/data/      static data
 ```
 
-และของที่ **ไม่มีแล้ว** ใน demo_v2 — ถ้าเจอชื่อพวกนี้ในเอกสารเก่า แปลว่าเอกสารนั้นเก่ากว่าโค้ด
+And names that **no longer exist** here. If you meet one in an older document, that
+document is behind the code:
 
 ```
 ReplaySession · LiveSession · flow/*_v12.py · _is_v12 · demo/server/prescript.py
@@ -194,19 +202,21 @@ ReplaySession · LiveSession · flow/*_v12.py · _is_v12 · demo/server/prescrip
 
 ---
 
-## รันในเครื่อง
+## Running it
 
 ```bash
 PYTHONPATH=. uvicorn demo_v2.server.app:app --host 127.0.0.1 --port 4100
 ```
 
-ต้องมี `AAX6_VLLM_BASE_URLS` (โมเดล) และ `AAX6_API_BASE` (mock CRM)
-ส่วนเสียงต้องมี `GOOGLE_APPLICATION_CREDENTIALS` — ไม่มีก็รันได้ แค่ไม่มีเสียง
+Needs `AAX6_VLLM_BASE_URLS` (the model) and `AAX6_API_BASE` (the mock CRM).
+Audio also needs `GOOGLE_APPLICATION_CREDENTIALS`; without it everything runs, just
+without sound.
 
-ยืนยันว่าไม่พังหลังแก้:
+To confirm a change did not break anything:
 
 ```bash
 PYTHONPATH=. python3 tools/eval_demo.py --model grpo400 --out /tmp/x.json
 ```
 
-⚠️ รันครั้งเดียวไม่พอ — config เดียวกันเคยแกว่ง 6 จาก 45 ให้รัน ≥3 ครั้งแล้วดูช่วง
+⚠️ One run is not evidence. The same configuration has moved 6 points out of 45 between
+runs — do at least three and report the range.
