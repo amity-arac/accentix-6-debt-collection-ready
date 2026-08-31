@@ -61,27 +61,36 @@
   ⇒ result   ผลที่บันทึกลง CRM ตอนจบสาย
 
 
-      (greet)                                                    พูด: greet_remind
+      (greet)                                          ไม่มี tool · พูด greet_remind เลย
          │
-         ├── [confirms_pay] ────────────────►  (close_confirmed)       ⇒ confirmed
+         ├─[confirms_pay]──────────────►  «record_call_result»  (close_confirmed)   ⇒ confirmed
          │
-         ├── [already_paid] ────────────────►  (close_paid_claim)      ⇒ paid_claimed
+         ├─[already_paid]──────────────►  «record_call_result»  (close_paid_claim)  ⇒ paid_claimed
          │
-         ├── [asks_human] · [no_input] ─────►  (close_handoff)         ⇒ handoff
+         ├─[asks_human] ·[no_input]────►  «record_call_result»  (close_handoff)     ⇒ handoff
          │
-         ├── [reschedule_request] ─────►  (ask_new_date)               พูด: ask_new_date
-         │                                     │
-         │                                [gives_date]
-         │                                     ▼
-         └── [gives_date] ────────────►  (check_date) «check_new_date»
-                                               │  ▲
-                                               │  └── [gives_date]  วนซ้ำ: เสนอวันใหม่
-                                               │
-                                               └── [confirms_new_date] ──►  (close_rescheduled)
-                                                                            ⇒ rescheduled
-
-      ทุก (close_*) รัน «record_call_result» ก่อนพูด แล้วจบสาย
+         ├─[reschedule_request]──►  (ask_new_date)        ไม่มี tool · แค่ถามวัน
+         │                              │
+         │                         [gives_date]
+         │                              ▼
+         └─[gives_date]────────►  «check_new_date»  (check_date)
+                                                       │  ▲
+                                                       │  └─[gives_date]  วนซ้ำ: เสนอวันใหม่
+                                                       │
+                                                       └─[confirms_new_date]
+                                                              │
+                                                              ▼
+                                        «record_call_result»  (close_rescheduled)  ⇒ rescheduled
 ```
+
+**tool อยู่ตรงไหน** — `«…»` วางไว้ข้างหน้ากล่องที่มันรัน เพราะ `entry_tools`
+รัน **ก่อน** เอเจนต์พูดประโยคของ state นั้น ไม่ใช่หลัง
+
+| state | entry_tools | ทำไม |
+|---|---|---|
+| `greet` · `ask_new_date` | — | แค่พูด ไม่ต้องถามระบบอะไร |
+| `check_date` | `check_new_date` | ต้องรู้ก่อนว่าวันอยู่ในเกณฑ์ไหม ถึงจะเลือกได้ว่าพูดประโยคไหน |
+| `close_*` ทั้ง 4 | `record_call_result` | บันทึกผลก่อนวางสาย — ทางจบทุกทางต้องบันทึก |
 
 อ่านผังนี้ได้สองอย่าง
 
