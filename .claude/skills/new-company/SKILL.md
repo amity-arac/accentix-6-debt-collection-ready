@@ -9,8 +9,9 @@ One tenant is one file: `data/flows/<CODE>.company.json`. Dropping it in creates
 company; deleting it removes it. The platform holds no logic about any tenant, so
 **everything the agent does comes from this file**, and every defect in it ships.
 
-The format is locked and documented once, in
-[docs/SPEC_LOCKED.md](../../../docs/SPEC_LOCKED.md) — every key, what reads it, what
+A worked example — one real requirement walked through to the finished file — is
+[docs/FLOW_WALKTHROUGH.md](../../../docs/FLOW_WALKTHROUGH.md). The format is locked and
+documented once, in [docs/SPEC_LOCKED.md](../../../docs/SPEC_LOCKED.md) — every key, what reads it, what
 values it takes, and which rules the runtime actually enforces. This skill is the
 process around it.
 

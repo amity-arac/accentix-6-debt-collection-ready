@@ -6,6 +6,7 @@
  "crm_fields": [
   "today",
   "customer_name",
+  "last_4_digits",
   "amount",
   "minimum_payment",
   "due_date",

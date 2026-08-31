@@ -6,6 +6,7 @@
  "crm_fields": [
   "today",
   "customer_name",
+  "last_4_digits",
   "amount",
   "minimum_payment",
   "due_date",
@@ -916,7 +917,7 @@
   }
  ],
  "compliance": {
-  "note": "spec-declared beat roles for compliance gating (was hardcoded regex in env.py). Auto-derived to preserve behavior.",
+  "note": "beat roles the training side reads. `close_fine_states` is the set a call may legitimately END on — derived from states marked `terminal` and from FAQ routes whose `then.terminal` is true. The earlier auto-derivation over-matched and listed `disclose_balance`, the beat that OPENS the negotiation: the harness treats this list as 'the call is over', so every SKL/KBANK call was cut the moment the balance was disclosed.",
   "verify_fine_states": [
    "greet_verify",
    "verify_name"
@@ -928,8 +929,6 @@
   "close_fine_states": [
    "apology",
    "close",
-   "disclose_balance",
-   "faq_faq_referral",
    "offer_callback"
   ]
  },
