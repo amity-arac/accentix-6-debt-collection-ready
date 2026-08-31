@@ -8,6 +8,8 @@ a single commit the first time this was written. `grep -n` the symbol.
 
 The tenant file format is [SPEC_LOCKED.md](SPEC_LOCKED.md).
 Building a new flow is [FLOW_WALKTHROUGH.md](FLOW_WALKTHROUGH.md).
+The same shape as pictures — architecture, sequence, decision flow — is
+[DIAGRAMS.md](DIAGRAMS.md).
 
 ---
 
