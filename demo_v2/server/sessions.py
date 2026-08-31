@@ -1,18 +1,9 @@
-"""Session strategies for the demo backend.
+"""Session objects the demo streams from.
 
-Two implementations behind a shared protocol so the frontend is mode-agnostic:
-
-- `ReplaySession`: replays the recorded v6c trajectory of one case. Zero LLM
-  calls, instant, deterministic. The default for stage demos.
-- `LiveSession`: drives the agent through the user-selected pre-script
-  communicator (Qwen via vLLM by default, Gemini optional) + `CaseBackend(
-  v6_active=True)`. Real LLM calls per turn. Higher fidelity but slower and
-  requires either a running vLLM endpoint (Qwen) or `GOOGLE_API_KEY` (Gemini).
-
-Both return the same `hops[]` shape:
-    {"kind": "tool_call",   "name": str, "args": dict}
-    {"kind": "tool_result", "name": str, "result": Any}
-    {"kind": "reply",       "text": str, "text_ids": list[int], "dynamic_vars": dict}
+One kind: `FlowLiveSession` — a tenant's `<CODE>.company.json` drives the call.
+The spec supplies the instruction, the sentence catalog, the tools and the rules;
+this module runs the turn loop and the two guards around it (before speaking,
+before writing). See docs/CODE_MAP.md.
 """
 
 from __future__ import annotations
@@ -1884,8 +1875,8 @@ class FlowLiveSession:
 # ---------------------------------------------------------------------------
 
 
-def build_trajectory_case(session: "LiveSession", comment: str = "") -> dict[str, Any]:
-    """Assemble a saved-trajectory case from a LiveSession's recorded transcript.
+def build_trajectory_case(session: "FlowLiveSession", comment: str = "") -> dict[str, Any]:
+    """Assemble a saved-trajectory case from a session's recorded transcript.
 
     Matches the canonical schema in `data/trajectories/` (so the file is
     replay-/eval-compatible) and embeds the raw agent message history under

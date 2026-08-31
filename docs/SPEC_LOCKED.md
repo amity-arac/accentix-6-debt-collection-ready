@@ -427,6 +427,8 @@ PYTHONPATH=. python3 .claude/skills/new-company/scripts/smoke_company.py <CODE> 
 
 ---
 
+> อยากอ่านโค้ดที่รันไฟล์นี้ ดูที่ [CODE_MAP.md](CODE_MAP.md)
+>
 > เดินทีละขั้นจาก requirement จริงจนได้ไฟล์ ดูที่
 > [FLOW_WALKTHROUGH.md](FLOW_WALKTHROUGH.md) — ใช้ `SHOP` เป็นตัวอย่าง
 

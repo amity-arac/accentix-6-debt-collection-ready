@@ -175,8 +175,8 @@ async def _stream_turn(session: sessions.Session, msg: str) -> AsyncIterator[byt
         return
     async for hop in session.aiter_turn(msg):  # type: ignore[attr-defined]
         yield _line({"type": "hop", "hop": hop}).encode("utf-8")
-    # Attach this turn's LLM timing (set by LiveSession._aiter_run). Absent for
-    # ReplaySession → llm_ms/llm_hops are null (the UI shows "—").
+    # Attach this turn's LLM timing (set by FlowLiveSession._aiter_run). Null when the
+    # turn made no model call — the greeting, for one — and the UI shows "—".
     timing = getattr(session, "_last_turn_timing", None) or {}
     yield _line({
         "type": "done",
@@ -336,24 +336,15 @@ async def create_session(
     chosen_gender = (gender or "F").strip().upper()
     if chosen_gender not in ("M", "F"):
         chosen_gender = "F"
-    # qwen with no explicit model (e.g. the picker default hadn't loaded when Start
-    # was clicked) → fall back to the flow model so it still runs the flow session
-    # + reads the flow catalog, not the prescript path.
+    # qwen with no explicit model (the picker default had not loaded when Start was
+    # clicked) → the served flow model.
     if chosen_agent == "qwen" and not model:
         model = sessions.FLOW_MODEL
-    # v9-lineage pre-script adapters (sft_v2, sft_v2_2) read the pre-script prompt,
-    # NOT the FlowSpec → route them to the live pre-script LiveSession (needs
-    # AAX6_PROMPT_VERSION=v9). Everything else sft* is a flow adapter.
-    PRESCRIPT_SFT = {"sft_v2", "sft_v2_2"}
-    is_prescript_sft = bool(model) and model in PRESCRIPT_SFT
-    # An SFT flow adapter always reads the FlowSpec instruction → route it to the
-    # flow session regardless of which engine button was used (a flow model under
-    # the prescript prompt just loops on the greeting).
-    if model and model.lower().startswith("sft") and not is_prescript_sft:
-        flow = True
-    # Flow session AND pre-script sft both must run live (neither can replay).
-    if (flow or is_prescript_sft) and mode != "live":
-        mode = "live"
+    # There is one kind of session now, so `flow` and `mode` no longer select
+    # anything — `sessions.build()` returns a FlowLiveSession either way. They stay in
+    # the signature because the frontend still sends `?flow=1` and old links carry
+    # `mode`. The branching that used to route between replay, the pre-script agent and
+    # the flow session went with those classes.
     try:
         # OFF THE EVENT LOOP. Session construction does blocking I/O — reading the
         # spec/catalog, and (when the spec declares `session_init`) a synchronous
@@ -460,8 +451,7 @@ async def save_trajectory(session_id: str, body: SaveBody = SaveBody()) -> JSONR
     session = SESSIONS.get(session_id)
     if session is None:
         raise HTTPException(404, detail=f"unknown session_id {session_id!r}")
-    # Was gated on LiveSession, which no longer exists; a flow session keeps the same
-    # `_transcript`, so the only real precondition is that something was said.
+    # The only precondition is that something was said.
     if not getattr(session, "_transcript", None):
         return JSONResponse({"saved": False, "reason": "nothing to save"}, status_code=400)
 

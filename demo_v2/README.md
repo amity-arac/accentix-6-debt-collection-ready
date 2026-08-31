@@ -17,6 +17,8 @@ demo/server/sessions.py  2,489 บรรทัด
 demo_v2/server/sessions.py 2,118
 ```
 
+แผนที่โค้ดสำหรับคนอ่านครั้งแรก: [docs/CODE_MAP.md](../docs/CODE_MAP.md)
+
 ## Layout
 
 ```
