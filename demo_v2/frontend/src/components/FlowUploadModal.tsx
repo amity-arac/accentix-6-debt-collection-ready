@@ -71,9 +71,14 @@ export function FlowUploadModal({ open, onClose, onCreated }: Props) {
         catalog,
         display_name: doc.display_name ?? "",
         agent_name: doc.agent_name ?? "",
+        crm: doc.crm ?? undefined,
       });
-      if (res.ok && res.case_id && res.company) onCreated(res.case_id, res.company);
-      else setErrors(res.errors ?? ["สร้างไม่สำเร็จ"]);
+      if (res.ok && res.case_id && res.company) {
+        // Created, but some sentence names data this company cannot fill: say so here,
+        // the last moment the person who wrote the template is still looking.
+        if (res.warning) setErrors([res.warning]);
+        onCreated(res.case_id, res.company);
+      } else setErrors(res.errors ?? ["สร้างไม่สำเร็จ"]);
     } catch (e: any) {
       setErrors([`อัปโหลดไม่สำเร็จ: ${e?.message ?? e}`]);
     } finally {

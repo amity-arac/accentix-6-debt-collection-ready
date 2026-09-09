@@ -1,19 +1,12 @@
-"""Voice Activity Detection using Silero VAD.
+"""Voice activity detection using Silero VAD — language-agnostic, ~1 MB model.
 
-Language-agnostic VAD — works with Thai and any other language.
-Uses a lightweight PyTorch model (~1MB).
-
-Usage:
-    from demo_v2.services.speech.vad import VADService
     vad = VADService()
-    segments = vad.detect(audio_bytes)       # [{start_ms, end_ms}, ...]
-    has_speech = vad.is_speech(audio_chunk)   # True/False
-    speech_only = vad.extract_speech(audio_bytes)  # silence stripped
+    segments = vad.detect(audio_bytes)        # [{start_ms, end_ms}, ...]
+    has_speech = vad.is_speech(audio_chunk)
+    speech_only = vad.extract_speech(audio_bytes)
 
-Ported from the source project's services/speech/vad.py. `torch` is a heavy
-import, so this module is imported LAZILY by the demo backend's STT WebSocket
-handler (demo/server/stt_ws.py) — never at `demo.server.app` import time. See
-CLAUDE.md gotcha 11 (services.speech.__init__ stays config-only / torch-free).
+`torch` is a heavy import, so `stt_ws.py` imports this lazily — never at app import
+time.
 """
 
 import io
@@ -216,35 +209,6 @@ class VADService:
         # Convert back to 16-bit PCM bytes (without numpy dependency)
         pcm_int16 = (combined * 32768.0).clamp(-32768, 32767).to(torch.int16)
         return struct.pack(f"<{len(pcm_int16)}h", *pcm_int16.tolist())
-
-    def extract_speech_to_wav(
-        self,
-        audio_bytes: bytes,
-        output_path: str,
-        padding_ms: int = 30,
-    ) -> Optional[str]:
-        """Extract speech and save to WAV file.
-
-        Args:
-            audio_bytes: WAV audio data.
-            output_path: Path for output WAV file.
-            padding_ms: Extra padding around each speech segment.
-
-        Returns:
-            Output file path, or None if no speech found.
-        """
-        _, sr = self._read_wav(audio_bytes)
-        pcm = self.extract_speech(audio_bytes, is_wav=True, padding_ms=padding_ms)
-        if pcm is None:
-            return None
-
-        with wave.open(output_path, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(sr)
-            wf.writeframes(pcm)
-
-        return output_path
 
     def iter_frame_probs(self, pcm_bytes: bytes) -> list[float]:
         """Stream raw 16-bit PCM through Silero; return one probability per

@@ -1,22 +1,14 @@
 """Speech service package (deliverable subset).
 
-This package intentionally stays IMPORT-LIGHT: importing `services.speech` (or
-`services.speech.config`) must not pull torch / google-cloud-speech, so the demo
-backend imports fast and torch-free (see CLAUDE.md gotcha 11). Therefore this
-`__init__` deliberately does NOT eagerly import the `.stt` / `.tts` / `.vad`
-submodules. Import what you need directly:
+Stays IMPORT-LIGHT on purpose: importing `services.speech` must not pull torch or
+google-cloud-speech, so the backend starts fast and runs with neither installed.
+This `__init__` therefore imports no submodule. Import what you need directly:
 
-    from demo_v2.services.speech.config import get_tts_client, DEFAULT_TTS_VOICE   # light
-    from demo_v2.services.speech.zipformer_stt import ZipformerSTTService  # pulls numpy + websockets
-    from demo_v2.services.speech.vad import VADService                     # pulls torch (Silero VAD)
-    from demo_v2.services.speech.stt import STTService                     # pulls google-cloud-speech (offline probe only)
+    from demo_v2.services.speech.config import get_tts_client   # light
+    from demo_v2.services.speech.zipformer_stt import ZipformerSTTService  # numpy, websockets
+    from demo_v2.services.speech.vad import VADService          # torch (Silero VAD)
+    from demo_v2.services.speech.stt import STTService          # google-cloud-speech
 
-Used by the demo backend:
-  - `config`          — optional Chirp 3 HD text-to-speech (demo/server/tts.py).
-  - `zipformer_stt` + `vad` — speech-to-text over a WebSocket (demo/server/stt_ws.py):
-    Silero VAD gates utterances, the streaming Zipformer engine transcribes them.
-    Both are imported LAZILY there, only when a client connects to /api/stt, so
-    this stays off the startup import path.
-  - `stt`             — legacy Chirp 3 STT; no longer used by the demo, retained
-    only for the offline scripts/measure_ttfa.py probe (imported lazily there).
+`stt_ws.py` imports the recognizer and the VAD lazily, only when a client connects
+to /api/stt, which is what keeps them off the startup path.
 """

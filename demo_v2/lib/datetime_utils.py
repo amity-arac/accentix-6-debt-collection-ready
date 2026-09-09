@@ -1,19 +1,15 @@
-"""Phase H — standardized date/time format for v6.
+"""Canonical date/time formats, used at every machine boundary (tool args,
+dynamic_vars):
 
-Canonical formats used at every machine boundary (tool args + dynamic_vars):
+  date       "YYYY-MM-DD (Weekday)"      e.g. "2026-05-23 (Saturday)"
+  time       "HH:MM" 24-hour             e.g. "14:00"
+  datetime   "<date> <time>"
 
-  date       : "YYYY-MM-DD (Weekday)"           e.g. "2026-05-23 (Saturday)"
-  time       : "HH:MM" 24-hour                   e.g. "14:00"
-  datetime   : "<date> <time>"                   e.g. "2026-05-23 (Saturday) 14:00"
+Weekday names are English, and the weekday in the string MUST match the calendar —
+`2026-05-23 (Sunday)` is rejected, that day is a Saturday.
 
-Weekday names are English (Monday..Sunday). The weekday in the string MUST match
-the calendar — `2026-05-23 (Sunday)` is rejected (that day is Saturday).
-
-"Today" is the real current date in the Asia/Bangkok zone (UTC+7, no DST) — see
-`now_bangkok()` / `_today()`. Every date the agent speaks or records is relative
-to the live Thai date, so the demo always tracks the real calendar. (The former
-fixed `SIMULATION_DATE` in `simulator.config` is no longer the live anchor; it
-remains only for offline/eval reproducibility.)
+"Today" is the real current date in Asia/Bangkok (UTC+7, no DST), so every date the
+agent speaks tracks the live Thai calendar.
 """
 
 import datetime as _dt
@@ -76,30 +72,6 @@ def is_valid_time(s: str) -> bool:
     return isinstance(s, str) and bool(TIME_RE.match(s))
 
 
-# พ.ร.บ. การทวงถามหนี้ พ.ศ. 2558 §9(2): contact only between 08:00–20:00.
-LEGAL_HOUR_START_MIN = 8 * 60   # 08:00
-LEGAL_HOUR_END_MIN = 20 * 60    # 20:00 (inclusive boundary)
-
-
-def is_within_legal_hours(s: str) -> bool:
-    """True iff s is a valid `HH:MM` AND falls within debt-collection legal contact
-    hours 08:00–20:00 inclusive (§9(2)). 20:01+ and before 08:00 are out of hours."""
-    if not is_valid_time(s):
-        return False
-    minutes = int(s[:2]) * 60 + int(s[3:5])
-    return LEGAL_HOUR_START_MIN <= minutes <= LEGAL_HOUR_END_MIN
-
-
-def is_valid_datetime(s: str) -> bool:
-    if not isinstance(s, str):
-        return False
-    m = DATETIME_RE.match(s)
-    if not m:
-        return False
-    date_part = " ".join(s.rsplit(" ", 1)[:-1])  # everything except final HH:MM
-    return is_valid_date(date_part)
-
-
 def parse_date(s: str) -> _dt.date:
     """Strict parse. Raises ValueError on format/calendar/weekday mismatch."""
     if not is_valid_date(s):
@@ -127,18 +99,6 @@ def render_time_thai(s: str) -> str:
     return f"{s} น."
 
 
-def render_datetime_thai(s: str) -> str:
-    """Auto-detect date / time / datetime and render to natural Thai."""
-    if is_valid_datetime(s):
-        date_part, time_part = s.rsplit(" ", 1)
-        return f"{render_date_thai(date_part)} เวลา {render_time_thai(time_part)}"
-    if is_valid_date(s):
-        return render_date_thai(s)
-    if is_valid_time(s):
-        return render_time_thai(s)
-    raise ValueError(f"not a recognized date/time/datetime string: {s!r}")
-
-
 def today_iso() -> str:
     """Real Asia/Bangkok 'today' formatted as `YYYY-MM-DD (Weekday)`."""
     return _format_date(_today())
@@ -151,52 +111,76 @@ def future_date(days: int) -> str:
     return _format_date(_today() + _dt.timedelta(days=int(days)))
 
 
-def simulation_date() -> _dt.date:
-    """Reference 'today' as a date object — real Asia/Bangkok date here. Used by
-    the v11 overdue-ptp-date guard in backend.record_outcome."""
-    return _today()
+_TH_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
+_TH_WEEKDAY = {"จันทร์": 0, "อังคาร": 1, "พุธ": 2, "พฤหัส": 3, "ศุกร์": 4, "เสาร์": 5, "อาทิตย์": 6}
+_TH_MONTH = {"มกราคม": 1, "กุมภาพันธ์": 2, "มีนาคม": 3, "เมษายน": 4, "พฤษภาคม": 5, "มิถุนายน": 6,
+             "กรกฎาคม": 7, "สิงหาคม": 8, "กันยายน": 9, "ตุลาคม": 10, "พฤศจิกายน": 11, "ธันวาคม": 12,
+             "ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6,
+             "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12}
 
 
-def parse_date_prefix(s: str) -> _dt.date | None:
-    """Parse the `YYYY-MM-DD` prefix of a canonical date string; None if unparsable."""
-    if not isinstance(s, str) or len(s) < 10:
-        return None
-    try:
-        return _dt.date.fromisoformat(s[:10])
-    except ValueError:
-        return None
+def resolve_spoken_date(text: str, today: "_dt.date | None" = None) -> "_dt.date | None":
+    """A spoken Thai date → a date (future only). None = unparseable, or already ISO.
 
-
-def relative_iso(offset_days: int) -> str:
-    """today + offset_days, formatted as `YYYY-MM-DD (Weekday)`."""
-    return _format_date(_today() + _dt.timedelta(days=offset_days))
-
-
-def datetime_lookup_table() -> dict:
-    """Anchors returned by the `get_current_datetime` backend tool.
-
-    Computed from the real current Asia/Bangkok date/time. Pre-computed so the
-    LLM never has to do weekday arithmetic for the most common offsets it speaks
-    about. The date strings are strict-format `YYYY-MM-DD (Weekday)` — pass
-    directly into tool args / dynamic_vars without modification. `current_time`
-    is the live wall-clock time in Thailand as `HH:MM` (24-hour).
+    This lets a tool accept the words the customer actually said and have the code
+    do the conversion. The model only carries over what it heard — copying, which a
+    small model does reliably — while the calendar arithmetic (crossing a month,
+    end of month, next weekday) stays with the code. It is the standard voice-bot
+    move (Duckling, a date node), and it is tied to the Thai language, not to any
+    company or domain.
     """
-    return {
-        "today": relative_iso(0),
-        "tomorrow": relative_iso(1),
-        "day_after_tomorrow": relative_iso(2),
-        "in_one_week": relative_iso(7),
-        "current_time": now_bangkok().strftime("%H:%M"),
-    }
-
-
-def expected_weekday_for(date_str_without_weekday: str) -> str | None:
-    """Helper for error hints: given 'YYYY-MM-DD', return the correct weekday name.
-
-    Returns None if the input isn't a valid YYYY-MM-DD date.
-    """
-    try:
-        d = _dt.date.fromisoformat(date_str_without_weekday)
-    except ValueError:
+    import re as _re
+    base = today or _today()
+    t = str(text or "").translate(_TH_DIGITS)
+    if not t or _re.match(r"^\s*\d{4}-\d{2}", t):
         return None
-    return WEEKDAYS_EN[d.weekday()]
+    if _re.search(r"มะรืน", t):
+        return base + _dt.timedelta(days=2)
+    if _re.search(r"พรุ่งนี้", t):
+        return base + _dt.timedelta(days=1)
+    m = _re.search(r"อีก\s*(\d{1,2})\s*วัน", t)
+    if m:
+        return base + _dt.timedelta(days=int(m.group(1)))
+    import calendar as _cal
+    end_this = base.replace(day=_cal.monthrange(base.year, base.month)[1])
+    if _re.search(r"(สิ้นเดือน|ปลายเดือน)\s*หน้า", t):
+        nxt = end_this + _dt.timedelta(days=1)
+        return nxt.replace(day=_cal.monthrange(nxt.year, nxt.month)[1])
+    if _re.search(r"(สิ้นเดือน|ปลายเดือน)", t):
+        return end_this
+    if _re.search(r"(อาทิตย์|สัปดาห์)หน้า", t) and not _re.search(r"วันอาทิตย์", t):
+        return base + _dt.timedelta(days=7)
+    for name, wd in _TH_WEEKDAY.items():
+        if _re.search("วัน" + name + "|" + name + r"(นี้|หน้า)", t):
+            d = (wd - base.weekday()) % 7 or 7
+            if _re.search(name + r"\s*หน้า", t):      # "X หน้า" = X of next week
+                d += 7 if d <= 7 else 0
+                if d > 14:
+                    d -= 7
+            return base + _dt.timedelta(days=d)
+    for name, mo in _TH_MONTH.items():
+        m = _re.search(r"(?:วันที่\s*)?(\d{1,2})\s*" + _re.escape(name), t)
+        if m:
+            day = int(m.group(1))
+            yr = base.year + (1 if (mo, day) <= (base.month, base.day) else 0)
+            try:
+                cand = _dt.date(yr, mo, day)
+            except ValueError:
+                return None
+            return cand if cand > base else None
+    m = _re.search(r"วันที่\s*(\d{1,2})", t)
+    if m:
+        day = int(m.group(1))
+        if 1 <= day <= 31:
+            force_next = bool(_re.search(r"เดือนหน้า", t))
+            for add in ((1,) if force_next else (0, 1)):
+                mo, yr = base.month + add, base.year
+                if mo > 12:
+                    mo, yr = mo - 12, yr + 1
+                try:
+                    cand = base.replace(year=yr, month=mo, day=day)
+                except ValueError:
+                    continue
+                if cand > base:
+                    return cand
+    return None

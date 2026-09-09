@@ -3,14 +3,13 @@
 One kind: `FlowLiveSession` — a tenant's `<CODE>.company.json` drives the call.
 The spec supplies the instruction, the sentence catalog, the tools and the rules;
 this module runs the turn loop and the two guards around it (before speaking,
-before writing). See docs/CODE_MAP.md.
+before writing). See demo_v2/docs/MANUAL.md.
 """
 
 from __future__ import annotations
 
 import asyncio
 import datetime
-import functools
 import json
 import logging
 import os
@@ -21,14 +20,6 @@ import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Protocol
 
-from demo_v2.server import tts
-
-
-# Inter-hop delay used in replay mode to make bubble cadence feel agent-like.
-REPLAY_HOP_DELAY_SEC = 0.35
-# Reply hops render immediately — TTS playback already gates the next bubble
-# on the client side.
-REPLAY_REPLY_DELAY_SEC = 0.05
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # Full 152-persona pool (106 train + 46 test). The picker lists every case here
@@ -62,8 +53,6 @@ class Session(Protocol):
 # ---------------------------------------------------------------------------
 # Replay
 # ---------------------------------------------------------------------------
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -156,62 +145,12 @@ def list_cases() -> list[dict[str, Any]]:
     return [_persona_summary(c) for c in _all_cases()]
 
 
-def normalize_live_hops(reply_result: dict[str, Any]) -> list[dict[str, Any]]:
-    """Convert CommunicatorGeminiPreScript.reply() hops into the canonical shape.
-
-    The communicator emits `rendered_text` entries right after their matching
-    `tool_call name="reply"`. We convert each `rendered_text` into a `reply`
-    hop carrying the text_ids/dynamic_vars of the immediately preceding
-    `tool_call name="reply"`, but we KEEP that tool_call hop as well so the
-    UI shows both bubbles.
-    """
-    raw = reply_result.get("hops", [])
-    out: list[dict[str, Any]] = []
-    last_reply_args: dict[str, Any] = {}
-    for h in raw:
-        kind = h.get("kind")
-        name = h.get("name")
-        if kind == "tool_call":
-            out.append({"kind": "tool_call", "name": name, "args": h.get("args", {})})
-            if name == "reply":
-                last_reply_args = h.get("args", {}) or {}
-            continue
-        if kind == "tool_result":
-            out.append({"kind": "tool_result", "name": name, "result": h.get("result")})
-            continue
-        if kind == "rendered_text":
-            out.append({
-                "kind": "reply",
-                "text": h.get("text", ""),
-                "text_ids": last_reply_args.get("text_ids", []),
-                "dynamic_vars": last_reply_args.get("dynamic_vars", {}),
-            })
-            continue
-        # passthrough for anything unknown
-        out.append(h)
-    return out
-
-
-
-
 # ---------------------------------------------------------------------------
 # Flow-interpreter session (sft_flow_v1 reads a FlowSpec from the prompt)
 # ---------------------------------------------------------------------------
 
-# Flow mode is a DEV/testing path, not part of the shipped customer product: it
-# drives the flow-interpreter adapter (sft_flow_v1), which reads a FlowSpec +
-# catalog from its prompt instead of the per-company v9 playbook. The flow
-# logic is vendored self-contained under demo/server/flow/ (ported from the
-# aax6 research package — no aax6 dependency), so this path runs wherever the
-# demo's own venv runs, leaving the qwen/gemini product paths untouched.
-#
-# sft_flow_v1 is company-agnostic (it follows whatever FlowSpec it's given), so
-# flow mode supports every company that has a (spec, catalog) pair. Each spec
-# shares the debt-collection "outbound-remind" structure; the catalog carries
-# the company's own templates (name, particles).
-# The registry is file-backed so the Flow Builder can add companies at runtime
-# (write files + append here) without a code change or redeploy. The built-in
-# defaults seed it / act as a fallback if the file is missing.
+# The registry is derived from the tenant files present, so a company uploaded at
+# runtime works with no code change or redeploy.
 from demo_v2.server.flow.flowspec import load_tenant_spec  # noqa: E402
 
 FLOW_DIR = REPO_ROOT / "data" / "flows"
@@ -224,18 +163,112 @@ TENANT_SUFFIX = ".company.json"
 _FLOW_REGISTRY_DEFAULT: dict[str, dict[str, str]] = {}
 FLOW_FALLBACK_COMPANY = os.environ.get("AAX6_FLOW_COMPANY", "")
 # Static fallback name (env override), used only if NOTHING is being served (error path).
-FLOW_MODEL = os.environ.get("AAX6_FLOW_MODEL", "grpo540")
+# Which checkpoint to ask vLLM for. NO default checkpoint name is baked in: a name
+# from our own host (one lived here) is wrong on anyone else's machine, and it
+# 404s at vLLM in a way that ends the turn with no reply. Left empty, the app asks the
+# endpoint what it is actually serving — see `default_served_model()`.
+FLOW_MODEL = os.environ.get("AAX6_FLOW_MODEL", "").strip()
+
+# How the prompt is laid out so vLLM can reuse its prefix cache —
+# spread_cache (default) | cache | spread | legacy
+#
+# Share of the prompt that is identical between two calls of the same company
+# (measured in tokens over the 43 gold cases, 2026-09-06). The gold score is the
+# same under all three:
+#     legacy 1.5%   ·   cache 43.3%   ·   spread_cache 82.4%
+#
+# `cache`  moves the CRM block to the very end. The CRM block is the only part of
+#          the instruction that differs between calls (the only place holding
+#          `{field}`), and it used to sit around token 130 — so the prompt diverged
+#          almost immediately and everything after it (every rule, the whole
+#          template store) could not be shared at all.
+# `spread` scatters the text_ids so they cannot be guessed in sequence, which brings
+#          the template store into the shared part too.
+#
+# `spread` needs three things to be in place; drop any one of them and the call
+# breaks immediately. Each was measured in this app, same script, same server
+# (2026-09-07), three runs each:
+#   1. Remap the ids inside the rules as well. Rules cite ids as literal numbers
+#      ("disclose the balance with disclose_balance (1018)"), so changing only the
+#      catalog makes the prompt contradict it — the model trusts the rule and speaks
+#      an id the catalog does not have.
+#   2. Preserve the ordering of the ids. A version that threw the order away (pure
+#      hash) made the model open the call by disclosing the balance without verifying
+#      identity — a KYC breach, 3 runs out of 3. The order is information the model
+#      is actually using.
+#   3. Accept "a beat name called as a tool". Once the numbers change, the model
+#      starts calling beats by name (convince_other), which used to fall through as
+#      unknown_tool and end the turn in silence.
+# With all three in place, spread_cache speaks the same beat as legacy on every
+# turn, 3 runs out of 3.
+FLOW_PROMPT_SCHEME = os.environ.get("AAX6_DEMO_PROMPT", "spread_cache").strip().lower()
+_PROMPT_SPREAD = FLOW_PROMPT_SCHEME in ("spread", "spread_cache")
+_PROMPT_CRM_LAST = FLOW_PROMPT_SCHEME in ("cache", "spread_cache")
+
+
+def remap_ids_in_text(text: str, mapping: dict) -> str:
+    """Replace old text_ids with their new numbers in the instruction text — rules cite
+    ids as bare numbers ("disclose the balance with disclose_balance (1018)"), so
+    scattering the catalog without fixing them makes the prompt contradict itself and
+    the model speaks an id the catalog lacks (measured: the call broke on turn 1, every
+    time).
+
+    One pass, not one id at a time, or a new number gets replaced again as another id's
+    old one. Only whole-word numbers present in the catalog match, so amounts and phone
+    numbers are untouched — and it must run before the CRM block with real values is
+    appended, which a too-broad regex once overwrote.
+    """
+    if not mapping:
+        return text
+    pat = re.compile(r"(?<![0-9])(" + "|".join(str(k) for k in sorted(mapping, reverse=True))
+                     + r")(?![0-9])")
+    return pat.sub(lambda m: str(mapping[int(m.group(1))]), text)
+
+
+def spread_text_ids(catalog: list[dict], preserve_order: bool = True) -> list[dict]:
+    """Scatter the text_ids so they cannot be guessed in sequence, while staying stable
+    (the same old id always maps to the same new number).
+
+    A pure function of the id, no randomness, so every call of one company gets the same
+    numbers and the prefix cache can be shared. Only the in-memory copy changes.
+
+    `preserve_order=True` keeps the ordering while leaving irregular gaps of 7–96.
+    Measured: a version that threw the ordering away (pure hash) made the model disclose
+    the balance without verifying identity, 3 runs of 3 — the order is information it
+    uses, not just a label.
+    """
+    if not preserve_order:
+        used: set[int] = set()
+        out = []
+        for e in catalog:
+            sid = int(e["text_id"])
+            tid = 1000 + (sid * 7919 + 104729) % 9000
+            while tid in used:
+                tid = 1000 + (tid - 1000 + 1) % 9000
+            used.add(tid)
+            out.append({**e, "text_id": tid})
+        return out
+    cur, newv = 1000, {}
+    for sid in sorted({int(e["text_id"]) for e in catalog}):
+        cur += 7 + (sid * 7919 + 104729) % 90
+        newv[sid] = cur
+    return [{**e, "text_id": newv[int(e["text_id"])]} for e in catalog]
+
+
 FLOW_MAX_TOOL_LOOPS = 8
 
 
-def _default_served_model() -> str:
-    """The model to use when the caller didn't pick one (frontend hasn't loaded the
-    picker yet, or sent ""). MUST be one actually served — a stale hardcoded name here
-    (e.g. an old checkpoint id) 404s at vLLM and the turn silently fails with no reply.
-    Prefers AAX6_FLOW_MODEL if it's actually being served; else the first served model;
-    else AAX6_FLOW_MODEL as a last resort (will surface a clear 404 upstream)."""
+def default_served_model() -> str:
+    """The model to use when the caller did not pick one (the picker had not loaded
+    when Start was clicked, or it sent "").
+
+    It MUST be one vLLM is actually serving: a name that is not served 404s and the
+    turn ends with no reply reaching the caller. So the endpoint is asked what it has,
+    and `AAX6_FLOW_MODEL` only expresses a preference among those. With nothing served
+    this returns "" and the 404 upstream says so plainly.
+    """
     served = list(_model_endpoints().keys())
-    if FLOW_MODEL in served:
+    if FLOW_MODEL and FLOW_MODEL in served:
         return FLOW_MODEL
     return served[0] if served else FLOW_MODEL
 
@@ -252,7 +285,7 @@ def load_flow_registry() -> dict[str, dict[str, str]]:
     out: dict[str, dict[str, str]] = {}
     for f in sorted(FLOW_DIR.glob("*" + TENANT_SUFFIX)):
         if f.name.startswith("_"):
-            continue                     # `_TEMPLATE.company.json` is the blank, not a tenant
+            continue                     # a file starting with `_` is not a tenant
         try:
             spec = load_tenant_spec(f)
         except (json.JSONDecodeError, OSError):
@@ -360,7 +393,6 @@ def _resolve_offset_dates(cd: dict) -> None:
         cd.pop(key, None)
 
 
-
 def _flow_spec_path(company: str, instruction_version: str | None = None) -> "Any":
     """The FlowSpec file for a company. A company is ONE file.
 
@@ -374,27 +406,20 @@ def _flow_spec_path(company: str, instruction_version: str | None = None) -> "An
     return REPO_ROOT / "data" / "flows" / load_flow_registry()[company]["spec"]
 
 
-def _read_catalog(spec: "dict | None", cat_path) -> list[dict]:
-    """Templates for a company, from wherever that company keeps them: inside the
-    spec (single-file) or in the catalog file the registry names (split)."""
-    if spec:
-        try:
-            from demo_v2.server.flow.flowspec import resolve_catalog
-            return resolve_catalog(spec)
-        except (ValueError, KeyError, OSError):
-            pass
-    if cat_path is not None and cat_path.exists():
-        return json.loads(cat_path.read_text(encoding="utf-8"))
-    return []
+def _read_catalog(spec: "dict | None") -> list[dict]:
+    """Templates of a company — they live inside its spec, one company one file.
 
-
-def _flow_paths(company: str) -> "tuple[Any, Any]":
-    """(spec path, catalog path). The catalog path is None for a single-file
-    company — its templates live inside the spec."""
-    entry = load_flow_registry()[company]
-    cat = entry.get("catalog")
-    return (REPO_ROOT / "data" / "flows" / entry["spec"],
-            (REPO_ROOT / "data" / "pre-scripts" / cat) if cat else None)
+    The case "the templates are in a separate file named by the registry" used to be
+    handled here too, but `load_flow_registry()` never put a `catalog` key into an entry,
+    so that path was never reached (and would have raised KeyError if it had been). It
+    went with the collapse of catalog shapes in `resolve_catalog`."""
+    if not spec:
+        return []
+    from demo_v2.server.flow.flowspec import resolve_catalog
+    try:
+        return resolve_catalog(spec)
+    except ValueError:
+        return []
 
 
 def flow_versions(company: str) -> "dict[str, Any]":
@@ -424,23 +449,42 @@ def flow_versions(company: str) -> "dict[str, Any]":
 
 
 def flow_instruction(company: str) -> str:
-    """The rendered system instruction for a company's flow — exactly what
-    FlowLiveSession feeds the model (render_instruction(spec) + the catalog),
-    with [placeholders] intact (filled per-call at runtime)."""
-    from demo_v2.server.flow.flowspec_render import render_instruction
-    from demo_v2.lib.prescript import build_script_catalog
+    """The rendered system instruction for a company's flow — assembled the SAME way
+    FlowLiveSession assembles it, with [placeholders] intact (filled per-call).
+
+    It has to follow AAX6_DEMO_PROMPT. When it did not, the reading pane showed the
+    CRM at section 2 and the spec's own text_ids while the model was being fed the
+    CRM last and a renumbered catalog — so anyone checking why the agent said a line
+    was reading a prompt the agent never saw."""
+    from demo_v2.server.flow.flowspec_render import render_crm_block, render_instruction
+    from demo_v2.lib.prescript import build_template_block
 
     company = (company or "").strip().upper()
     if company not in load_flow_registry():
         return ""
-    spec_path, cat_path = _flow_paths(company)
+    spec_path = _flow_spec_path(company)
     if not spec_path.exists():
         return ""
     spec = load_tenant_spec(spec_path)
-    catalog = _read_catalog(spec, cat_path)
     from demo_v2.server.flow.flowspec import normalize_catalog
-    return (render_instruction(spec) + "\n\n"
-            + build_script_catalog(normalize_catalog(catalog, spec), compact=False))
+    catalog = normalize_catalog(_read_catalog(spec), spec)
+    remap: dict = {}
+    if _PROMPT_SPREAD:
+        _before = [e["text_id"] for e in catalog]
+        catalog = spread_text_ids(catalog)
+        remap = {o: n for o, n in zip(_before, (e["text_id"] for e in catalog)) if o != n}
+    body = render_instruction(spec, crm="omit" if _PROMPT_CRM_LAST else "inline")
+    body += "\n\n" + build_template_block(catalog)
+    if remap:
+        body = remap_ids_in_text(body, remap)
+    # Voice gender is rendered into the prompt the model receives ({suffix} → the
+    # particle), so it has to be rendered here too or the two texts differ for no
+    # reason. Customer data is passed as {} to keep the [placeholder] tokens intact.
+    from demo_v2.lib.prescript import fill_template as _ft
+    out = _ft(body, {}, gender="F")
+    if _PROMPT_CRM_LAST:
+        out += "\n\n" + render_crm_block(spec)
+    return out
 
 
 def flow_prescripts(company: str, instruction_version: str | None = None) -> dict[str, Any]:
@@ -456,19 +500,9 @@ def flow_prescripts(company: str, instruction_version: str | None = None) -> dic
     if not spec_path.exists():
         return {}
     spec = load_tenant_spec(spec_path)
-    # catalog ที่ spec เวอร์ชันนั้นประกาศไว้ (v14.1 → v14_aeon_flow_catalog) — อ่านเพื่อแสดงเท่านั้น
-    # `catalog` is the inline list of templates now; it was a path to a catalog file
-    # in the older shape, and this still joined it onto REPO_ROOT — a TypeError that
-    # made /api/flow/spec and /api/flow/prescripts 500 for every company.
-    cat_path = None
-    if isinstance(spec.get("catalog"), str):
-        p_spec = REPO_ROOT / spec["catalog"]
-        if p_spec.exists(): cat_path = p_spec
-    if cat_path is None:
-        _, cat_path = _flow_paths(company)
-    catalog = _read_catalog(spec, cat_path)
+    catalog = _read_catalog(spec)
 
-    # fine_state → (state, phase) จาก spec + ลำดับของ beat ใน flow
+    # fine_state → (state, phase) from the spec, plus the beat order in the flow
     fs_state: dict[str, tuple[str, str]] = {}
     states_out: list[dict[str, Any]] = []
     for st in spec.get("states", []):
@@ -477,7 +511,8 @@ def flow_prescripts(company: str, instruction_version: str | None = None) -> dic
             fs_state.setdefault(b, (st.get("id", ""), st.get("phase", "")))
         states_out.append({"state": st.get("id", ""), "phase": st.get("phase", ""),
                            "note": st.get("note", ""), "beats": beats})
-    # faq_routing: route มี templates:[{fine_state}] — นับเป็น bound (กลุ่ม "faq")
+    # faq_routing: a route holds templates:[{fine_state}] — counts as bound, in the
+    # "faq" group
     faq_beats = []
     for r in (spec.get("faq_routing", {}) or {}).get("routes", []):
         for t in (r.get("templates") or []):
@@ -488,15 +523,21 @@ def flow_prescripts(company: str, instruction_version: str | None = None) -> dic
         states_out.append({"state": "faq", "phase": "faq",
                            "note": "คำถามแทรกจากลูกค้า — ตอบแล้วกลับเข้า flow เดิม",
                            "beats": faq_beats})
-    # auxiliary_templates (ถ้ามี) — ใช้ได้ตามบริบท ไม่ผูก state
+    # auxiliary_templates — the demo's runtime no longer reads this key, but the spec
+    # checker still counts it as a binding (so a declared beat does not raise the
+    # "referred to by nobody" warning). This view IS the checker, so it shows what the
+    # checker sees: declared, but no edge reaches it.
+    # (It used to read the key as a list when the real shape is {allowed:[…]}, which
+    # produced a phantom beat named "allowed".)
     aux_beats = []
-    for a in (spec.get("auxiliary_templates", []) or []):
+    for a in ((spec.get("auxiliary_templates") or {}).get("allowed") or []):
         fsx = a.get("fine_state") if isinstance(a, dict) else a
         if isinstance(fsx, str):
             fs_state.setdefault(fsx, ("aux", "aux")); aux_beats.append(fsx)
     if aux_beats:
         states_out.append({"state": "aux", "phase": "aux",
-                           "note": "ใช้ได้ตามบริบท (ไม่ผูก state)", "beats": aux_beats})
+                           "note": "ประกาศใน auxiliary_templates — ไม่มี state/FAQ ไหนพาไปถึง",
+                           "beats": aux_beats})
 
     entries = []
     for e in catalog:
@@ -504,11 +545,10 @@ def flow_prescripts(company: str, instruction_version: str | None = None) -> dic
         st, ph = fs_state.get(fs, ("", ""))
         entries.append({"text_id": e.get("text_id"), "fine_state": fs, "template": e.get("template", ""),
                         "state": st, "phase": ph, "bound": bool(st),
-                        "intent_name": e.get("intent_name", ""), "category": e.get("category", "")})
+                        "intent_name": e.get("intent_name", "")})
     entries.sort(key=lambda x: (not x["bound"], str(x["state"]), str(x["text_id"])))
     return {"company": company, "display_name": reg[company].get("display_name", company),
             "version": instruction_version or flow_versions(company).get("default", ""),
-            "catalog_file": cat_path.name if cat_path else "",
             "spec_file": spec_path.name, "states": states_out, "entries": entries,
             "counts": {"templates": len(entries), "bound": sum(1 for x in entries if x["bound"]),
                        "fine_states": len({x["fine_state"] for x in entries if x["fine_state"]})}}
@@ -520,15 +560,13 @@ def get_flow_spec(company: str) -> dict[str, Any]:
     company = (company or "").strip().upper()
     if company not in load_flow_registry():
         return {}
-    spec_path, cat_path = _flow_paths(company)
+    spec_path = _flow_spec_path(company)
     if not spec_path.exists():
         return {}
     spec = load_tenant_spec(spec_path)
-    # `_flow_paths` returns None for the catalog when the spec carries it inline,
-    # which is every spec now — this used to call .exists() on that None.
     fine_states: list[str] = []
     templates: dict[str, list[str]] = {}
-    cat = _read_catalog(spec, cat_path)
+    cat = _read_catalog(spec)
     fine_states = sorted({e.get("_fine_state", "") for e in cat if e.get("_fine_state")})
     for e in cat:
         fs = e.get("_fine_state")
@@ -590,9 +628,9 @@ def save_flow_spec(
     reg = load_flow_registry()
     if company not in reg:
         return {"ok": False, "errors": [f"ไม่รู้จักบริษัท {company}"]}
-    spec_path, cat_path = _flow_paths(company)
+    spec_path = _flow_spec_path(company)
     spec_now = load_tenant_spec(spec_path) if spec_path.exists() else None
-    catalog = _read_catalog(spec_now, cat_path)
+    catalog = _read_catalog(spec_now)
 
     # Templates authored/edited in the editor. A new fine_state is appended; an
     # existing one UPDATES its (first) catalog entry's text — so the editor can
@@ -614,7 +652,7 @@ def save_flow_spec(
             continue
         entry = {
             "company": company, "text_id": next_tid, "template": text,
-            "_fine_state": fs, "intent_name": fs, "category": "A",
+            "_fine_state": fs, "intent_name": fs,
             "state": fs.split("_")[0], "is_closer": False, "is_demand": False,
             "is_acknowledgment": False, "expects_response": True,
         }
@@ -624,7 +662,8 @@ def save_flow_spec(
         added += 1
 
     spec["company"] = company
-    spec.setdefault("flow_id", f"{company}-outbound-remind")
+    spec.setdefault("flow_id", company)   # the filename is the identity
+                                          # (flowspec.load_tenant_spec)
     spec.setdefault("spec_version", 2)
     _sanitize_spec(spec)  # drop dangling tool/state refs from editor edits
     from demo_v2.server.flow.flowspec import normalize_catalog
@@ -639,125 +678,25 @@ def save_flow_spec(
     errs = errs + validate_strict(spec, catalog)
     if errs:
         return {"ok": False, "errors": errs[:10]}
+    # The templates live in the same file as the spec (`catalog` is a list). This
+    # line used to write them to a separate catalog file named by the registry, which
+    # no longer exists.
     if added or updated:
-        cat_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=1), encoding="utf-8")
+        spec["catalog"] = catalog
     spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
     return {"ok": True, "company": company, "added_templates": added, "updated_templates": updated}
 
 
-# --- Flow Builder: author a new company's flow from the UI -------------------
-
-# The Builder starts a new company from a base flow. That base is DATA — a template
-# file the deployment owns and can replace — never a live company's spec. Pointing
-# this at a shipped customer's flow meant "author a new company" silently began as a
-# copy of that customer's states, tools and outcome codes, and the app had to name
-# them to do it. Both paths are overridable so a deployment with a different domain
-# supplies its own starting point.
-_FLOW_BASE_SPEC = Path(os.environ.get("AAX6_FLOW_BASE_SPEC", "")) if os.environ.get(
-    "AAX6_FLOW_BASE_SPEC") else FLOW_DIR / "_TEMPLATE.company.json"
-_FLOW_BASE_CATALOG = Path(os.environ.get("AAX6_FLOW_BASE_CATALOG", "")) if os.environ.get(
-    "AAX6_FLOW_BASE_CATALOG") else REPO_ROOT / "data" / "pre-scripts" / "v10_pre_script_database_parameterized.json"
-
-
-# Human-readable Thai label per beat (what the line does), for the Builder UI.
-BEAT_LABELS: dict[str, str] = {
-    "greet_verify": "ทักทาย + ยืนยันตัวตน",
-    "verify_name": "ยืนยันชื่อซ้ำ",
-    "third_party": "ไม่ใช่เจ้าตัวรับสาย",
-    "disclose_balance": "แจ้งยอดค้างชำระ",
-    "ask_pay_today": "ชวนชำระวันนี้",
-    "convince_lost_job": "โน้มน้าว (ตกงาน)",
-    "convince_sick": "โน้มน้าว (ป่วย)",
-    "convince_other": "โน้มน้าว (อื่นๆ)",
-    "probe_hardship": "ถามสาเหตุที่จ่ายไม่ได้",
-    "confirm_info": "สรุปข้อตกลง",
-    "close": "ปิดสาย",
-    "offer_callback": "เสนอโทรกลับ",
-    "apology": "ขอโทษ / ติดต่อไม่ได้",
-    "faq_caller": 'ตอบ "โทรจากไหน"',
-    "ai_disclosure": 'ตอบ "เป็นบอทไหม"',
-    "faq_hold": 'ตอบ "รอแป๊บ"',
-    "faq_repeat": 'ตอบ "พูดอีกที"',
-    "handoff_refuse": 'ตอบ "ขอคุยคนจริง"',
-    "faq_scam": 'ตอบ "มิจฉาชีพรึเปล่า"',
-    "faq_annoyed": 'ตอบ "รำคาญ / อย่าโทรมา"',
-    "offer_channel_only": 'ตอบ "จ่ายที่ไหน / ยังไง"',
-    "offer_channel": "เสนอช่องทางชำระ",
-    "faq_amount": 'ตอบ "ยอดเท่าไหร่"',
-    "faq_due": 'ตอบ "จ่ายเมื่อไหร่"',
-    "faq_wrong_name": "เรียกชื่อผิด",
-    "faq_mourning": "เจ้าของชื่อเสียชีวิต",
-    "faq_faq_referral": "นอกขอบเขต → ให้เบอร์บริษัท",
-    "other": "รับทราบกลางๆ (fallback)",
-}
-BEAT_REQUIRED = {"greet_verify"}
-
-
-def _base_flow_bindings() -> "tuple[dict, list[str], dict, dict]":
-    """(base_spec, ordered fine_states, {fs: hint}, {fs: phase}) from the base flow.
-    phase ∈ {opening, main, close, faq, aux}."""
-    spec = load_tenant_spec(_FLOW_BASE_SPEC)
-    hint: dict[str, str] = {}
-    phase: dict[str, str] = {}
-    order: list[str] = []
-
-    def add(fs: str, h: str, ph: str) -> None:
-        if fs and fs not in hint:
-            hint[fs] = h
-            phase[fs] = ph
-            order.append(fs)
-
-    for st in spec["states"]:
-        for t in st.get("templates", []):
-            add(t["fine_state"], f"state:{st['id']}", st.get("phase", "main"))
-    for r in spec.get("faq_routing", {}).get("routes", []):
-        for t in r.get("templates", []):
-            add(t["fine_state"], f"faq:{r.get('intent')} — {r.get('desc','')}", "faq")
-    for t in spec.get("auxiliary_templates", {}).get("allowed", []):
-        add(t["fine_state"], "auxiliary (ตามบริบท)", "aux")
-    return spec, order, hint, phase
-
-
-def flow_beats() -> list[dict[str, Any]]:
-    """Base-flow beats for the Builder: fine_state + phase + Thai label + hint + example."""
-    _, order, hint, phase = _base_flow_bindings()
-    cat = json.loads(_FLOW_BASE_CATALOG.read_text(encoding="utf-8"))
-    ex: dict[str, str] = {}
-    for e in cat:
-        ex.setdefault(e.get("_fine_state", ""), e.get("template", ""))
-    return [{
-        "fine_state": fs,
-        "phase": phase[fs],
-        "label": BEAT_LABELS.get(fs, fs),
-        "required": fs in BEAT_REQUIRED,
-        "hint": hint[fs],
-        "example": ex.get(fs, ""),
-    } for fs in order]
-
-
-def _strip_unbound(spec: dict, keep: set[str]) -> None:
-    """Drop template bindings whose fine_state isn't in `keep` (so the spec stays
-    valid when the author leaves some beats blank)."""
-    for st in spec["states"]:
-        st["templates"] = [t for t in st.get("templates", []) if t.get("fine_state") in keep]
-    for r in spec.get("faq_routing", {}).get("routes", []):
-        r["templates"] = [t for t in r.get("templates", []) if t.get("fine_state") in keep]
-    aux = spec.get("auxiliary_templates", {})
-    if "allowed" in aux:
-        aux["allowed"] = [t for t in aux["allowed"] if t.get("fine_state") in keep]
-
+# --- creating a company from the JSON a user uploads --------------------------
 
 def _demo_persona(company: str, display_name: str, agent_name: str) -> dict[str, Any]:
     """The playground's stand-in caller for a company that has just been uploaded.
 
-    It carries no CRM row. It used to invent one — a 30,000-baht loan, a minimum
-    payment, an overdue status, and a prompt telling the simulated customer it was
-    "รับสายจากเจ้าหน้าที่ติดตามหนี้" — so a clinic that uploaded an appointment flow got
-    a patient in debt collection, and every template that speaks a real field read a
-    number this file made up. Whatever the caller's account holds is the tenant's to
-    say: the spec's `session_init` fetches it, and `crm_fields` decides what the model
-    is allowed to see. What stays here is only what identifies the request
-    (`msisdn`) and the two names the instruction renders.
+    It carries no CRM row. It used to invent one — a 30,000-baht loan, a minimum payment,
+    an overdue status — so a clinic uploading an appointment flow got a patient in debt
+    collection. What the account holds is the tenant's to say (`session_init` fetches it,
+    `crm_fields` decides what the model may see); what stays here is only what identifies
+    the request and the two names the instruction renders.
     """
     return {
         "id": f"TC-{company}-BUILD-001",
@@ -776,95 +715,28 @@ def _demo_persona(company: str, display_name: str, agent_name: str) -> dict[str,
     }
 
 
-def create_flow_company(
-    company: str, display_name: str, agent_name: str, templates: dict[str, str],
-    custom: list[dict] | None = None,
-) -> dict[str, Any]:
-    """Author a new flow company from Builder input. Writes catalog + spec, appends
-    the registry + a demo persona. `custom` = [{fine_state, phase, template}] extra
-    beats the author added; each is written to the catalog AND bound into a state
-    of its phase. Returns {ok, case_id} or {ok:False, errors:[...]}."""
-    from demo_v2.server.flow.flowspec import (normalize_catalog, validate_flow_spec,
-                                           validate_strict)
+def _register_demo_persona(company: str, display_name: str, agent_name: str,
+                           spec: dict, catalog: list[dict],
+                           crm: dict | None = None) -> dict[str, Any]:
+    """Write the new company's demo caller, then report what its sentences cannot fill.
 
-    company = (company or "").strip().upper()
-    display_name = (display_name or "").strip()
-    agent_name = (agent_name or "").strip() or display_name
-    if not re.fullmatch(r"[A-Z][A-Z0-9]{1,11}", company):
-        return {"ok": False, "errors": ["company code ต้องเป็น A-Z/0-9 (ขึ้นต้นด้วยตัวอักษร) 2–12 ตัว"]}
-    if company in load_flow_registry():
-        return {"ok": False, "errors": [f"บริษัท {company} มีอยู่แล้ว"]}
-    if not display_name:
-        return {"ok": False, "errors": ["ต้องระบุชื่อบริษัท (display name)"]}
+    Both create paths ended with this block, byte for byte, so a fix to either the
+    persona or the audit had to be made twice and once was not.
 
-    # keep only beats the author filled in
-    filled = {fs: t.strip() for fs, t in (templates or {}).items() if t and t.strip()}
-    if "greet_verify" not in filled:
-        return {"ok": False, "errors": ["ต้องมีอย่างน้อย greet_verify (ประโยคเปิดสาย)"]}
-
-    _, order, _, _ = _base_flow_bindings()
-    catalog, tid = [], 1000
-    for fs in order:
-        if fs in filled:
-            catalog.append({
-                "company": company, "text_id": tid, "template": filled[fs],
-                "_fine_state": fs, "intent_name": fs, "category": "A",
-                "state": fs.split("_")[0], "is_closer": False, "is_demand": False,
-                "is_acknowledgment": False, "expects_response": True,
-            })
-            tid += 1
-
-    # Custom beats: add to catalog + remember for binding into the spec below.
-    seen_fs = {e["_fine_state"] for e in catalog}
-    to_bind: list[tuple[str, str]] = []  # (fine_state, phase)
-    for c in (custom or []):
-        fs = (c.get("fine_state") or "").strip()
-        text = (c.get("template") or "").strip()
-        phase = (c.get("phase") or "main").strip()
-        if not re.fullmatch(r"[a-z][a-z0-9_]*", fs) or not text or fs in seen_fs:
-            continue
-        catalog.append({
-            "company": company, "text_id": tid, "template": text,
-            "_fine_state": fs, "intent_name": fs, "category": "A",
-            "state": fs.split("_")[0], "is_closer": False, "is_demand": False,
-            "is_acknowledgment": False, "expects_response": True,
-        })
-        seen_fs.add(fs)
-        tid += 1
-        to_bind.append((fs, phase))
-
-    spec = load_tenant_spec(_FLOW_BASE_SPEC)
-    spec["company"] = company
-    # keep the base's own flow kind (…-outbound-remind, …-outbound-appointment) so a
-    # replaced base does not still label everything a reminder call
-    kind = "-".join(str(spec.get("flow_id", "flow")).split("-")[1:]) or "flow"
-    spec["flow_id"] = f"{company}-{kind}"
-    spec["description"] = f"Flow Builder — {display_name} {kind} (from {_FLOW_BASE_SPEC.name})."
-    keep = set(filled) | {fs for fs, _ in to_bind}
-    _strip_unbound(spec, keep)
-    # Bind each custom beat into the first state of its phase (fallback: first state).
-    for fs, phase in to_bind:
-        st = next((s for s in spec["states"] if s.get("phase") == phase), None) or spec["states"][0]
-        st.setdefault("templates", []).append({"fine_state": fs})
-
-    # Freeze the derived fields AT CREATION and store those. The author may omit
-    # text_id; assigning it once here means the ids never move again, instead of
-    # being recomputed on every load where a later edit could shift them.
-    catalog = normalize_catalog(catalog, spec)
-    errs, _ = validate_flow_spec(spec, catalog)
-    # The key-level lock runs on the same call: a spec that validates structurally
-    # but carries a retired or misspelled key is rejected HERE, at the moment it
-    # would be written, rather than being accepted and doing nothing at runtime.
-    errs = errs + validate_strict(spec, catalog)
-    if errs:
-        return {"ok": False, "errors": errs[:8]}
-
-    # ONE file, the same one the JSON-editor path writes. The Builder used to emit a
-    # spec plus a separate catalog plus an index entry — three artifacts that could
-    # disagree, and two of them the tenant never saw.
-    _write_tenant(company, spec, catalog, display_name)
-
+    `crm` is the author's own CRM row (raw-upload only). `_demo_persona` deliberately
+    carries none — inventing a customer's numbers is how a clinic's flow once opened by
+    quoting a 30,000-baht loan — so this is the one way to give the demo a caller with
+    data, short of pointing `session_init` at a real API.
+    """
     persona = _demo_persona(company, display_name, agent_name)
+    if isinstance(crm, dict):
+        # Keys the persona owns (msisdn, the two rendered names) stay unless named here.
+        # `_`-prefixed keys are the template's own notes to the author (`_hint`),
+        # not fields — merging one would put it in the CRM snapshot the model reads.
+        persona["customer_data"] = {
+            **persona["customer_data"],
+            **{k: v for k, v in crm.items()
+               if not k.startswith("_") and v not in ("", None)}}
     existing = []
     if BUILDER_CASES_FILE.exists():
         try:
@@ -872,20 +744,48 @@ def create_flow_company(
         except (json.JSONDecodeError, OSError):
             existing = []
     existing = [c for c in existing if c.get("id") != persona["id"]] + [persona]
-    BUILDER_CASES_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=1), encoding="utf-8")
+    BUILDER_CASES_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=1) + "\n",
+                                  encoding="utf-8")
 
-    return {"ok": True, "company": company, "case_id": persona["id"], "beats": len(catalog)}
+    # Say, at authoring time, which tokens nothing can fill. The session already
+    # audits this and logs a warning, but by then the company exists and the author
+    # is gone: a template that names a CRM field this company has no `session_init`
+    # for is spoken with the bracket still in it. Naming them in the create response
+    # is the only moment the person who wrote the template is still looking.
+    from demo_v2.server.flow import session_init as _si
+    # Audit what a session will actually hold: `<field>_offset_days` becomes `<field>`
+    # at session start, so auditing the row as written would report every date field
+    # as a leak and send the author chasing one that never happens.
+    audit_ctx = dict(persona.get("customer_data") or {})
+    _resolve_offset_dates(audit_ctx)
+    if (spec.get("session_init") or {}).get("url"):
+        # A declared `session_init` answers for the fields the tenant promises; nothing
+        # here can read that API, so those names are not this app's to call unfillable.
+        # The session audits the real response at call time and logs what is missing.
+        audit_ctx.update({f: "" for f in (spec.get("crm_fields") or [])})
+    leaks = _si.audit_placeholders([e.get("template", "") for e in catalog], audit_ctx)
+    out = {"ok": True, "company": company, "case_id": persona["id"], "beats": len(catalog)}
+    if leaks:
+        out["unfillable_placeholders"] = leaks
+        out["warning"] = ("ประโยคอ้างถึงข้อมูลที่บริษัทนี้ยังไม่มี — จะถูกพูดออกไปทั้งวงเล็บ: "
+                          + ", ".join(f"[{x}]" for x in leaks))
+    return out
 
 
 def create_flow_company_raw(
     spec: dict, catalog: list[dict],
-    display_name: str = "", agent_name: str = "",
+    display_name: str = "", agent_name: str = "", crm: dict | None = None,
 ) -> dict[str, Any]:
     """Author a new flow company from a RAW FlowSpec + catalog JSON — the JSON-editor
     path (no AEON clone, no prefill). The company code is read from ``spec['company']``.
     Validates via ``validate_flow_spec`` and, only when it passes, writes the spec +
     catalog, appends the registry, and writes a demo persona. Returns {ok, company,
-    case_id, beats} or {ok:False, errors:[...]}."""
+    case_id, beats} or {ok:False, errors:[...]}.
+
+    ``crm`` is the author's CRM row for the demo caller — the in-app way to give a new
+    company data to speak without standing up its API first. Dates go in it as
+    ``<field>_offset_days`` so the row cannot go stale.
+    """
     from demo_v2.server.flow.flowspec import (normalize_catalog, validate_flow_spec,
                                            validate_strict)
 
@@ -909,7 +809,7 @@ def create_flow_company_raw(
 
     # keep the spec's own company/flow_id consistent with the code
     spec["company"] = company
-    flow_id = str(spec.get("flow_id") or f"{company}-outbound-remind")
+    flow_id = str(spec.get("flow_id") or company)
     spec["flow_id"] = flow_id
 
     # Freeze the derived fields AT CREATION and store those. The author may omit
@@ -934,17 +834,7 @@ def create_flow_company_raw(
     # read the same way.
     _write_tenant(company, spec, catalog, display_name)
 
-    persona = _demo_persona(company, display_name, agent_name)
-    existing = []
-    if BUILDER_CASES_FILE.exists():
-        try:
-            existing = json.loads(BUILDER_CASES_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            existing = []
-    existing = [c for c in existing if c.get("id") != persona["id"]] + [persona]
-    BUILDER_CASES_FILE.write_text(json.dumps(existing, ensure_ascii=False, indent=1), encoding="utf-8")
-
-    return {"ok": True, "company": company, "case_id": persona["id"], "beats": len(catalog)}
+    return _register_demo_persona(company, display_name, agent_name, spec, catalog, crm)
 
 
 def _flow_reply_schema(valid_text_ids: list[int]) -> dict:
@@ -984,15 +874,277 @@ _TOOLCALL_JSON_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOT
 _TOOLCALL_TAG_RE = re.compile(r"</?tool_call>")
 
 
+def _repair_tool_json(raw: str) -> dict | None:
+    """Repair a tool_call whose JSON the model wrote badly — returns a dict, or None if
+    it cannot be repaired.
+
+    Four failure modes measured on the gold/silver sets (2026-09-05). Each one lost the
+    whole turn: the parser discarded the call and the system answered "no text_ids given",
+    which was untrue, so a model at temperature 0 resent the same thing until the quota
+    ran out.
+      · unbalanced braces        {"text_ids": [1], "dynamic_vars": [5400]}
+      · bare identifier in array "dynamic_vars": [available_dates_text]
+      · cut off mid-string       (hit max_tokens: no } and no closing tag)
+      · nested quotes            a reason copied from rule text that contains "..."
+    Nothing here is tied to a domain or a company — it is pure JSON syntax repair."""
+    s = (raw or "").strip()
+    if not s:
+        return None
+    # 1) escape a `"` that sits inside a string body (what follows is not , : } ],
+    #    so the string has not closed)
+    out, in_str, esc, n = [], False, False, len(s)
+    for i, ch in enumerate(s):
+        if esc:
+            out.append(ch); esc = False; continue
+        if ch == "\\":
+            out.append(ch); esc = in_str; continue
+        if ch == '"':
+            if not in_str:
+                in_str = True; out.append(ch)
+            else:
+                j = i + 1
+                while j < n and s[j] in " \t\n":
+                    j += 1
+                if j >= n or s[j] in ',:}]':
+                    in_str = False; out.append(ch)
+                else:
+                    out.append('\\"')
+            continue
+        out.append(ch)
+    s = "".join(out)
+    # 2) quote a bare identifier standing in an array's value position
+    def _q(m):
+        w = m.group(2)
+        return m.group(0) if w in ("true", "false", "null") else m.group(1) + '"' + w + '"' + m.group(3)
+    s = re.sub(r"([\[,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*[\],])", _q, s)
+    # 3) close whatever strings and brackets are still open, per the real stack
+    stack, in_str, esc = [], False, False
+    for ch in s:
+        if esc:
+            esc = False
+        elif ch == "\\":
+            esc = in_str
+        elif ch == '"':
+            in_str = not in_str
+        elif not in_str:
+            if ch in "{[":
+                stack.append("}" if ch == "{" else "]")
+            elif ch in "}]" and stack:
+                stack.pop()
+    if in_str:
+        s += '"'
+    try:
+        d = json.loads(s + "".join(reversed(stack)))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(d, dict):
+        return None
+    # A placeholder NAME that arrived as a "value" in dynamic_vars is not something
+    # anyone said — drop it and let the template fall back, rather than reading a
+    # variable name out loud.
+    args = d.get("arguments")
+    if isinstance(args, dict) and isinstance(args.get("dynamic_vars"), list):
+        args["dynamic_vars"] = [v for v in args["dynamic_vars"]
+                                if not (isinstance(v, str) and re.fullmatch(r"[a-z_][a-z0-9_]*", v))]
+    return d
+
+
+def _verify_gate(spec: dict) -> tuple[set, dict]:
+    """(beats that need verification before they can be spoken, the unlock) — read
+    entirely from what the spec declares.
+
+    The spec says two things and the code knows nothing about any domain:
+      · a state or FAQ route with `verify_required: true` → its beats are the sensitive
+        ones
+      · a tool with `provides: "verified"` is the unlock, together with `verified_when`
+        describing how to read the API's answer ({"field": ..., "equals": ...} or
+        {"any_success": true})
+    If the spec asks for verification but no tool can unlock it, this returns "no gate" —
+    otherwise the call would be blocked forever (AEONLITE declares verify_required while
+    its only tool is the closer)."""
+    def walk(node, acc):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "fine_state" and isinstance(v, str):
+                    acc.add(v)
+                elif k == "any_of" and isinstance(v, list):
+                    acc.update(x for x in v if isinstance(x, str))
+                else:
+                    walk(v, acc)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x, acc)
+    need = set()
+    for st in (spec.get("states") or []):
+        if st.get("verify_required"):
+            walk(st.get("templates"), need)
+            walk(st.get("chain"), need)
+    for r in ((spec.get("faq_routing") or {}).get("routes") or []):
+        if r.get("verify_required"):
+            walk(r.get("templates"), need)
+    unlock = {d["name"]: (d.get("verified_when") or {"any_success": True})
+              for d in ((spec.get("tools") or {}).get("declarations") or [])
+              if d.get("provides") == "verified"}
+    return (need, unlock) if (need and unlock) else (set(), {})
+
+
+def _is_verified(unlock: dict, call_log: list) -> bool:
+    """Has the customer been verified? Decided from the API's answer, read the way the
+    spec says to read it.
+
+    Nothing is inferred from what was said or from an event label (a real call has none),
+    and nothing is tied to a particular tool or field name."""
+    for rec in call_log or []:
+        rule = unlock.get(rec.get("tool"))
+        if rule is None:
+            continue
+        res = rec.get("result")
+        if not isinstance(res, dict) or res.get("error"):
+            continue
+        if rule.get("any_success"):
+            return True
+        field, want = rule.get("field"), rule.get("equals")
+        val = res.get(field) if field else None
+        if val is None and isinstance(res.get("data"), dict):
+            val = res["data"].get(field)
+        if val is None:
+            continue
+        if isinstance(want, bool):
+            if str(val).strip().lower() in ("true", "1", "yes") if not isinstance(val, bool) else val:
+                return bool(want)
+        elif str(val).strip() == str(want).strip():
+            return True
+    return False
+
+
+def _beat_states(spec: dict) -> dict:
+    """beat → the states that declare it (chain and any_of included) — used to track how
+    far along the app is."""
+    out: dict = {}
+    def walk(node, acc):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "fine_state" and isinstance(v, str):
+                    acc.add(v)
+                elif k == "any_of" and isinstance(v, list):
+                    acc.update(x for x in v if isinstance(x, str))
+                else:
+                    walk(v, acc)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x, acc)
+    for st in spec.get("states") or []:
+        acc = set()
+        walk(st.get("templates"), acc)
+        walk(st.get("chain"), acc)
+        for b in acc:
+            out.setdefault(b, set()).add(st["id"])
+    return out
+
+
+def _resume_beats(spec: dict) -> set:
+    """Beats speakable from anywhere: a FAQ that answers and returns to the flow.
+
+    `auxiliary_templates` used to be counted here as well. It is not any more: that key is
+    not tied to any edge, so it cannot say whether a beat is reachable from the current
+    state. The spec checker still reads it (counting it as a binding); the demo's runtime
+    does not."""
+    out = set()
+    for r in ((spec.get("faq_routing") or {}).get("routes") or []):
+        for t in (r.get("templates") or []):
+            if isinstance(t, dict):
+                if t.get("fine_state"):
+                    out.add(t["fine_state"])
+                out.update(x for x in (t.get("any_of") or []) if isinstance(x, str))
+    return out
+
+
+def _off_flow_beats(spec: dict, cur_states: set, beats: set) -> list:
+    """Beats unreachable from the state the app is standing in, by the edges the spec
+    declares itself.
+
+    The app knows where it is from the beat it just spoke — no event label on the customer
+    is needed (a real call has none). Measured over 581 silver calls: what it caught was a
+    genuine jump across the flow every time, e.g. closing as refused before payment was
+    ever asked for, or referring without ever stating the minimum."""
+    if not cur_states:
+        return []
+    b2s = _beat_states(spec)
+    by_id = {st["id"]: st for st in (spec.get("states") or [])}
+    allowed = set(cur_states)
+    for sid in cur_states:
+        for e in (by_id.get(sid, {}).get("on") or []):
+            if e.get("to"):
+                allowed.add(e["to"])
+    resume = _resume_beats(spec)
+    return [b for b in sorted(beats)
+            if b not in resume and b in b2s and not (b2s[b] & allowed)]
+
+
+def _closing_beats(spec: dict, result: str | None = None) -> set:
+    """The correct closing templates once a result is recorded — narrowed to the result
+    the model sent itself.
+
+    Covers both terminal states and FAQ routes that end the call (those declaring
+    then.outcome). With no result matching what was declared, it falls back to "every
+    closing beat".
+
+    Comparison goes through `outcome_result`, because the argument that carries the result
+    belongs to each tool (`result` for collections, `status` for appointments) and is not a
+    fixed name."""
+    from demo_v2.server.flow.flowspec import outcome_result as _outcome_result
+    def walk(node, acc):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "fine_state" and isinstance(v, str):
+                    acc.add(v)
+                elif k == "any_of" and isinstance(v, list):
+                    acc.update(x for x in v if isinstance(x, str))
+                else:
+                    walk(v, acc)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x, acc)
+    exact, allt = set(), set()
+    for st in (spec.get("states") or []):
+        if not st.get("terminal"):
+            continue
+        b = set()
+        walk(st.get("templates"), b)
+        walk(st.get("chain"), b)
+        allt |= b
+        if result and _outcome_result(spec, st.get("outcome")) == result:
+            exact |= b
+    for r in ((spec.get("faq_routing") or {}).get("routes") or []):
+        then = r.get("then")
+        if not isinstance(then, dict) or not then.get("outcome"):
+            continue
+        b = set()
+        walk(r.get("templates"), b)
+        allt |= b
+        if result and _outcome_result(spec, then.get("outcome")) == result:
+            exact |= b
+    return exact or allt
+
+
 def _recover_toolcalls(content: str) -> list[dict]:
     """Some adapters emit tool calls as literal <tool_call>{...}</tool_call> text
     that vLLM's parser misses. Recover them into the OpenAI tool_calls shape."""
     out = []
-    for m in _TOOLCALL_JSON_RE.finditer(content or ""):
+    blocks = [m.group(1) for m in _TOOLCALL_JSON_RE.finditer(content or "")]
+    if not blocks and "<tool_call>" in (content or ""):
+        # A call cut off mid-flight: no trailing }, no closing tag, so
+        # _TOOLCALL_JSON_RE cannot match it at all
+        m = re.search(r"<tool_call>\s*(\{.*?)(?:</tool_call>|$)", content, re.S)
+        if m:
+            blocks = [m.group(1)]
+    for block in blocks:
         try:
-            obj = json.loads(m.group(1))
+            obj = json.loads(block)
         except json.JSONDecodeError:
-            continue
+            obj = _repair_tool_json(block)
+            if obj is None:
+                continue
         name = obj.get("name")
         args = obj.get("arguments", obj.get("parameters", {}))
         if name:
@@ -1016,14 +1168,9 @@ def _flow_vllm_chat(base_url: str, payload: dict, timeout: int = 180) -> dict:
         model has nothing useful to say, and the caller surfaces that.
 
     """
-    # Thinking OFF, explicitly. The chat template turns it ON whenever
-    # `enable_thinking` is undefined, so saying nothing was not "the default" —
-    # it was a choice nobody made. The eval harness has always sent False, and the
-    # model was trained that way, so serving with it on was an eval/serve split.
-    # Measured with it on: the model spends ~2x the tokens, duplicates beats,
-    # closed a postpone request as a PTP and then looped `callback_datetime` seven
-    # times. It also writes its reasoning into `content`, and a turn that returns
-    # content without a tool call is spoken to the customer verbatim.
+    # Thinking OFF explicitly: the chat template turns it ON when `enable_thinking`
+    # is undefined, so silence was never 'the default'. Measured with it on: ~2x the
+    # tokens, duplicated beats, and the eval harness has always sent False.
     payload = {**payload, "chat_template_kwargs":
                {**(payload.get("chat_template_kwargs") or {}), "enable_thinking": False}}
     req = urllib.request.Request(
@@ -1057,7 +1204,7 @@ class FlowLiveSession:
         from demo_v2.server.flow.flowspec import build_tool_schemas
         from demo_v2.server.flow.flowspec_render import render_instruction
         from demo_v2.server.flow.spec_backend import SpecBackend
-        from demo_v2.lib.prescript import DateFormatError, build_script_catalog, fill_template
+        from demo_v2.lib.prescript import DateFormatError, build_template_block, fill_template
         from demo_v2.lib import datetime_utils
 
         self.session_id = uuid.uuid4().hex[:12]
@@ -1083,47 +1230,35 @@ class FlowLiveSession:
         _resolve_offset_dates(cd)      # <field>_offset_days → live date
         self.customer_data = cd
 
-        entry = load_flow_registry()[self._company]
         spec_path = _flow_spec_path(self._company, self._instruction_version)
         self._spec = load_tenant_spec(spec_path)
         # A catalog only has to declare _fine_state + template; text_id, company,
-        # state, intent_name and category are derived from the spec that binds it.
-        # `resolve_catalog` takes the templates from the spec itself when it carries
-        # `catalog_inline` (one company = one file), and from the named file
-        # otherwise — the same two layouts the training repo reads.
+        # state and intent_name are derived from the spec that binds it.
         from demo_v2.server.flow.flowspec import normalize_catalog, resolve_catalog
-        try:
-            raw_catalog = resolve_catalog(self._spec)
-        except (ValueError, KeyError, OSError):
-            # spec names no catalog of its own → the registry entry does
-            raw_catalog = json.loads(
-                (REPO_ROOT / "data" / "pre-scripts" / entry["catalog"]).read_text(
-                    encoding="utf-8"))
-        self._catalog = normalize_catalog(raw_catalog, self._spec)
+        self._catalog = normalize_catalog(resolve_catalog(self._spec), self._spec)
+        self._id_remap: dict = {}
+        if _PROMPT_SPREAD:
+            _before = [e["text_id"] for e in self._catalog]
+            self._catalog = spread_text_ids(self._catalog)
+            self._id_remap = {o: n for o, n in zip(_before, (e["text_id"] for e in self._catalog))
+                              if o != n}
         self._by_id = {e["text_id"]: e for e in self._catalog}
 
         # --- spec-declared session-init API -----------------------------------
-        # A production deployment knows the caller through its own CRM, not through
-        # a persona shipped in this repo. If the spec declares `session_init`, that
-        # one call runs HERE (before turn 1) and its response becomes the render
-        # context, so every template is ready by the time the agent speaks. The
-        # repo persona stays as the seed: it supplies the request's own tokens
-        # ({msisdn}/{case_ref}) and remains the fallback if the CRM is unreachable
-        # — a live call must not die on someone else's timeout.
+        # If the spec declares `session_init`, that call runs HERE (before turn 1) and
+        # its response becomes the render context. The repo persona stays as the seed:
+        # it supplies the request's own tokens ({msisdn}/{case_ref}).
         from demo_v2.server.flow import session_init
         from demo_v2.lib import prescript as _prescript
 
         self.init_result = session_init.fetch_context(self._spec, seed=self.customer_data)
         if self.init_result["data"]:
             self.customer_data.update(self.init_result["data"])
-        # A declared session_init that did not answer leaves the seed in place, and the
-        # seed is a fixture in this repo. Speaking it means telling a real caller a
-        # balance this deployment made up — measured: with the API down the agent still
-        # said 45,000/4,500, the numbers in `_builder_personas.json`. So the call does
-        # not proceed on stale context. What it says instead is the tenant's to choose:
-        # `session_init.on_failure` names the beat and, optionally, the result to record.
-        # A spec that declares session_init without on_failure gets no sentence invented
-        # for it — the session refuses to open and the caller is told why.
+        # A session_init that did not answer leaves the seed in place, and the seed is a
+        # fixture — measured: with the API down the agent still read out 45,000/4,500
+        # from `_builder_personas.json`. So the call does not proceed on stale context;
+        # `session_init.on_failure` names what to say instead, and a spec without it
+        # gets no sentence invented for it (the session refuses to open).
         self.init_failed = bool(self.init_result["declared"]) and not self.init_result["ok"]
         self.init_on_failure = ((self._spec.get("session_init") or {}).get("on_failure")
                                 if self.init_failed else None)
@@ -1147,37 +1282,36 @@ class FlowLiveSession:
                 self._company, len(self.unresolved_placeholders),
                 self.unresolved_placeholders)
 
-        # --- flow-company text_id remap guard (memorizer models only) ---
-        # A builder-created company renumbers its catalog (1000+). A *memorizer*
-        # model (sft_v11/sft_v2_2, trained on AEON's FIXED ids) only speaks the
-        # canonical AEON text_id vocabulary, so a raw lookup on a builder company
-        # collides (its 1018=disclose_balance resolves to the local 1018=
-        # handoff_refuse) and it speaks the wrong line. Remap through the stable
-        # fine_state namespace: canonical id → fine_state → local entry, dropping
-        # any canonical id whose fine_state the company lacks.
-        #
-        # The flow-interpreter models (sft_flow_*) are trained on per-flow RANDOM
-        # ids + a shuffled in-prompt catalog (prepare_flow_data), so they READ the
-        # catalog and already emit this company's own ids — remapping their output
-        # through AEON would corrupt it. Guard OFF for them: direct lookup.
-        self._canon_id_to_fs: dict[int, str] = {}
-        self._fs_to_local: dict[str, dict] = {}
-        # A model that reads the catalog printed in its own prompt answers with THIS
-        # company's ids, so nothing needs translating. The removed branch existed for
-        # one retired lineage (sft_v11 / sft_v2_2) that had memorized a single
-        # company's fixed numbering, and it worked by loading that company's catalog
-        # by name from inside this app. Serving such a model again is a data problem
-        # — publish its numbering as that company's catalog — not a reason for the
-        # app to know a company exists.
-
-        system = self._fill_template(render_instruction(self._spec), cd, gender=self.voice_gender)
+        _crm_mode = "omit" if _PROMPT_CRM_LAST else "inline"
+        _instr = render_instruction(self._spec, crm=_crm_mode)
+        # Values stay as [placeholder] here and are read from the CRM block at the end
+        # instead: rules cite customer values too, so substituting them made the prompt
+        # diverge mid-instruction. Mamba's align-mode prefix cache is all-or-nothing
+        # (the tail must be under one ~528-token block), so the hit rate was 0% with
+        # 43% of the text shared.
+        _body = _instr
         # Full text, not the compact listing. Compact prints only the id and the
         # beat name, so N wordings of one beat arrive as N lines that differ by
         # a number and nothing else — the model is asked to pick a variant it
         # cannot see. (AEON's `verify_name` has 7; `ask_pay_today` has 9.) The
         # training prompt shows every template in full, so this is also what the
         # model was trained to read.
-        system += "\n\n" + build_script_catalog(self._catalog, compact=False)
+        _body += "\n\n" + build_template_block(self._catalog)
+        # Ids are cited as numbers both in the rules ("disclose the balance with
+        # disclose_balance (1018)") and in each template's hint ("interchangeable with
+        # 8520"), so the remap runs once over the whole text, not just the instruction
+        # body. It has to happen BEFORE the CRM block with real values is appended, or
+        # it would overwrite the customer's own numbers.
+        if self._id_remap:
+            _body = remap_ids_in_text(_body, self._id_remap)
+        system = self._fill_template(_body, {} if _PROMPT_CRM_LAST else cd,
+                                     gender=self.voice_gender)
+        if _crm_mode == "omit":
+            # The CRM block goes after the templates — everything above this line is
+            # identical for every call of this company
+            from demo_v2.server.flow.flowspec_render import render_crm_block
+            system += "\n\n" + self._fill_template(render_crm_block(self._spec), cd,
+                                                   gender=self.voice_gender)
         self._system = system
         self._tools = build_tool_schemas(self._spec) + [
             _flow_reply_schema([e["text_id"] for e in self._catalog])
@@ -1197,17 +1331,13 @@ class FlowLiveSession:
                     self._fine_state_requires[fs] = et
         # chain obligation: fine_state -> ordered required steps (each a set of
         # acceptable beats) of the chain state it belongs to. The instruction now
-        # tells the model "พูดต่อกันในเทิร์นเดียว (chain) ตามลำดับ" for these states; a
-        # reply that voices only part of the chain is the #1 failure the gold eval
-        # sees (KBANK: `close` alone where `confirm_info → close` was ordered), so the
-        # app holds such a reply back and asks for the full chain — the same way it
-        # already holds back a reply whose entry_tools were skipped.
+        # A part-spoken chain is the #1 failure the gold eval sees (KBANK: `close`
+        # alone where `confirm_info → close` was ordered), so the app holds such a
+        # reply back and asks for the whole chain.
         from demo_v2.server.flow.flowspec import is_chain_state as _is_chain
-        # A beat can belong to SEVERAL chain states (`close` is in both
-        # `confirm_info → close` and `close → apology`), so keep every candidate
-        # chain per beat; the gate then judges the reply against the chain it fits
-        # best. A single-owner map silently overwrote `close` with the last state
-        # and demanded `apology` on a PTP close.
+        # A beat can belong to SEVERAL chain states, so keep every candidate chain per
+        # beat and let the gate pick the one the reply fits. A single-owner map
+        # overwrote `close` with the last state and demanded `apology` on a PTP close.
         # A beat that ALSO stands alone in some non-chain state cannot be used to
         # demand a chain: the same beat means "this state's whole turn" there. AEON's
         # `close` is both the entire reply of `ptp_capture` and the first step of
@@ -1260,12 +1390,19 @@ class FlowLiveSession:
             for b in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or [])
         }
         self._step_nudges = 0   # per-session cap on self-correction retries (avoid loop burn)
+        # Where the app is in the flow — tracked from the beats it spoke itself, not
+        # from a label put on the customer
+        _init = next((st["id"] for st in (self._spec.get("states") or []) if st.get("initial")), None)
+        self._cur_states = {_init} if _init else set()
+        self._verify_need, self._verify_unlock = _verify_gate(self._spec)
+        self._recorded_result: str | None = None   # the result the model has already
+                                                   # recorded, if any
 
         # the actual model for API calls — MUST resolve to something served, or every
-        # turn 404s at vLLM with no reply reaching the caller (see _default_served_model).
-        self._model = self._model_override or _default_served_model()
+        # turn 404s at vLLM with no reply reaching the caller (see default_served_model).
+        self._model = self._model_override or default_served_model()
         # multi-instance aware: route to the endpoint actually serving this model
-        # (grpo540→:8000, grpo400→:8002); falls back to the default endpoint.
+        # (one checkpoint per port); falls back to the default endpoint.
         self._base_url = endpoint_for_model(self._model)
         self._turn_count = 0
         self.done = False
@@ -1281,13 +1418,16 @@ class FlowLiveSession:
             "kind": "warning",
             "text": f"session_init ไม่ตอบ ({self.init_result.get('error')}) — ปิดสายตามที่ spec กำหนด",
         }]
+        # This is the ONLY place the app calls the closing tool itself: the CRM did
+        # not answer, so there is no conversation for the model to judge. The args come
+        # from the spec through the same normalizer the prompt uses.
+        from demo_v2.server.flow.flowspec import closing_tool as _closing_tool_decl
+        from demo_v2.server.flow.flowspec import outcome_args as _outcome_args
         outcome = cfg.get("outcome") or {}
-        closer = next((d["name"] for d in (self._spec.get("tools") or {}).get("declarations", [])
-                       if (d.get("gating") or {}).get("required_at") == "end_of_call"), None)
-        if closer and outcome.get("result"):
-            args = {"result": outcome["result"]}
-            if outcome.get("reason"):
-                args["reason"] = outcome["reason"]
+        _decl = _closing_tool_decl(self._spec)
+        closer = (_decl or {}).get("name")
+        args = _outcome_args(self._spec, outcome)
+        if closer and args:
             result = self._backend.dispatch(closer, args)
             hops.append({"kind": "tool_call", "name": closer, "args": args})
             hops.append({"kind": "tool_result", "name": closer, "result": result})
@@ -1408,7 +1548,7 @@ class FlowLiveSession:
             {"kind": "reply", "text": text, "text_ids": [entry["text_id"]], "dynamic_vars": {}},
         ]
 
-    def _render_reply(self, args: dict) -> tuple[list[int], str, dict]:
+    def _render_reply(self, args: dict) -> tuple[list[int], str, dict, list]:
         """Resolve reply text_ids → rendered Thai; tolerant of the qwen3_xml
         parser handing back stringified args (mirrors flow_sim.render_reply)."""
         ids = args.get("text_ids", [])
@@ -1430,20 +1570,19 @@ class FlowLiveSession:
             dyn = {d.get("name"): d.get("value") for d in dyn if isinstance(d, dict)}
         seen: set[int] = set()
         good, texts = [], []
+        # Ids the model spoke that are not in the catalog. They used to be dropped in
+        # silence, so a whole sentence disappeared with nobody the wiser (the caller
+        # heard the fallback instead). Return them so the caller can reject.
+        unknown: list = []
         for tid in ids:
             if not str(tid).lstrip("-").isdigit():
                 continue
             tid_i = int(tid)
-            if self._canon_id_to_fs:
-                # Builder company: the model's id is canonical (AEON) — resolve it
-                # through fine_state to this company's template. No raw fallback:
-                # a direct hit would be a renumber collision, and a canonical id
-                # whose fine_state the company lacks is intentionally dropped.
-                fs = self._canon_id_to_fs.get(tid_i)
-                e = self._fs_to_local.get(fs) if fs else None
-            else:
-                e = self._by_id.get(tid_i)
-            if e is None or e["text_id"] in seen:
+            e = self._by_id.get(tid_i)
+            if e is None:
+                unknown.append(tid_i)
+                continue
+            if e["text_id"] in seen:
                 continue
             seen.add(e["text_id"])
             good.append(e["text_id"])
@@ -1455,7 +1594,25 @@ class FlowLiveSession:
             texts.append(self._fill_template(
                 e["template"], self.customer_data, dynamic_vars=dyn,
                 strict_dates=True, gender=self.voice_gender))
-        return good, " ".join(texts), dyn if isinstance(dyn, dict) else {}
+        return good, " ".join(texts), dyn if isinstance(dyn, dict) else {}, unknown
+
+    def _reachable_ids(self, cap: int = 6) -> str:
+        """Example ids of beats reachable from the current state — used as the hint on a
+        reject.
+
+        Read from the spec and the task's own catalog only; no list of beats is baked into
+        this file. If the spec declares no edges (cur_states is empty) this returns nothing
+        rather than guessing on the spec's behalf."""
+        b2i: dict = {}
+        for e in self._catalog:
+            b2i.setdefault(e["_fine_state"], []).append(e["text_id"])
+        cand = sorted(b2i)
+        if self._cur_states:
+            off = set(_off_flow_beats(self._spec, self._cur_states, set(cand)))
+            cand = [b for b in cand if b not in off]
+        if not cand:
+            return ""
+        return ", ".join("%s (%s)" % (b2i[b][0], b) for b in cand[:cap])
 
     def _fallback_reply(self) -> "tuple[list[int], str]":
         """A safe on-catalog line for when the model returns an empty/garbage reply
@@ -1498,24 +1655,19 @@ class FlowLiveSession:
             turn_hops.append(hop)
             loop.call_soon_threadsafe(queue.put_nowait, hop)
 
-        # UX filler for the silent data-record chain only. "Data record" = the
-        # tools that actually persist customer info to CRM (a PTP commitment, a
-        # callback, a phone update) — NOT get_current_datetime (a read) and NOT
-        # record_outcome alone (a call-result stamp; a plain refusal/close must
-        # never say "เรียบร้อย"). On the first such tool: one "ขออนุญาตบันทึก…"
-        # bubble; the closing reply is prefixed "เรียบร้อยค่ะ " ONLY IF a write
-        # actually SUCCEEDED (recorded, no error). Client-stream only — never
-        # into self._messages (byte-identity). Disable AAX6_FLOW_FILLER=0.
-        _WRITE_TOOLS = {"record_verbal_commitment", "payment_date",
-                        "callback_datetime", "update_phone"}
-        _filler_on = os.environ.get("AAX6_FLOW_FILLER", "1").strip().lower() not in ("0", "false", "")
-        _filler_state = {"bubble": False, "saved": False}
+        # "Please hold" bubble while a tool call is in flight. Off by default (the
+        # users did not want it); AAX6_FLOW_FILLER=1 turns it on. Client-stream only —
+        # never into self._messages, which stays byte-identical.
+        _filler_on = os.environ.get("AAX6_FLOW_FILLER", "0").strip().lower() not in ("0", "false", "")
+        _filler_state = {"bubble": False}
 
         def _emit_filler(tool_name: str) -> None:
-            if not _filler_on or tool_name not in _WRITE_TOOLS or _filler_state["bubble"]:
+            if not _filler_on or _filler_state["bubble"]:
                 return
             _filler_state["bubble"] = True
-            text = self._fill_template("ขออนุญาตบันทึกข้อมูลสักครู่นะ{q_suffix}",
+            # Neutral wording: the old line said the agent was *recording*, which is
+            # a lie in front of a lookup. "Please hold" is true of a read and a write.
+            text = self._fill_template("รบกวนรอสักครู่นะ{q_suffix}",
                                        self.customer_data, gender=self.voice_gender)
             push({"kind": "reply", "text": text, "text_ids": [], "dynamic_vars": {},
                   "filler": True})
@@ -1552,18 +1704,29 @@ class FlowLiveSession:
                     fn = tc["function"]
                     raw_args = fn.get("arguments")
                     args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+                    # The model sometimes calls a BEAT as if it were a tool
+                    # (convince_other, say) instead of replying with that beat's
+                    # text_id. The name is the intent, and it is clear enough to act
+                    # on. It used to fall through as unknown_tool and the turn ended in
+                    # silence — the caller heard nothing. (The gold harness's env
+                    # already accepted a beat name in place of an id; the app did not.)
+                    # Only names that really are a fine_state in THIS call's catalog are
+                    # converted, and they must not collide with a tool name the spec
+                    # declares — no list of beats is baked into this file.
+                    if (fn["name"] != "reply" and fn["name"] not in getattr(self._backend, "_decls", {})
+                            and fn["name"] in {e["_fine_state"] for e in self._catalog}):
+                        _fs = fn["name"]
+                        _ids = [e["text_id"] for e in self._catalog if e["_fine_state"] == _fs]
+                        push({"kind": "warning",
+                              "text": f"เรียก {_fs} เป็นเครื่องมือ — ตีความเป็น reply ของจังหวะนั้น"})
+                        fn = {"name": "reply"}
+                        args = {"text_ids": _ids[:1], "dynamic_vars": []}
                     if fn["name"] == "reply":
-                        # A reply-gate that blocked "sensitive" lines until the app
-                        # judged the customer verified used to sit here. It was the app
-                        # enforcing one domain's compliance rule: the list of sensitive
-                        # slots was a debt collector's, and "verified" was a guess the
-                        # app made from whichever tool happened to declare an
-                        # `after_event`. A tenant that needs the rule states it in its
-                        # own `constraints` (enforce: prompt/reward); a tenant that does
-                        # not should not be carrying the machinery.
- # model picks again in the same tool loop
+                        # A reply gate that judged 'verified' itself used to sit here: the list of
+                        # sensitive slots was one domain's, and the verdict was a guess. A tenant that
+                        # needs the rule declares it (`verify_required` + a tool that provides it).
                         try:
-                            ids, text, dyn = self._render_reply(args)
+                            ids, text, dyn, _unknown_ids = self._render_reply(args)
                         except self._DateFormatError as e:
                             # strict_dates is on for model-supplied dates (see
                             # _render_reply): a malformed one is agent-fixable, so
@@ -1589,17 +1752,108 @@ class FlowLiveSession:
                                       "result": {"sent": False, "reason": "date_format_invalid"}})
                                 continue
                             ids, text = self._fallback_reply()
-                            dyn = {}
+                            dyn, _unknown_ids = {}, []
+
+                        # The unknown-id gate: the model speaks a text_id that does not
+                        # exist. It used to be dropped in silence and fall through to
+                        # the fallback, so the caller heard a sentence that sounded fine
+                        # but was about the wrong thing, and the model never learned it
+                        # had picked wrong. This gate reads only the task's own catalog
+                        # (no company-specific knowledge) and follows the same shape as
+                        # the others: reject, hint, count against the quota.
+                        if _unknown_ids and self._step_nudges < 2:
+                            self._step_nudges += 1
+                            _ok_ids = self._reachable_ids()
+                            _hint = ("text_id %s ไม่มีในคลังของบริษัทนี้ — เลือกจากคลังที่ให้ไว้เท่านั้น "
+                                     "ห้ามแต่งเลขเอง%s"
+                                     % (", ".join(str(u) for u in _unknown_ids),
+                                        (" จังหวะที่ไปได้ตอนนี้: " + _ok_ids) if _ok_ids else ""))
+                            self._messages.append({"role": "assistant", "tool_calls": [{
+                                "id": tc.get("id", "call_x"), "type": "function",
+                                "function": {"name": "reply",
+                                             "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                            self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                   "content": json.dumps({"sent": False,
+                                                                          "reason": "unknown_text_id",
+                                                                          "unknown_text_ids": _unknown_ids,
+                                                                          "hint": _hint}, ensure_ascii=False)})
+                            push({"kind": "tool_call", "name": "reply", "args": args})
+                            push({"kind": "tool_result", "name": "reply",
+                                  "result": {"sent": False, "reason": "unknown_text_id",
+                                             "unknown_text_ids": _unknown_ids}})
+                            continue
                         if not ids and not self._looks_sayable(text):  # reply [] → safe fallback
                             ids, text = self._fallback_reply()
 
-                        # instruction-grounded step-completeness gate: the beat(s) about to
-                        # be spoken belong to a state whose spec declares entry_tools — has
-                        # the model actually called them yet? (e.g. AEON's ptp_capture needs
-                        # get_current_datetime+record_verbal_commitment+payment_date before
-                        # its "close" reply.) Same pattern as the KYC reply-gate above:
-                        # reject with a hint, let the model retry in the same loop, and
-                        # surface it to the FE so a missed step is visible, not silent.
+                        # The verification gate: a beat whose state sets
+                        # verify_required cannot be spoken until the tool declaring
+                        # provides:"verified" answers in the way verified_when
+                        # describes. No list of sensitive slots lives in the code, and
+                        # nothing is inferred from what the customer said or is
+                        # labelled as.
+                        _will0 = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
+                        _need = sorted(_will0 & self._verify_need)
+                        if (_need and self._verify_unlock
+                                and not _is_verified(self._verify_unlock, self._backend.call_log)
+                                and self._step_nudges < 2):
+                            self._step_nudges += 1
+                            _hint = ("ยังไม่ได้ยืนยันตัวตนลูกค้า — ห้ามพูด %s ก่อน "
+                                     "ให้เรียก %s ให้สำเร็จก่อน แล้วค่อยตอบ"
+                                     % (", ".join(_need), " หรือ ".join(sorted(self._verify_unlock))))
+                            self._messages.append({"role": "assistant", "tool_calls": [{
+                                "id": tc.get("id", "call_x"), "type": "function",
+                                "function": {"name": "reply",
+                                             "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                            self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                   "content": json.dumps({"sent": False,
+                                                                          "reason": "verify_required",
+                                                                          "blocked_beats": _need,
+                                                                          "hint": _hint}, ensure_ascii=False)})
+                            push({"kind": "tool_call", "name": "reply", "args": args})
+                            push({"kind": "tool_result", "name": "reply",
+                                  "result": {"sent": False, "reason": "verify_required",
+                                             "blocked_beats": _need}})
+                            continue
+
+                        # An `off_flow_beat` gate used to sit here (removed 2026-09-07): the app's
+                        # idea of where it stands is too weak to refuse speech over — one beat lives
+                        # in several states, so cur_states is a union that widens all call long. What
+                        # it caught is still caught by `missing_required_tools` and
+                        # `closing_reply_required`, which read what happened instead of guessing.
+                        _will_beats = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
+                        _closing_need: set = set()
+                        if self._recorded_result:
+                            # The result is stamped: the next line has to be that
+                            # result's farewell
+                            _cl = _closing_beats(self._spec, self._recorded_result)
+                            if _cl and _will_beats and not (_will_beats & _cl):
+                                _closing_need = _cl
+                        if _closing_need and self._step_nudges < 2:
+                            self._step_nudges += 1
+                            _b2i: dict = {}
+                            for _e in self._catalog:
+                                _b2i.setdefault(_e["_fine_state"], []).append(_e["text_id"])
+                            _sugg = ", ".join("%s (%s)" % (_b2i.get(b, ["?"])[0], b)
+                                              for b in sorted(_closing_need)[:3])
+                            _reason = "closing_reply_required"
+                            _hint = ("บันทึกผล %s แล้ว — เหลือแค่พูดประโยคปิดสายของผลนั้น: "
+                                     "เรียก reply(text_ids=[...]) ด้วย %s"
+                                     % (self._recorded_result, _sugg))
+                            self._messages.append({"role": "assistant", "tool_calls": [{
+                                "id": tc.get("id", "call_x"), "type": "function",
+                                "function": {"name": "reply",
+                                             "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                            self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                                   "content": json.dumps({"sent": False, "reason": _reason,
+                                                                          "hint": _hint}, ensure_ascii=False)})
+                            push({"kind": "tool_call", "name": "reply", "args": args})
+                            push({"kind": "tool_result", "name": "reply",
+                                  "result": {"sent": False, "reason": _reason}})
+                            continue
+
+                        # Step completeness: the beat about to be spoken belongs to a state
+                        # whose spec declares entry_tools — have they actually been called?
+                        # Reject with a hint and let the model retry in this same loop.
                         _reply_fs = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
                         _missing: list[str] = []
                         _rejected: dict[str, Any] = {}
@@ -1786,6 +2040,11 @@ class FlowLiveSession:
                                 continue  # model retries in the same tool loop
                             # already nudged twice — let it through rather than stall the
                             # call forever; the FE warning above still records the miss.
+                        _new_states = set().union(*([_beat_states(self._spec).get(
+                            self._by_id[t]["_fine_state"], set()) for t in ids if t in self._by_id] or [set()]))
+                        if _new_states:
+                            self._cur_states = _new_states   # a FAQ has no state of its
+                                                             # own → stay where we are
                         clean_args = {"text_ids": ids, "dynamic_vars": args.get("dynamic_vars") or []}
                         self._messages.append({
                             "role": "assistant", "content": text,
@@ -1812,6 +2071,19 @@ class FlowLiveSession:
                         break
                     _emit_filler(fn["name"])
                     result = self._backend.dispatch(fn["name"], args)
+                    # Remember the result that was successfully recorded, so the
+                    # closing gate knows which farewell is the right one. What counts
+                    # as a call result comes from the enum the spec declares, not from
+                    # an argument name.
+                    if isinstance(result, dict) and not result.get("error"):
+                        _decl = next((d for d in (self._spec.get("tools") or {}).get("declarations", [])
+                                      if d.get("name") == fn["name"]), None)
+                        if _decl and (_decl.get("gating") or {}).get("required_at") == "end_of_call":
+                            _enums = {str(v) for a, meta in (_decl.get("args") or {}).items()
+                                      for v in ((meta or {}).get("enum") or [])}
+                            _got = next((str(v) for v in (args or {}).values() if str(v) in _enums), None)
+                            if _got:
+                                self._recorded_result = _got
                     # The call is already closed and the model keeps re-sending the
                     # same write instead of speaking. Left alone it burns every hop
                     # in the turn, says nothing at all, and then reaches for whatever
@@ -1838,9 +2110,6 @@ class FlowLiveSession:
                             agent_text = text
                             self.done = True
                             break
-                    if (fn["name"] in _WRITE_TOOLS and not result.get("error")
-                            and result.get("recorded") is not False):
-                        _filler_state["saved"] = True   # a real write succeeded
                     self._messages.append({
                         "role": "assistant",
                         "tool_calls": [{"id": tc.get("id", "call_x"), "type": "function",
@@ -1851,15 +2120,9 @@ class FlowLiveSession:
                                            "content": json.dumps(result, ensure_ascii=False)})
                     push({"kind": "tool_call", "name": fn["name"], "args": args})
                     push({"kind": "tool_result", "name": fn["name"], "result": result})
-                # The tool loop can run out (FLOW_MAX_TOOL_LOOPS) without the model ever
-                # calling `reply` — observed on SHOP: it called check_new_date with an
-                # empty `date` eight times, every one correctly rejected, and the turn
-                # then returned with nothing said. The caller is a live person, so a
-                # turn that produces no speech is dead air on the line, which is worse
-                # than any sentence the catalog holds. Say the fallback instead.
-                # A mechanism, not a policy: every tenant wants the agent to answer when
-                # spoken to, and which sentence that is comes from the spec
-                # (`fallback_fine_state`, else the catalog's re-ask beat).
+                # The tool loop can run out without the model ever calling reply, and a turn
+                # with no speech is dead air on a live call. Say the fallback instead — which
+                # sentence comes from the spec (`fallback_fine_state`).
                 if not agent_text:
                     ids, text = self._fallback_reply()
                     push({"kind": "warning",
@@ -1990,19 +2253,22 @@ def flow_template() -> dict:
         "_readme": [
             "กรอกไฟล์นี้แล้ว upload กลับเพื่อสร้างบริษัทใหม่ในเดโม",
             "spec.company = รหัสบริษัท (A-Z/0-9, 2-12 ตัว). ทุก fine_state ที่อ้างใน states ต้องมีใน catalog.",
-            "catalog: ใส่แค่ _fine_state + template พอ — text_id/company/state/intent_name/category ระบบเติมให้เอง",
+            "catalog: ใส่แค่ _fine_state + template พอ — text_id/company/state/intent_name ระบบเติมให้เอง",
             "beat เดียวใส่ได้หลายบรรทัด = หลายสำนวน (เช่น close 2 บรรทัดข้างล่าง) โมเดลเลือกเองว่าจะพูดสำนวนไหน",
             "templates ใน 1 state: มีหลายอันแบบไม่มี when_event = พูดต่อกันในเทิร์นเดียว (chain) / มี when_event = เลือกอันเดียวตาม event",
-            "outcomes.results = โค้ดผลสายของบริษัทนี้ (debt: ptp/refused/unreachable/reached/tcb/tin · หรือกำหนดเอง).",
+            "agent_role = agent เป็นใคร (บรรทัดแรกของ prompt) — ไม่ใส่ prompt จะบอกโมเดลว่าเป็น "
+            "เจ้าหน้าที่ทวงหนี้ (ค่าเริ่มต้นของงานทวงหนี้) · น้ำเสียงคุมที่ประโยคใน catalog ไม่ใช่ที่ prompt "
+            "เพราะโมเดลพูดได้เฉพาะ template ในคลังคำต่อคำ",
+            "crm = ข้อมูลลูกค้าของสายเดโม — ต้องครอบ crm_fields ให้ครบ ไม่งั้นประโยคจะพูด [ชื่อ field] ออกไปจริง · "
+            "วันที่ใส่เป็น <field>_offset_days (จำนวนวันจากวันนี้) ห้ามเขียนวันที่ตายตัว · "
+            "ถ้าประกาศ session_init ให้ดึงจาก API จริงแล้ว ไม่ต้องใส่ crm",
             "tools = HTTP webhook: แต่ละ tool ยิง POST ไป url พร้อม body (แทน {customer_name} {amount} ...).",
             "faq_routing = ลูกค้าถามแทรกกลางสาย → ตอบด้วย template ไหน แล้วกลับเข้า flow เดิม",
             "constraints = กฎของบริษัท: ใส่ type ถ้าอยากให้ระบบบังคับจริง / ไม่ใส่ type แต่ใส่ desc = กฎที่เขียนลง prompt ให้โมเดลอ่าน",
         ],
         "spec": {
-            "spec_version": 2,
-            "flow_id": "YOURCO-outbound-call",
             "company": "YOURCO",
-            "description": "",
+            "agent_role": "เจ้าหน้าที่ของบริษัท YOURCO",
             "crm_fields": ["customer_name", "your_field_1", "your_field_2"],
             "events": {
                 "name_confirmed": {"desc": "ลูกค้ายืนยันตัวตน", "cues": ["ใช่", "ครับ", "ค่ะ"]},
@@ -2010,10 +2276,16 @@ def flow_template() -> dict:
             },
             "tools": {"declarations": [
                 {"name": "record_outcome", "impl": "http", "desc": "บันทึกผลสาย",
-                 "url": "{API_BASE}/YOURCO/record_outcome", "method": "POST", "args": {},
+                 "url": "https://api.yourcompany.co.th/aax/record_outcome", "method": "POST",
+                 # The first argument is the call result — each closing state's
+                 # `outcome.args` sends its value here. Declare an enum and gate 2
+                 # rejects anything outside the list on its own.
+                 "args": {"result": {"type": "string", "enum": ["reached", "unresolved"]},
+                          "reason": {"type": "string", "optional": True}},
+                 "returns": {"saved": {"type": "boolean"}},
                  "gating": {"required_at": "end_of_call"}},
-                {"name": "notify_crm", "impl": "http", "desc": "ตัวอย่าง webhook — ไม่ต้องใส่ body ก็ได้ ระบบส่ง {tool,args,ref} ให้เอง",
-                 "url": "https://api.example.com/hook", "method": "POST", "args": {}},
+                {"name": "notify_crm", "impl": "http", "desc": "ตัวอย่าง webhook — ไม่ต้องประกาศ body ระบบส่ง {tool,args,ref} ให้เอง",
+                 "url": "https://api.yourcompany.co.th/aax/notify", "method": "POST", "args": {}},
             ]},
             "states": [
                 {"id": "greet", "phase": "opening", "initial": True,
@@ -2021,7 +2293,10 @@ def flow_template() -> dict:
                  "on": [{"event": "name_confirmed", "to": "close"}]},
                 {"id": "close", "phase": "close", "terminal": True,
                  "templates": [{"fine_state": "close"}], "entry_tools": ["record_outcome"],
-                 "outcome": {"result": "reached", "reason": "done"}},
+                 # Current shape: `args` = the closing tool's arguments, written with
+                 # its real argument names
+                 "outcome": {"args": {"result": "reached"}, "reasons": ["done"],
+                             "desc": "จบสาย"}},
             ],
             "faq_routing": {
                 "_hint": "ลูกค้าถามแทรก → ตอบด้วย templates ที่ระบุ แล้วกลับเข้า state เดิมต่อ",
@@ -2034,13 +2309,17 @@ def flow_template() -> dict:
             },
             "constraints": [
                 {"id": "outcome_once", "type": "once_per_call",
-                 "template_fine_state": "close", "enforce": ["prompt", "reward"],
+                 "template_fine_states": ["close"], "enforce": ["prompt"],
                  "desc": "ประโยคปิดสายพูดครั้งเดียวต่อสาย"},
                 {"enforce": ["prompt"],
                  "desc": "ตัวอย่างกฎแบบข้อความ (ไม่มี type) — จะถูกเขียนลง instruction ให้โมเดลอ่าน แต่ระบบไม่บังคับเชิงกลไก"},
             ],
-            "outcomes": {"required_at_close": True,
-                         "results": {"reached": {"reasons": ["done"], "desc": "จบสาย"}}},
+        },
+        "crm": {
+            "customer_name": "สมชาย ใจดี",
+            "your_field_1": "…",
+            "your_field_2": "…",
+            "_hint": "ทุกชื่อใน crm_fields ต้องมีค่าที่นี่ · วันที่ใส่เป็น <field>_offset_days: 1",
         },
         "catalog": [
             {"_fine_state": "greet_verify",
@@ -2090,7 +2369,7 @@ def delete_flow_company(company: str) -> dict[str, Any]:
         kept = [c for c in cases if _company_of(c.get("id", "")) != company]
         if len(kept) != len(cases):
             BUILDER_CASES_FILE.write_text(
-                json.dumps(kept, ensure_ascii=False, indent=1), encoding="utf-8")
+                json.dumps(kept, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
             removed.append(f"personas x{len(cases) - len(kept)}")
 
     return {"ok": True, "company": company, "removed": removed}
@@ -2098,7 +2377,7 @@ def delete_flow_company(company: str) -> dict[str, Any]:
 
 def _vllm_base_urls() -> list[str]:
     """vLLM endpoints to query. AAX6_VLLM_BASE_URLS = comma-separated list (multi-model:
-    grpo540 on :8000, grpo400 on :8002); falls back to the single AAX6_VLLM_BASE_URL."""
+    one checkpoint per port); falls back to the single AAX6_VLLM_BASE_URL."""
     multi = os.environ.get("AAX6_VLLM_BASE_URLS", "").strip()
     if multi:
         return [u.strip() for u in multi.split(",") if u.strip()]
@@ -2135,7 +2414,7 @@ def served_models() -> dict[str, list[str]]:
     ids = list(_model_endpoints().keys())
     if not ids:
         return {"base": [], "flow": []}
-    # GRPO/SFT checkpoints all live under the "qwen" picker (base list). The engine is
+    # Every checkpoint lives under the "qwen" picker (base list). The engine is
     # routed by the flow/company selection, so the picker just lists served versions.
     sft = sorted(i for i in ids if i.lower().startswith("sft"))
     base_only = sorted(i for i in ids if not i.lower().startswith("sft"))

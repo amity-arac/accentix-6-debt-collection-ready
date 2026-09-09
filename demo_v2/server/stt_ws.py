@@ -1,44 +1,31 @@
-"""Streaming Zipformer backend speech-to-text over a WebSocket, with live interim words.
+"""Streaming speech-to-text over a WebSocket, with live interim words.
 
-The browser streams PCM16 @ 16 kHz mono frames; a server-side **Silero VAD** gates
-them into utterances; each utterance is transcribed by the customer's self-hosted
-**streaming Zipformer** WebSocket server (`ZipformerSTTService`). Silero owns
-endpointing + barge-in; the recognizer streams partials *during* speech and
-finalizes ~immediately at end-of-speech.
+The browser streams PCM16 @ 16 kHz mono; a server-side **Silero VAD** gates it into
+utterances; each utterance goes to the customer's self-hosted **streaming Zipformer**
+(`ZipformerSTTService`). Silero owns endpointing and barge-in; the recognizer streams
+partials during speech and finalizes at end-of-speech (~134 ms, vs Chirp-for-Thai's
+~744 ms p50 — the reason for the swap).
 
-Why Zipformer (vs the previous Chirp 3 path): Phase 1
-(`benchmark/stt-compare/compare_stt.py`) measured the in-region streaming server at
-**~134 ms end-of-audio→final** (flat) vs Chirp-for-Thai's ~744 ms p50 (up to ~2.8 s
-tail; Chirp finalizes the whole utterance at stream close, cross-Pacific). This is a
-single-path swap — Chirp and its batch/speculative machinery were removed.
+Two worker threads, so end-of-speech is never detected late:
+  · the **VAD gate** does endpointing (speech_begin, end-of-speech via
+    SILENCE_HANG_MS) and barge-in, opens a streaming session at speech start, feeds
+    it live PCM, and closes it at end-of-speech. Never blocked by the recognizer.
+  · the **streaming STT** thread drains each session and emits partials and the
+    final. `recognize_ms` is measured end-of-audio → final.
 
-Worker threads keep things responsive:
-  - the **VAD gate** thread does endpointing (speech_begin / end-of-speech via
-    SILENCE_HANG_MS) and barge-in, opens a streaming session at speech start and
-    feeds it live PCM, and closes it at end-of-speech. It is never blocked by the
-    recognizer, so end-of-speech is detected promptly.
-  - the **streaming STT** thread drains each session through the Zipformer WS and
-    emits `stt_interim` (partials) + `stt_final` (end-of-speech). `recognize_ms` is
-    measured end-of-audio → final, so it stays comparable to the old batch number
-    and to the client's `stt_final − speech_end`.
-
-This socket does speech-to-text only; the final transcript feeds the existing
-/api/session turn flow. Events (a drop-in for the browser Web Speech API the
-frontend used):
+Events (a drop-in for the browser Web Speech API the frontend used):
 
     {"type": "ready",       "sample_rate": 16000}
     {"type": "speech_begin"}                         # caller started → barge-in
-    {"type": "stt_interim", "text": "<thai-so-far>"} # growing transcript
-    {"type": "speech_end",  "endpoint_ms": <float>}  # trailing silence detected
-    {"type": "stt_final",   "text": "<thai>", "recognize_ms": <float>}  # finalized → send a turn
-    {"type": "turn_empty",  "recognize_ms": <float>} # utterance was silence/noise
-    {"type": "error", "message": "...", "fatal": bool}
+    {"type": "stt_interim", "text": "…"}             # growing transcript
+    {"type": "speech_end",  "endpoint_ms": <float>}
+    {"type": "stt_final",   "text": "…", "recognize_ms": <float>}   # → send a turn
+    {"type": "turn_empty",  "recognize_ms": <float>} # silence/noise
+    {"type": "error", "message": "…", "fatal": bool}
 
-torch / silero-vad are imported lazily inside this module's functions (never at
-import time), and the Zipformer engine (numpy / websockets) is imported lazily in
-`_build_engines`, so importing `demo.server.app` stays light — preserving CLAUDE.md
-gotcha 11. If the engines can't be built (missing torch, …) we send a `fatal` error
-and the frontend falls back to the browser Web Speech API.
+torch/silero-vad and the Zipformer engine are imported lazily inside functions, so
+importing the app stays light. If the engines cannot be built we send a fatal error
+and the client falls back to its own recognizer.
 """
 
 from __future__ import annotations
@@ -87,17 +74,13 @@ _engine_lock = threading.Lock()
 
 
 def _build_engines():
-    """Lazily build (STTService, VADService). Heavy imports (torch via the VAD,
-    numpy/websockets or google-cloud-speech via the STT) happen here, off the
-    import path. May block (torch.hub.load + a short warmup connect) — call via
+    """Lazily build (STTService, VADService). The heavy imports happen here, off the
+    import path, and this may block (torch.hub.load + a warmup connect) — call it via
     asyncio.to_thread.
 
-    STT engine defaults to Zipformer (the customer's self-hosted server, production
-    default). Set AAX6_STT_ENGINE=chirp to temporarily swap in Google Cloud Chirp 3
-    instead (needs GOOGLE_CREDENTIALS_JSON / GOOGLE_CLOUD_PROJECT) — useful when the
-    customer's Zipformer server isn't reachable from wherever the demo is running.
-    Both expose the same transcribe_streaming_events(..., raw_pcm=True, ...) shape,
-    so nothing else in this module needs to change.
+    Defaults to Zipformer, the customer's self-hosted server. AAX6_STT_ENGINE=chirp
+    swaps in Google Chirp 3 instead, useful when that server is unreachable from
+    wherever the demo runs. Both expose the same streaming shape.
     """
     global _stt_singleton, _stt_warmed
     engine = os.environ.get("AAX6_STT_ENGINE", "zipformer").strip().lower()

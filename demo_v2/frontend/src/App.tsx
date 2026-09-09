@@ -5,7 +5,6 @@ import { ChatStream } from "./components/ChatStream";
 import { ControlBar } from "./components/ControlBar";
 import { ResetConfirmModal } from "./components/ResetConfirmModal";
 import { PersonaPickerModal } from "./components/PersonaPickerModal";
-import { FlowBuilderModal } from "./components/FlowBuilderModal";
 import { FlowUploadModal } from "./components/FlowUploadModal";
 import { CompanySelect } from "./components/CompanySelect";
 import { ModeSelect } from "./components/ModeSelect";
@@ -64,7 +63,6 @@ export default function App() {
   const [flowCompanies, setFlowCompanies] = useState<string[]>(FLOW_COMPANIES_DEFAULT);
   // which of them the server will let us delete (Builder-created only)
   const [deletableCompanies, setDeletableCompanies] = useState<string[]>([]);
-  const [builderOpen, setBuilderOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({ phase: "idle", message: "" });
@@ -169,10 +167,9 @@ export default function App() {
     setScreen(company ? "mode" : "company");
   }, [company]);
 
-  // After the Builder creates a company: refresh, then drop into its Playground.
+  // After an uploaded JSON creates a company: refresh, then drop into its Playground.
   const handleFlowCreated = useCallback(
     async (caseId: string, newCompany: string) => {
-      setBuilderOpen(false);
       await Promise.all([
         fetchFlowCompanies().then((c) => c.length && setFlowCompanies(c)).catch(() => {}),
         fetchFlowCompaniesMeta()
@@ -470,11 +467,6 @@ export default function App() {
         note={company ? `personas ของ ${company}` : undefined}
         onClose={() => setPersonaModalOpen(false)}
         onSelect={(id) => void handleSelectPersona(id)}
-      />
-      <FlowBuilderModal
-        open={builderOpen}
-        onClose={() => setBuilderOpen(false)}
-        onCreated={(caseId, co) => void handleFlowCreated(caseId, co)}
       />
       <FlowUploadModal
         open={uploadOpen}

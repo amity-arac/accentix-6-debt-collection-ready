@@ -38,7 +38,6 @@ const RESULT_REASON_LABEL: Record<string, string> = {
   channel_required: "Payment channel required",
   channel_invalid: "Invalid payment channel",
   incompatible_chain: "Incompatible templates",
-  category_lock: "Category lock",
   state_lock: "State mismatch",
   dispute_lock: "Disputed account — no payment recording",
   invalid_result: "Invalid disposition code",

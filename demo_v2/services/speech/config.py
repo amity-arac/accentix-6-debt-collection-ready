@@ -15,24 +15,12 @@ from google.oauth2 import service_account
 DEFAULT_REGION = "us"
 DEFAULT_LANGUAGE_CODE = "th-TH"
 DEFAULT_STT_MODEL = "chirp_3"
-STT_MODEL_SHORT = "short"  # Traditional model — lower latency (~200-400ms), less accurate
 DEFAULT_TTS_VOICE = "Despina"  # Smooth female; see full list in tts.py
 MALE_TTS_VOICE = "Puck"  # Upbeat male
 DEFAULT_SAMPLE_RATE = 24000  # TTS output sample rate (Hz)
-DEFAULT_STT_SAMPLE_RATE = 16000  # STT input sample rate (Hz)
-
-# All 30 Chirp 3 HD voice options (language-agnostic names)
-AVAILABLE_VOICES = [
-    "Achernar", "Achird", "Algenib", "Algieba", "Alnilam",
-    "Aoede", "Autonoe", "Callirrhoe", "Charon", "Despina",
-    "Enceladus", "Erinome", "Fenrir", "Gacrux", "Iapetus",
-    "Kore", "Laomedeia", "Leda", "Orus", "Pulcherrima",
-    "Puck", "Rasalgethi", "Sadachbia", "Sadaltager", "Schedar",
-    "Sulafat", "Umbriel", "Vindemiatrix", "Zephyr", "Zubenelgenubi",
-]
 
 # Demo voice-picker: maps the user-facing gender toggle to a concrete Chirp 3
-# HD voice name. Independent of the agent's TEXT gender (ครับ/ค่ะ particles) —
+# HD voice name. Independent of the agent's TEXT gender (the Thai particles) —
 # this only picks which voice speaks the (already-rendered) reply text.
 VOICE_BY_GENDER = {"M": MALE_TTS_VOICE, "F": DEFAULT_TTS_VOICE}
 
@@ -83,7 +71,7 @@ def get_tts_client():
     (e.g. "asia-southeast1-texttospeech.googleapis.com") pins a regional endpoint
     to cut first-chunk latency — but regional endpoints don't carry every model,
     so a wrong value can 404 Chirp-3-HD streaming. Left unset (global) by default;
-    measure a candidate with scripts/measure_ttfa.py before committing to it.
+    measure a candidate end-to-end before committing to it.
     Read once at first call (cached); a change needs a process restart.
     """
     from google.cloud import texttospeech

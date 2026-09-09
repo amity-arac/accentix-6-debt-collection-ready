@@ -1,14 +1,8 @@
-"""FastAPI shim for the chat-with-agent demo.
+"""FastAPI surface for the demo: HTTP, WebSocket, and NDJSON streaming. No call
+logic lives here — see demo_v2/docs/CODE.md for how a turn runs.
 
-Endpoints:
-    GET    /api/session            -- create session, stream session info + opening hops (NDJSON)
-    POST   /api/session/{id}/turn  -- stream agent hops for one user message (NDJSON)
-    POST   /api/session/{id}/reset -- reset session, stream new session info + opening hops (NDJSON)
-    GET    /api/tts                -- Google Chirp 3 HD TTS (raw PCM int16@24k -> Web Audio)
-    WS     /api/stt                -- streaming Zipformer STT: browser PCM16@16k in, transcript events out
-    GET    /api/health             -- liveness
+A session stream carries three message types:
 
-NDJSON message types:
     {"type": "session", "session_id": str, "mode": str, "case_id": str,
      "agent": "qwen"|"gemini"|None, "customer_data": {...}}
     {"type": "hop", "hop": {...}}
@@ -31,7 +25,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-# Load .env from the repo root before any module reads env vars.
+# Load .env before any module reads env vars. `demo_v2/.env` is read first because
+# the deliverable is this folder (see demo_v2/.env.sample); the repo-root .env is
+# still honoured for a checkout that keeps one there. `load_dotenv` does not
+# overwrite a value already set, so the folder's own file wins on a clash.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 # `stt_ws` keeps torch / numpy / websockets imports lazy (inside the handler),
@@ -120,14 +118,6 @@ class SaveBody(BaseModel):
     comment: str = ""
 
 
-class FlowCompanyBody(BaseModel):
-    company: str = ""
-    display_name: str = ""
-    agent_name: str = ""
-    templates: dict[str, str] = {}
-    custom: list[dict] = []
-
-
 class FlowSpecBody(BaseModel):
     company: str = ""
     spec: dict = {}
@@ -139,6 +129,10 @@ class FlowCompanyRawBody(BaseModel):
     catalog: list[dict] = []
     display_name: str = ""
     agent_name: str = ""
+    # The author's CRM row for the demo caller. Without it a company whose templates
+    # name CRM fields speaks the brackets, and the only alternatives were a live
+    # `session_init` API or hand-editing a persona file on the server.
+    crm: dict = {}
 
 
 # ---------------------------------------------------------------------------
@@ -216,12 +210,6 @@ async def flow_companies_meta() -> JSONResponse:
     return JSONResponse(sessions.flow_companies_meta())
 
 
-@app.get("/api/flow/beats")
-async def flow_beats() -> JSONResponse:
-    """Base-flow beats for the Flow Builder form: [{fine_state, hint, example}]."""
-    return JSONResponse(sessions.flow_beats())
-
-
 @app.get("/api/flow/versions")
 async def flow_versions(company: str = Query(...)) -> JSONResponse:
     """Selectable instruction versions for a company's flow + the default (A/B picker)."""
@@ -257,7 +245,8 @@ async def flow_instruction(company: str = Query(...)) -> JSONResponse:
 
 @app.get("/api/flow/prescripts")
 async def flow_prescripts(company: str = Query(...), version: str | None = Query(default=None)) -> JSONResponse:
-    """ทุก pre-script ของบริษัท + ผูกกับ state ไหน (สำหรับหน้าอ่าน pre-script)."""
+    """Every pre-script a company has, and which state binds it — for the
+    pre-script reading pane."""
     result = sessions.flow_prescripts(company, version)
     if not result:
         raise HTTPException(404, detail=f"no pre-scripts for company {company!r}")
@@ -284,20 +273,6 @@ async def save_flow_spec(body: FlowSpecBody) -> JSONResponse:
     return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
-@app.post("/api/flow/company")
-async def create_flow_company(body: FlowCompanyBody) -> JSONResponse:
-    """Author a new flow company (writes catalog+spec, registers, adds a demo
-    persona). Returns {ok, case_id} or {ok:False, errors:[...]} (400)."""
-    try:
-        result = sessions.create_flow_company(
-            body.company, body.display_name, body.agent_name, body.templates, body.custom
-        )
-    except Exception as e:
-        logger.exception("flow company create failed")
-        raise HTTPException(500, detail=f"create failed: {e}")
-    return JSONResponse(result, status_code=200 if result.get("ok") else 400)
-
-
 @app.post("/api/flow/company/raw")
 async def create_flow_company_raw(body: FlowCompanyRawBody) -> JSONResponse:
     """Author a new flow company from a RAW FlowSpec + catalog JSON (the JSON-editor
@@ -305,7 +280,7 @@ async def create_flow_company_raw(body: FlowCompanyRawBody) -> JSONResponse:
     registers, adds a demo persona. Returns {ok, case_id} or {ok:False, errors:[...]}."""
     try:
         result = sessions.create_flow_company_raw(
-            body.spec, body.catalog, body.display_name, body.agent_name
+            body.spec, body.catalog, body.display_name, body.agent_name, body.crm
         )
     except Exception as e:
         logger.exception("flow company raw create failed")
@@ -315,9 +290,12 @@ async def create_flow_company_raw(body: FlowCompanyRawBody) -> JSONResponse:
 
 @app.delete("/api/flow/company/{company}")
 async def delete_flow_company(company: str) -> JSONResponse:
-    """Remove a Builder-created flow company: registry entry, spec, catalog, personas.
-    Shipped companies are refused. Returns {ok, removed:[...]} or {ok:False,
-    errors:[...]} (400)."""
+    """Off-board a flow company: its spec file and the demo personas written with it.
+
+    Any registered company, shipped or uploaded — one tenant owns exactly one file, so
+    there is nothing shared to protect (the by-name refusal existed only while several
+    companies pointed at the same curated catalog). Returns {ok, removed:[...]} or
+    {ok:False, errors:[...]} (400)."""
     try:
         result = sessions.delete_flow_company(company)
     except Exception as e:
@@ -350,9 +328,9 @@ async def create_session(
     if chosen_gender not in ("M", "F"):
         chosen_gender = "F"
     # qwen with no explicit model (the picker default had not loaded when Start was
-    # clicked) → the served flow model.
+    # clicked) → whatever vLLM is actually serving.
     if chosen_agent == "qwen" and not model:
-        model = sessions.FLOW_MODEL
+        model = sessions.default_served_model()
     # There is one kind of session now, so `flow` and `mode` no longer select
     # anything — `sessions.build()` returns a FlowLiveSession either way. They stay in
     # the signature because the frontend still sends `?flow=1` and old links carry
@@ -492,7 +470,7 @@ async def tts_stream(
     """Stream raw PCM bytes (headerless int16 LE @ 24 kHz) as they arrive from
     the Chirp 3 HD gRPC streaming synth. The client reads this body with
     `fetch` and schedules each chunk on a Web Audio `AudioContext` (see
-    `demo/frontend/src/audio.ts`) — no container demux, no codec decode, so the
+    `demo_v2/frontend/src/audio.ts`) — no container demux, no codec decode, so the
     first samples are audible on arrival instead of paying the native `<audio>`
     element's decode-startup floor.
 

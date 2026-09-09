@@ -8,17 +8,26 @@ import type { VoiceMode } from "../api";
 import { fetchModels, type Engine, type VoiceGender } from "../api";
 
 // Preferred default checkpoint for the qwen picker (all local models live here).
-const QWEN_DEFAULT = ["sft_v11", "sft_flow_v5", "sft_flow_v3", "sft_v10"];
+// Measured on an A100 over the 43 gold cases: sft-9b-v3 scored 42/43, sft-27b-w4a16
+// scored 43/43 but was 45% slower and took half as many concurrent calls — so the 9B
+// is the default.
+const QWEN_DEFAULT = ["sft-9b-v3", "sft-27b-w4a16", "sft_v11", "sft_flow_v5", "sft_flow_v3", "sft_v10"];
 const pickDefault = (list: string[], prefer: string[]) =>
   prefer.find((p) => list.includes(p)) ?? list[list.length - 1] ?? "";
 
 // Pre-start, the caller picks which agent drives the call: the fine-tuned Qwen
-// (sft_v2, served via vLLM) or Gemini (API). Choosing re-creates the live
-// session bound to that LLM — see handleStart() in App.tsx. Once the call is
-// live the choice is locked (the active model is shown in the CustomerPanel).
-// Update these labels if you serve a different base model / SFT version.
-const QWEN_LABEL = "Qwen3.5-9B";
-const QWEN_SFT = "v2";
+// (served via vLLM) or Gemini (API). Choosing re-creates the live session bound
+// to that LLM — see handleStart() in App.tsx. Once the call is live the choice
+// is locked (the active model is shown in the CustomerPanel).
+//
+// The label used to be hardcoded as "Qwen3.5-9B (SFT v2)", which went wrong the
+// moment the dropdown selected the 27B. It now reads the name of the checkpoint
+// actually selected instead of carrying one in the code.
+const qwenTitle = (m: string) => {
+  const size = /27b/i.test(m) ? "Qwen3.5-27B" : /9b/i.test(m) ? "Qwen3.5-9B" : "Qwen3.5";
+  return m ? `Fine-tuned ${size} (${m}), served locally via vLLM`
+           : "Fine-tuned Qwen, served locally via vLLM";
+};
 
 type Props = {
   started: boolean;
@@ -120,7 +129,7 @@ export function ControlBar({
             onClick={() => onAgentChange("qwen")}
             disabled={starting}
             aria-pressed={agent === "qwen"}
-            title={`Fine-tuned ${QWEN_LABEL} (SFT ${QWEN_SFT}), served locally via vLLM`}
+            title={qwenTitle(model)}
           >
             Qwen
           </button>

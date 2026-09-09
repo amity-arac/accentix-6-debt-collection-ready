@@ -1,35 +1,28 @@
 """Customer streaming **Zipformer** speech-to-text over a WebSocket.
 
-Drop-in replacement for the Chirp `STTService` on the demo's `/api/stt` path.
-`demo/server/stt_ws.py` keeps the **Silero VAD** (endpointing + barge-in) and only
-swaps the recognizer behind it: this class exposes the one method the streaming
-path consumes —
+The recognizer behind `stt_ws.py`, which keeps the Silero VAD in front of it. One
+method is consumed:
 
     transcribe_streaming_events(audio_chunks, raw_pcm=True, sample_rate=16000,
                                 interim_results=True)  ->  Iterator[dict]
 
-yielding `{"type":"partial"|"final","text":...}`, exactly like the Chirp service,
-so nothing downstream (or on the client) changes.
+yielding `{"type":"partial"|"final","text":…}`.
 
-Why Zipformer: Phase 1 (`benchmark/stt-compare/compare_stt.py`) measured the
-customer's self-hosted, in-region streaming server at **~134 ms end-of-audio→final**
-(flat) vs Chirp-for-Thai's ~744 ms p50 / up-to-2.8 s tail (finalize-at-close,
-cross-Pacific). This is the STT-latency win the demo ships.
+Why Zipformer: measured ~134 ms end-of-audio→final (flat) against Chirp-for-Thai's
+~744 ms p50 and up to a 2.8 s tail (it finalizes at stream close, cross-Pacific).
 
-Wire protocol (ported from the customer client; proven in Phase 1):
+Wire protocol (ported from the customer's own client):
   * connect `ws://HOST:PORT/ws/stream[?hotwords=<urlquoted>&boost=<raw>]` — query
-    only, no handshake frame;
-  * send raw **8 kHz mono int16 little-endian PCM** as binary frames;
-  * finalize with a text frame `{"type":"eos"}`;
-  * receive JSON text `{"type":"partial","text":..}` / `{"type":"final","text":..}`
-    (last-wins) / `{"type":"done","rtf":..}`.
+    only, no handshake frame
+  * send raw **8 kHz mono int16 little-endian** PCM as binary frames
+  * finalize with a text frame `{"type":"eos"}`
+  * receive `{"type":"partial"|"final","text":…}` (last wins) / `{"type":"done"}`
 
-The mic uplink is 16 kHz (Silero VAD needs it), so we resample a copy to 8 kHz
-**server-side, for Zipformer only** via `_Resampler16to8` (numpy-only, streaming).
+The mic uplink is 16 kHz because Silero needs it, so a copy is resampled to 8 kHz
+server-side for Zipformer only (`_Resampler16to8`, numpy-only, streaming).
 
-Imported LAZILY by `stt_ws.py:_build_engines` (only when a client connects to the
-STT socket), so `numpy` / `websockets` here stay off the backend's startup import
-path (keeps `services.speech` import-light — see CLAUDE.md gotcha 11).
+Imported lazily by `stt_ws.py:_build_engines`, so numpy/websockets stay off the
+backend's startup import path.
 """
 
 from __future__ import annotations

@@ -205,22 +205,6 @@ export async function deleteFlowCompany(
   return (await resp.json()) as { ok: boolean; removed?: string[]; errors?: string[] };
 }
 
-export type FlowBeat = {
-  fine_state: string;
-  phase: string; // opening | main | close | faq | aux
-  label: string; // Thai description of what the line does
-  required: boolean;
-  hint: string;
-  example: string;
-};
-
-/** Base-flow beats for the Flow Builder form (fine_state + hint + AEON example). */
-export async function fetchFlowBeats(): Promise<FlowBeat[]> {
-  const resp = await fetch("/api/flow/beats");
-  if (!resp.ok) throw new Error(`/api/flow/beats ${resp.status}`);
-  return (await resp.json()) as FlowBeat[];
-}
-
 export async function fetchCueLibrary(): Promise<Record<string, string[]>> {
   const resp = await fetch("/api/flow/cue-library");
   if (!resp.ok) throw new Error(`/api/flow/cue-library ${resp.status}`);
@@ -233,6 +217,9 @@ export type CreateFlowResult = {
   case_id?: string;
   beats?: number;
   errors?: string[];
+  /** Created, but these placeholders have nothing to fill them — shown to the author. */
+  warning?: string;
+  unfillable_placeholders?: string[];
 };
 
 // A FlowSpec is a state machine; these are the shapes the editor touches.
@@ -290,28 +277,14 @@ export async function saveFlowSpec(
   return (await resp.json()) as { ok: boolean; errors?: string[] };
 }
 
-/** Author a new flow company. 400 (validation) comes back as {ok:false, errors}. */
-export async function createFlowCompany(body: {
-  company: string;
-  display_name: string;
-  agent_name: string;
-  templates: Record<string, string>;
-  custom?: { fine_state: string; phase: string; template: string }[];
-}): Promise<CreateFlowResult> {
-  const resp = await fetch("/api/flow/company", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return (await resp.json()) as CreateFlowResult;
-}
-
 /** Author a new flow company from RAW spec+catalog JSON (JSON-editor path, no prefill). */
 export async function createFlowCompanyRaw(body: {
   spec: unknown;
   catalog: unknown;
   display_name?: string;
   agent_name?: string;
+  /** The author's CRM row for the demo caller; without it templates speak [brackets]. */
+  crm?: Record<string, unknown>;
 }): Promise<CreateFlowResult> {
   const resp = await fetch("/api/flow/company/raw", {
     method: "POST",
@@ -418,14 +391,14 @@ export async function saveTrajectory(
   return (await resp.json()) as SaveResult;
 }
 
-/* ทุก pre-script ของบริษัท + ผูกกับ state ไหน (หน้าอ่าน pre-script) */
+/* Every pre-script a company has, and which state binds it (the reading pane) */
 export type PrescriptEntry = {
   text_id: number | string; fine_state: string; template: string;
-  state: string; phase: string; bound: boolean; intent_name?: string; category?: string;
+  state: string; phase: string; bound: boolean; intent_name?: string;
 };
 export type PrescriptData = {
   company: string; display_name: string; version: string;
-  catalog_file: string; spec_file: string;
+  spec_file: string;
   states: { state: string; phase: string; note?: string; beats: string[] }[];
   entries: PrescriptEntry[];
   counts: { templates: number; bound: number; fine_states: number };

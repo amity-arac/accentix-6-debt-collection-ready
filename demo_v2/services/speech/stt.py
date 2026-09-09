@@ -1,18 +1,13 @@
-"""Chirp 3 Speech-to-Text service for Thai language.
+"""Chirp 3 Speech-to-Text for Thai (Google Cloud Speech V2).
 
-Uses Google Cloud Speech-to-Text V2 API with Chirp 3 model.
-Requires: GOOGLE_CLOUD_PROJECT env var + GCP credentials.
+The alternative recognizer behind `/api/stt`; the shipped path is Zipformer. Needs
+GOOGLE_CLOUD_PROJECT and GCP credentials.
 
-Usage:
-    from demo_v2.services.speech.stt import STTService
     stt = STTService()
     text = stt.transcribe(audio_bytes)
-    text = stt.transcribe_file("recording.wav")
 
-Ported from the source project's services/speech/stt.py. Imported lazily by the
-demo backend's STT WebSocket handler (demo/server/stt_ws.py) so that importing
-`demo.server.app` does not pull google-cloud-speech — keeping the base import
-light (see CLAUDE.md gotcha 5/11).
+Imported lazily by `stt_ws.py`, so importing the app does not pull
+google-cloud-speech.
 """
 
 from typing import Iterator
@@ -129,34 +124,6 @@ class STTService:
             audio_bytes = f.read()
         return self.transcribe(audio_bytes)
 
-    def transcribe_streaming(
-        self,
-        audio_chunks: Iterator[bytes],
-        *,
-        raw_pcm: bool = False,
-        sample_rate: int = 16000,
-        interim_results: bool = True,
-        voice_activity_events: bool = False,
-        speech_end_timeout_s: float | None = None,
-        endpointing_sensitivity: str | None = None,
-    ) -> Iterator[str]:
-        """Streaming STT: feed audio chunks, yield transcription results.
-
-        Yields text strings only. For callers needing voice-activity events
-        and interim/final distinction, use `transcribe_streaming_events`.
-        """
-        for event in self.transcribe_streaming_events(
-            audio_chunks,
-            raw_pcm=raw_pcm,
-            sample_rate=sample_rate,
-            interim_results=interim_results,
-            voice_activity_events=voice_activity_events,
-            speech_end_timeout_s=speech_end_timeout_s,
-            endpointing_sensitivity=endpointing_sensitivity,
-        ):
-            if event["type"] in ("partial", "final"):
-                yield event["text"]
-
     def transcribe_streaming_events(
         self,
         audio_chunks: Iterator[bytes],
@@ -249,48 +216,3 @@ class STTService:
                     "type": "final" if result.is_final else "partial",
                     "text": result.alternatives[0].transcript,
                 }
-
-    def transcribe_with_diarization(self, audio_bytes: bytes) -> list[dict]:
-        """Transcribe with speaker diarization (batch mode).
-
-        Args:
-            audio_bytes: Raw audio bytes.
-
-        Returns:
-            List of dicts with 'transcript', 'speaker', and 'language_code' keys.
-        """
-        config = cloud_speech.RecognitionConfig(
-            auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
-            language_codes=[self.language_code],
-            model=self.model,
-            features=cloud_speech.RecognitionFeatures(
-                diarization_config=cloud_speech.SpeakerDiarizationConfig(),
-            ),
-        )
-
-        request = cloud_speech.RecognizeRequest(
-            recognizer=self._recognizer,
-            config=config,
-            content=audio_bytes,
-        )
-
-        response = self._client.recognize(request=request)
-
-        segments = []
-        for result in response.results:
-            if result.alternatives:
-                alt = result.alternatives[0]
-                segment = {
-                    "transcript": alt.transcript,
-                    "language_code": result.language_code,
-                    "words": [
-                        {
-                            "word": w.word,
-                            "speaker_label": w.speaker_label,
-                        }
-                        for w in alt.words
-                    ],
-                }
-                segments.append(segment)
-
-        return segments

@@ -1,31 +1,20 @@
 """Google Chirp 3 HD streaming TTS proxy.
 
-Mirrors the official `streaming_synthesize` pattern: the input text is split
-into a few short chunks and yielded one at a time inside a
-`StreamingSynthesizeRequest`, while audio bytes flow back as soon as the
-model has them. First audio reaches the browser within a few hundred ms,
-much earlier than waiting for the full clip to synthesize.
+The text is split into short chunks and yielded one at a time into a
+`StreamingSynthesizeRequest`, so audio bytes flow back as the model produces them.
 
-We stream **raw PCM** (`audio_encoding=PCM`, headerless little-endian signed
-16-bit @ 24 kHz) — NOT a container. The browser's `<audio>` element can't play
-headerless PCM, so the client does not use `<audio>` at all: it reads the byte
-stream with `fetch` + `AudioContext` and schedules each chunk on the Web Audio
-graph (see `demo/frontend/src/audio.ts`). PCM has no container to demux and no
-codec to decode, so the first samples are audible on arrival — this removes the
-native-`<audio>` OGG/Opus decode-startup + readiness-watermark floor that made
-first-audio land ~1.4s after the request even though bytes arrived in ~5ms.
+We stream **raw PCM** (headerless little-endian int16 @ 24 kHz), not a container.
+An `<audio>` element cannot play that — which is the point: the client reads the
+bytes with `fetch` and schedules each chunk on a Web Audio graph (see
+`demo_v2/frontend/src/audio.ts`). No demux, no codec start-up, so the first samples
+are audible on arrival instead of ~1.4 s later.
 
-Concurrent requests for the same text FAN OUT off ONE underlying gRPC synth: the
-first caller starts a detached producer task; every caller (including a
-fire-and-forget `prefetch`) subscribes and receives each audio chunk *as it is
-produced*. This matters because `prefetch(text)` and the immediately-following
-`play(text)` request the same text — with a plain per-text lock the second
-request would block until the first finished the WHOLE clip, so the client
-heard nothing until full synth (~1-2s) instead of the ~140ms first
-byte. Fan-out lets `play` stream progressively while `prefetch` drains in
-parallel. The producer is detached, so a subscriber disconnecting (barge-in) does
-NOT abort the synth — the concatenated bytes still land in `_CACHE`, making later
-calls (or `prewarm`-ed hits) emit instantly.
+Concurrent requests for the same text fan out off ONE gRPC synth: the first caller
+starts a detached producer and every caller subscribes to the chunks as they are
+produced. `prefetch(text)` followed immediately by `play(text)` would otherwise
+block the second call until the whole clip was done. The producer being detached
+means a barge-in does not abort the synth — the bytes still land in `_CACHE`, so a
+later call emits instantly.
 """
 
 from __future__ import annotations
