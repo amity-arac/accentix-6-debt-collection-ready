@@ -30,8 +30,8 @@ websockets
 torch
 
 # OPTIONAL — Chirp 3 STT (Speech-to-Text V2). No longer used by the demo (the STT
-# path is Zipformer), but the offline scripts/measure_ttfa.py probe still imports
-# services.speech.stt. Install only if you run that probe.
+# path is Zipformer). Nothing in the shipped app imports it — install only if you
+# add a Chirp-based probe back.
 google-cloud-speech
 
 # NOTE: vLLM is NOT listed here — install it on the GPU host separately, e.g.

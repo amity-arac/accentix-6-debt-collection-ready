@@ -125,7 +125,9 @@ for c in COMPANIES:
     spec["flow_id"] = c["flow_id"]
     spec["catalog"] = f"data/pre-scripts/{c['cat_file']}"
     spec["description"] = c["desc"]
-    spec["role"] = c["role"]
+    # `role` ถูกถอดออกจาก format (โมเดลพูดได้เฉพาะ template ในคลัง จึงไม่มีกลไกรับ
+    # โน้ตน้ำเสียง) — ตัวตนของ agent ไปอยู่ที่ `agent_role`
+    spec["agent_role"] = c["role"]
     spec["goal"] = c["goal"]
     errs, _ = validate_flow_spec(spec, catalog)
     if errs:

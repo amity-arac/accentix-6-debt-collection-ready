@@ -12,6 +12,7 @@ demo/frontend/dist/
 # Env — the operator provides their own (see README "Configuration")
 .env
 .env.*
+!.env.sample
 
 # OS / IDE
 .DS_Store
@@ -31,3 +32,6 @@ checkpoints/sft_v10/
 
 # Internal hand-off doc (background for the maintaining agent) — not shipped to the customer.
 HANDOFF.md
+
+# ชุดเอกสารที่ zip ไว้ส่งให้ลูกค้า — สร้างใหม่ได้จาก demo_v2/docs/
+*.zip

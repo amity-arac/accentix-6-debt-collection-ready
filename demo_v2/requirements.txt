@@ -1,0 +1,30 @@
+# demo_v2 — FastAPI backend
+# Python 3.11 · ติดตั้ง:  pip install -r demo_v2/requirements.txt
+#
+# รายการนี้ไล่จาก import จริงในโฟลเดอร์นี้ (ตรวจด้วย AST ไม่ใช่ pip freeze)
+# ตัวโมเดลคุยผ่าน urllib ของ stdlib — ไม่มี openai/httpx ในเส้นทางนี้
+
+# ── จำเป็น: ยกเซิร์ฟเวอร์ + เดินสาย ────────────────────────────────────
+fastapi                      # demo_v2/server/app.py (พา starlette + pydantic มาเอง)
+uvicorn[standard]            # ตัวรัน ASGI
+python-dotenv                # อ่าน .env ตอน app.py โหลด
+
+# ── เสียงพูด (TTS) — เปิดใช้ก็ต่อเมื่อจะให้เดโมพูดออกลำโพง ─────────────
+# ถ้าไม่ติดตั้ง /api/tts จะพัง แต่บทสนทนาแบบพิมพ์ยังทำงานครบ
+google-cloud-texttospeech    # demo_v2/server/tts.py · services/speech/tts.py
+google-auth                  # google.oauth2.service_account ใน services/speech/config.py
+
+# ── เสียงพูดเข้า (STT) — เปิดใช้ก็ต่อเมื่อจะพูดใส่ไมค์ ─────────────────
+# ทั้งสามตัวถูก import แบบ lazy (ตอนมี client ต่อ WebSocket /api/stt เท่านั้น)
+# ไม่ติดตั้ง = backend ยังขึ้นปกติ หน้าเว็บถอยไปใช้ Web Speech API ของเบราว์เซอร์
+numpy                        # resample 16k→8k ก่อนส่งเข้า Zipformer
+websockets                   # client ไปยัง Zipformer STT server
+torch                        # Silero VAD (หนัก ~2GB · โมเดลโหลดผ่าน torch.hub ครั้งแรก)
+torchaudio                   # torchaudio.functional ใน services/speech/vad.py
+
+# ── ทางเลือก: Chirp 3 STT ─────────────────────────────────────────────
+# เดโมไม่ได้ใช้แล้ว (ใช้ Zipformer) แต่ services/speech/stt.py ยัง import ไว้
+# google-cloud-speech
+
+# หมายเหตุ: vLLM ไม่อยู่ในรายการนี้ — ติดตั้งบนเครื่อง GPU ต่างหาก
+#   pip install vllm==0.19.0

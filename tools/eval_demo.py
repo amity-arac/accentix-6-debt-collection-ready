@@ -82,7 +82,8 @@ def _check(ok: bool, **detail) -> dict:
     return {"kind": "CHECK", "ok": bool(ok), "detail": detail}
 
 
-MODEL = "grpo540"
+# Filled from --model, or from whatever the running app reports as served.
+MODEL = ""
 
 
 def run_scenario(company: str, scn: dict, by_id: dict, closer: str, reachable: set,
@@ -203,7 +204,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--company", default="AEON,KBANK,SKL,AMT")
     ap.add_argument("--out", default="demo_eval.json")
-    ap.add_argument("--model", default="grpo540")
+    ap.add_argument("--model", default="",
+                    help="served model id; empty = ask the app what it is serving")
     a = ap.parse_args()
     global MODEL
     MODEL = a.model

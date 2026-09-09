@@ -150,8 +150,28 @@
    "case_status_note": null,
    "company_name": "อิออน",
    "agent_name": "น้องอิ",
-   "due_date_offset_days": 3
+   "due_date_offset_days": 3,
+   "company_phone": "02-035-6666"
   },
   "user_system_prompt": "<persona>ลูกค้าบัตรอิอ้อน ยอดยังไม่ถึงกำหนด รับสายเตือนล่วงหน้า</persona>\n<situation>ยอด 45000 จะครบกำหนด 28 พ.ค. (ยังไม่เกิน) เจ้าหน้าที่โทรเตือนล่วงหน้า</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
+ },
+ {
+  "id": "TC-LIB-BUILD-001",
+  "topic": "ห้องสมุดกลาง — เตือนกำหนดคืนหนังสือ (ทดสอบ variation)",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "msisdn": "081-234-5678",
+   "company_name": "ห้องสมุดกลาง",
+   "agent_name": "น้องสมุด",
+   "customer_name": "อารีย์ ใฝ่รู้",
+   "book_title": "ประวัติศาสตร์ศิลปะไทย เล่ม 2",
+   "due_date_offset_days": 1,
+   "fine_per_day": "5",
+   "library_phone": "02-555-0100",
+   "max_extend_days": "14"
+  },
+  "user_system_prompt": "<persona>ผู้รับสายจากห้องสมุดกลาง</persona>\n<situation>รับสายเข้ามาโดยไม่ได้นัดไว้ล่วงหน้า</situation>\n<constraints>คุยตามธรรมชาติ ตอบตามที่ตัวเองรู้</constraints>"
  }
 ]
