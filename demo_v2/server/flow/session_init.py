@@ -1,17 +1,7 @@
 """Spec-declared session-init API — fetch the call's context before turn 1.
 
-WHY THIS EXISTS
-
-Until now a flow company's render context came from a persona JSON shipped in the
-repo. That is fine for a canned demo and useless for production: a real deployment
-knows the customer only through its own CRM. And when a field is absent, every
-template that references it speaks the raw token at the customer — observed on AMT:
-
-    "คุณมีนัดพบ [doctor_name] วันที่ [appointment_date]"
-
-So a spec may declare ONE call to make at session start, whose response becomes the
-render context. It is declared exactly like a webhook tool — url, method, headers,
-body — and NOTHING else:
+A spec may declare ONE call to make at session start, whose response becomes the
+render context. It is declared like a webhook tool and nothing else:
 
     "session_init": {
       "url": "https://crm.example.com/api/case/{case_ref}",
@@ -21,19 +11,14 @@ body — and NOTHING else:
       "timeout": 8
     }
 
-**No field mapping.** Whatever the API returns IS the context, the same way a tool
-call's response goes straight back as the observation. A field named `doctor_name`
-in the response fills `[doctor_name]` in a template — the API's own contract is the
-only contract. Nested payloads still work: objects are flattened, so
-`{"appointment": {"doctor": "…"}}` is reachable as both `[appointment.doctor]` and
-`[doctor]`. That keeps a legacy CRM usable without asking anyone to write a mapping
-table, while a purpose-built endpoint just returns the names its templates use.
+**No field mapping.** Whatever the API returns IS the context: a field named
+`doctor_name` fills `[doctor_name]`. Nested objects are flattened, so
+`{"appointment": {"doctor": …}}` is reachable as `[appointment.doctor]` and
+`[doctor]` — a legacy CRM stays usable without anyone writing a mapping table.
 
-FAILURE IS NOT FATAL. A live call must not die because a CRM timed out: the fetch
-returns `ok=False` with the reason, the caller keeps whatever seed context it had,
-and the UI can show it. Silent partial context is the thing to avoid, not a slow
-CRM — hence `audit_placeholders()`, which names exactly which placeholders would
-still be spoken literally.
+Failure is not fatal: the fetch returns `ok=False` with the reason and the caller
+keeps its seed context. Silent partial context is the danger, not a slow CRM, which
+is what `audit_placeholders()` exists to name.
 """
 from __future__ import annotations
 
@@ -172,6 +157,7 @@ def fetch_context(spec: dict, seed: dict | None = None) -> dict:
 
     ctx = dict(seed or {})
     ctx.setdefault("API_BASE", os.getenv("AAX6_API_BASE", "http://127.0.0.1:3001"))
+    ctx.setdefault("company", spec.get("company"))
     # Let a spec point at this very server for demos without hardcoding a host.
     ctx.setdefault("BASE_URL", os.getenv("AAX6_DEMO_SELF_URL", "http://127.0.0.1:4100"))
 

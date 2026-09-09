@@ -1,27 +1,19 @@
-"""FlowSpec → communicator instruction .md renderer (Step 2a of the
-flow-interpreter plan).
+"""FlowSpec → the instruction text the model reads.
 
-Generates the per-company pre-script instruction file from a FlowSpec —
-replacing the hand-written ``{ver}_communicator_instruction-{company}.md``
-lineage. The output keeps ``[placeholder]`` tokens intact (fill_template
-substitutes them at load time) and emits NO text_ids: templates are
-referenced by ``fine_state`` only, and the concrete catalog is auto-appended
-at runtime by the communicator exactly as before. One renderer, N specs —
-synthetic flows from the flow generator render through this same code path.
+The output keeps `[placeholder]` tokens intact (fill_template substitutes them per
+call) and emits no text_ids: templates are referenced by `fine_state`, and the
+concrete catalog is appended separately.
 
-CLI::
-
-    python -m aax6.core.flowspec_render data/flows/AEON-outbound-remind.json
-    # → data/system_instructions/pre-script/v12_communicator_instruction-AEON.md
+The prompt is assembled in memory every time a call opens (`sessions.py` calls
+`render_instruction()` directly) — there is no pre-rendered instruction file on disk
+to generate or keep in sync.
 """
 from __future__ import annotations
 
-import argparse
-from pathlib import Path
 
-from demo_v2.server.flow.flowspec import derive_outcomes, load_flow_spec, validate_flow_spec, is_chain_state
+from demo_v2.lib.prescript import CHAIN_RULE
+from demo_v2.server.flow.flowspec import (derive_outcomes, is_chain_state, outcome_args)
 
-RENDER_VERSION = "v12"
 
 # CRM field labels come from the spec (`crm_labels`), because what a field is called
 # in the customer's language is part of that company's flow, not of this renderer. The
@@ -58,6 +50,11 @@ def _fmt_templates(templates: list[dict], chain: bool = False) -> str:
 
 def _fmt_event(spec: dict, event: str) -> str:
     ev = spec["events"].get(event, {})
+    # The right shape is {desc, cues}, but the docs once described it as
+    # {name: description}, so people wrote a bare string and the renderer died with
+    # an AttributeError while building the session — accept both shapes
+    if isinstance(ev, str):
+        ev = {"desc": ev}
     cues = ev.get("cues")
     if cues:
         return f"{event} ({ev.get('desc', '')} — เช่น {', '.join(cues[:4])})"
@@ -80,6 +77,26 @@ def _closing_tool(spec: dict) -> tuple[str, list[str]]:
     raise ValueError(
         "spec declares no closing tool — exactly one tool must carry "
         'gating.required_at: "end_of_call"')
+
+
+def _fmt_outcome_args(spec: dict, outcome: dict) -> str:
+    """The closing tool's arguments, written with **that tool's real argument
+    names**.
+
+    This used to print a fixed `closer("<result>", reason: …)`, so AMT — which closes
+    with `save_appointment(status, new_slot)` — was taught to send a value to an
+    argument named `reason` that it does not have, while `new_slot` (required when a
+    visit is rescheduled) never appeared on this line at all.
+    """
+    args = outcome_args(spec, outcome)
+    return ", ".join(f'{k}="{v}"' for k, v in args.items())
+
+
+def _fmt_reasons(outcome: dict) -> str:
+    """`reasons` is this result's set of reason codes, not the value of an argument —
+    appended as guidance."""
+    rs = outcome.get("reasons") or []
+    return f" — reason: {'/'.join(rs)}" if rs else ""
 
 
 def _render_state(spec: dict, st: dict) -> list[str]:
@@ -114,15 +131,36 @@ def _render_state(spec: dict, st: dict) -> list[str]:
         lines.append(arrow)
     out = st.get("outcome")
     if out:
-        reasons = "/".join(out.get("reasons", [])) or "-"
         closer, _ = _closing_tool(spec)
-        lines.append(f"  - จบสาย: `{closer}(\"{out['result']}\", reason: {reasons})`")
+        lines.append(f"  - จบสาย: `{closer}({_fmt_outcome_args(spec, out)})`"
+                     + _fmt_reasons(out))
     return lines
 
 
-def render_instruction(spec: dict) -> str:
+def render_crm_block(spec: dict) -> str:
+    """The CRM snapshot section on its own, placeholders intact.
+
+    Callers that place it themselves (the live session puts it AFTER the catalog so
+    everything above is identical across calls) render the instruction with
+    `crm="omit"` and append this."""
+    labels = {**_CRM_LABELS, **(spec.get("crm_labels") or {})}
+    out = ["## ข้อมูลลูกค้า (CRM Snapshot)"]
+    for field in spec.get("crm_fields", []):
+        out.append(f"- **{labels.get(field, field)}:** {{{field}}}")
+    return "\n".join(out)
+
+
+def render_instruction(spec: dict, crm: str = "inline") -> str:
     """Render a FlowSpec into a complete pre-script instruction .md (Thai),
-    section-for-section equivalent to the hand-written v11 lineage."""
+    section-for-section equivalent to the hand-written v11 lineage.
+
+    `crm` places the CRM snapshot: "inline" (section 2, the original), "end"
+    (after everything), or "omit" (the caller renders it with `render_crm_block`).
+    The CRM block is the ONLY part of this instruction that differs between calls
+    (it is the only place `{field}` placeholders appear), so with it at the top the
+    prompt diverges ~130 tokens in and nothing after that can be shared between
+    calls. Moving it behind everything else makes the whole instruction identical
+    across calls of the same tenant — which is what lets vLLM reuse the prefix.""" 
     company = spec["company"]
     tools = spec["tools"]
     decls = tools.get("declarations", [])
@@ -130,37 +168,34 @@ def render_instruction(spec: dict) -> str:
     sec: list[str] = []
 
     # --- header ---
-    # Role and governing law come FROM THE SPEC. Both used to be hardcoded to debt
-    # collection, so the hospital appointment flow opened its prompt by declaring
-    # the agent a debt collector bound by the Debt Collection Act — while its own
-    # `agent_role` and `legal_note` sat in the file, read by nothing. A spec that
-    # says nothing keeps the debt default, so the collection specs are unchanged.
-    # `agent_role` is the IDENTITY (who the agent is). `role` is a style note in the
-    # collection specs ("พูดคุยกระชับ สุภาพ…") which reads as nonsense in the identity
-    # slot, so it stays a modifier appended after — exactly as it rendered before.
+    # Identity comes from the spec (`agent_role`); hardcoding it once made a clinic's
+    # appointment flow open by declaring the agent a debt collector. A spec that says
+    # nothing keeps the debt default. `role` (a tone note) and `legal_note` were
+    # removed from the format instead — see SPEC_LOCKED, "keys that were removed".
     identity = spec.get("agent_role") or ""
     header = (f"คุณรับบทเป็น **{identity}**" if identity
               else f"คุณรับบทเป็นเจ้าหน้าที่ติดตามทวงถามหนี้ของ **บริษัท {company}**")
-    if spec.get("role"):
-        header += f" — {spec['role']}"
-    legal = spec.get("legal_note")
-    if legal is None:
-        legal = "ปฏิบัติตาม พ.ร.บ. การทวงถามหนี้ พ.ศ. 2558"
-    sec.append(header + f"\n\n**เป้าหมาย: {spec.get('goal', '')}**"
-               + (f" {legal}" if legal else ""))
+    sec.append(header + f"\n\n**เป้าหมาย: {spec.get('goal', '')}**")
 
     # --- CRM snapshot (placeholders intact; fill_template substitutes at load) ---
     labels = {**_CRM_LABELS, **(spec.get("crm_labels") or {})}
-    crm = ["## ข้อมูลลูกค้า (CRM Snapshot)"]
+    crm_lines = ["## ข้อมูลลูกค้า (CRM Snapshot)"]
     for field in spec.get("crm_fields", []):
         label = labels.get(field, field)
-        crm.append(f"- **{label}:** {{{field}}}")
-    sec.append("\n".join(crm))
+        crm_lines.append(f"- **{label}:** {{{field}}}")
+    crm_block = "\n".join(crm_lines)
+    if crm == "inline":
+        sec.append(crm_block)
 
     # --- reply format + tools ---
     fmt = [
         "## วิธีตอบ (Reply Format)",
         "ตอบลูกค้าโดยเรียก `reply(text_ids=[...])` เลือกจาก **Available Pre-Scripts** ที่ระบบต่อท้ายให้เท่านั้น — **ห้ามสร้างข้อความอิสระ** ระบบเติม slot ({customer_name}/{amount}/...) อัตโนมัติ",
+        "",
+        # The chain rule used to sit at the head of the template block. It moved here,
+        # next to how-to-reply, because it is an instruction rather than data, and the
+        # block is now a plain list — the same shape the training and eval side uses
+        CHAIN_RULE,
         "",
         "**เครื่องมือ silent (ไม่มีข้อความถึงลูกค้า — เรียกก่อน `reply`):**",
     ]
@@ -237,8 +272,9 @@ def render_instruction(spec: dict) -> str:
     sec.append("\n".join(pr))
 
     # --- FAQ routing ---
-    faq = ["## FAQ (ตอบคำถามแทรก แล้วกลับเข้า flow)"]
-    for route in spec.get("faq_routing", {}).get("routes", []):
+    routes = spec.get("faq_routing", {}).get("routes", [])
+    faq = ["## FAQ (ตอบคำถามแทรก แล้วกลับเข้า flow)"] if routes else []
+    for route in routes:
         tmpl = _fmt_templates(route.get("templates", []))
         line = f"- **{route['intent']}** \"{route.get('desc', '')}\" → {tmpl}"
         then = route.get("then")
@@ -246,12 +282,14 @@ def render_instruction(spec: dict) -> str:
             line += " → กลับเข้า flow เดิม"
         else:
             out = (then or {}).get("outcome", {})
-            reasons = "/".join(out.get("reasons", [])) or "-"
-            line += f" → `{_closing_tool(spec)[0]}(\"{out.get('result')}\", \"{reasons}\")` ปิดสาย"
+            line += (f" → `{_closing_tool(spec)[0]}({_fmt_outcome_args(spec, out)})` ปิดสาย"
+                     + _fmt_reasons(out))
         if route.get("note"):
             line += f" — {route['note']}"
         faq.append(line)
-    sec.append("\n".join(faq))
+    if len(faq) > 1:          # skip the heading when there is nothing under it
+                              # (SHOP declares routes: [])
+        sec.append("\n".join(faq))
 
     # --- outcomes summary ---
     results = derive_outcomes(spec)
@@ -283,9 +321,6 @@ def render_instruction(spec: dict) -> str:
                             groups.append(fs)
         if groups:
             ov.append(f"- **{phase}** — " + ", ".join(f"`{g}`" for g in groups))
-    aux = spec.get("auxiliary_templates", {}).get("allowed", [])
-    if aux:
-        ov.append("- **ตามบริบท** — " + ", ".join(f"`{t['fine_state']}`" for t in aux))
     faq_groups = []
     for route in spec.get("faq_routing", {}).get("routes", []):
         for t in route.get("templates", []):
@@ -295,33 +330,8 @@ def render_instruction(spec: dict) -> str:
         ov.append("- **faq** — " + ", ".join(f"`{g}`" for g in faq_groups))
     sec.append("\n".join(ov))
 
+    if crm == "end":
+        sec.append(crm_block)
     return "\n\n".join(sec) + "\n"
 
 
-def default_output_path(spec: dict, version: str = RENDER_VERSION) -> Path:
-    return (Path(__file__).resolve().parents[3] / "data/system_instructions/pre-script"
-            / f"{version}_communicator_instruction-{spec['company']}.md")
-
-
-def main() -> None:
-    ap = argparse.ArgumentParser(description="Render a FlowSpec into a communicator instruction .md")
-    ap.add_argument("spec", help="path to FlowSpec JSON (or bare flow_id under data/flows/)")
-    ap.add_argument("-o", "--output", default=None, help="output .md path (default: pre-script dir, version prefix)")
-    ap.add_argument("--version", default=RENDER_VERSION, help=f"version prefix for the default filename (default {RENDER_VERSION})")
-    args = ap.parse_args()
-
-    spec = load_flow_spec(args.spec)
-    errors, warnings = validate_flow_spec(spec)
-    if errors:
-        raise SystemExit("FlowSpec invalid:\n" + "\n".join(f"- {e}" for e in errors))
-    for w in warnings:
-        print(f"warning: {w}")
-
-    out = Path(args.output) if args.output else default_output_path(spec, args.version)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render_instruction(spec), encoding="utf-8")
-    print(f"rendered {spec['flow_id']} -> {out}")
-
-
-if __name__ == "__main__":
-    main()

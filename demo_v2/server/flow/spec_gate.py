@@ -2,14 +2,17 @@
 
 WHY THIS EXISTS (train/serve parity + generalization):
 
-The model is RL-trained against a tool environment that REJECTS invalid tool calls with
-specific error signals (`Error: outcome_already_recorded`, `Error: no_verbal_commitment`,
-…). Those rejections are not just business logic — they are the signal the policy learned
-to read ("I already did this → stop and reply"). A serving backend that silently accepts
-every call gives the model no such signal, and it can loop (observed: record_outcome
-called 8× in one turn until the tool-loop cap).
+The model shipped here is a supervised fine-tune whose training trajectories were
+recorded in a tool environment that REJECTS an invalid call with a specific error
+token (`Error: outcome_already_recorded`, `Error: no_verbal_commitment`, …). Those
+tokens are in the data it imitates, so the recovery — "I already did this → stop and
+reply" — is a pattern it learned to produce after seeing one. A backend that
+silently accepts every call never shows it the token, and it can loop: observed,
+record_outcome called 8× in one turn until the tool-loop cap. That looping is a
+measurement, and it is what this module prevents.
 
-The FlowSpec ALREADY declares those same rules declaratively, per tool, e.g.
+The gating is read FROM THE SPEC, per tool — no tool names, no company names, no
+domain assumptions here:
 
     record_outcome:            gating.max_successful_calls: 1
     check_account_status:      gating.max_calls_per_conversation: 1
@@ -18,25 +21,17 @@ The FlowSpec ALREADY declares those same rules declaratively, per tool, e.g.
     get_current_datetime:      gating.must_precede: record_verbal_commitment
     save_appointment  (AMT):   gating.required_at: end_of_call
 
+A rejection is a dict carrying the training error token and the "Error: …" phrasing,
+so the model sees the signal it knows:
 
-So this module enforces gating BY READING THE SPEC — no tool names, no company names, no
-domain assumptions in the code. A brand-new company uploaded as JSON gets its declared
-gating enforced automatically; a spec with no tools, or 20 tools with different names,
-works the same way. That is the whole point: spec-driven, not hardcoded.
-
-Rejection shape: a dict (the serving pipeline's convention) that CARRIES the training
-error token AND the "Error: …" phrasing, so the policy sees the signal it was trained on:
-
-    {"error": "outcome_already_recorded",
-     "message": "Error: outcome_already_recorded — …",
+    {"error": "outcome_already_recorded", "message": "Error: … — …",
      "recorded": False, "hint": "…"}
 
 NOT enforced here, deliberately:
-  * `after_event` / `required_before_state` — the serving caller is a live human, so there
-    is no reliable event tag to observe; enforcing it on a guess would block legitimate
-    calls. It stays a prompt-level rule (the instruction renderer emits it).
-  * `required_at: end_of_call` — a "must happen before hanging up" obligation, not a
-    reason to reject a call. Exposed via `pending_obligations()` for the UI/closing check.
+  * `after_event` / `required_before_state` — a live caller carries no reliable event
+    tag, so enforcing on a guess would block legitimate calls. Prompt-level only.
+  * `required_at: end_of_call` — an obligation before hanging up, not a reason to
+    reject. Exposed through `pending_obligations()`.
 """
 from __future__ import annotations
 

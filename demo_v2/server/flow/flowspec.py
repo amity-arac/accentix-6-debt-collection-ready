@@ -1,28 +1,18 @@
 """FlowSpec: declarative, machine-readable call-flow definitions.
 
-A FlowSpec is the single source of truth for one company's call flow — the
-same information the per-company instruction .md files carry in prose
-(states, transitions, tool gating, constraints, FAQ routing, outcomes),
-formalized as JSON under ``data/flows/<flow_id>.json``. One spec feeds three
-consumers that today each hard-code their own copy of the rules:
+One company's call flow as JSON — states, transitions, tool gating, constraints,
+FAQ routing, outcomes — and the single source for three consumers that used to each
+carry their own copy of the rules: the prompt renderer, this backend interpreter,
+and trajectory scoring on the training side (not part of this app).
 
-1. the prompt renderer (spec → instruction .md),
-2. the backend interpreter (spec → tool gating / validation),
-3. the GRPO reward (spec → mechanical trajectory scoring).
+Two rules the schema enforces:
 
-Design rules the schema enforces:
+- **Template binding is id-agnostic.** A state references a catalog entry by
+  ``fine_state``, never by ``text_id``, so ids can be remapped without touching it.
+- **Inferred policy is marked.** Anything not explicit in the source instruction
+  carries ``"inferred": true`` — the spec never silently invents policy.
 
-- **Template binding is id-agnostic.** States reference catalog entries by
-  ``fine_state`` (the semantic unit), never by ``text_id`` — text_ids can be
-  remapped per training example without touching the spec.
-- **Every constraint declares its enforcement layer** (``enforce`` ⊆
-  {prompt, reward, backend}) so nothing is silently "guidance only".
-- **Inferred policy is marked.** Anything not explicit in the source
-  instruction carries ``"inferred": true`` — the spec never silently invents
-  policy.
-
-This module is pure stdlib: load, structurally validate, cross-check a spec
-against its pre-script catalog, and resolve state → text_id bindings.
+Pure stdlib: load, validate, cross-check against the catalog, resolve bindings.
 """
 from __future__ import annotations
 
@@ -76,19 +66,18 @@ _REQUIRED_TOP_KEYS = (
 
 
 # --------------------------------------------------------------------------- #
-# The locked shape. Anything outside these sets is rejected, not ignored.
-#
-# Until this existed, `validate_flow_spec` checked that the keys it KNEW about were
-# well-formed and said nothing about the rest — so a typo (`fine_states`, `entry_tool`)
-# validated clean and then did nothing at runtime, and every retired key
-# (`compose`, `group`, `template_mode`) could quietly come back. A format is only
-# locked if something refuses what is not in it.
+# The locked shape. Anything outside these sets is rejected, not ignored — without
+# that, a typo (`fine_states`, `entry_tool`) validates clean and then does nothing
+# at runtime. A format is only locked if something refuses what is not in it.
 # --------------------------------------------------------------------------- #
 TOP_KEYS = frozenset({
     # identity + presentation
     "display_name",
-    # who the agent is, in the model's words
-    "role", "agent_role", "goal", "legal_note",
+    # who the agent is, in the model's words. `role` (a tone note) and `legal_note`
+    # (a statute name) were removed: the model speaks catalog templates verbatim, so a
+    # tone request has nothing to act on, and a legal duty only binds when it is
+    # written as a `constraints` rule or refused by the tenant's API.
+    "agent_role", "goal",
     # what the agent knows about the customer
     "crm_fields", "crm_labels", "session_init",   # session_init: {url, method, headers,
                                                   #   body, timeout, note, on_failure}
@@ -97,14 +86,16 @@ TOP_KEYS = frozenset({
     "auxiliary_templates", "fallback_fine_state",
     # what it can do
     "tools",
-    # which beats count as verify / disclose / close (the training env reads this)
-    "compliance",
     # accepted from the older shape so an existing file still loads
-    "spec_version", "company", "flow_id", "catalog_inline", "outcomes",
+    "spec_version", "company", "flow_id",
 })
 STATE_KEYS = frozenset({
     "id", "phase", "initial", "terminal", "templates", "on", "entry_tools",
     "outcome", "note", "spec_note", "counts_as", "max_visits", "inferred",
+    # This state's beats cannot be spoken until verification passes — a tool that
+    # declares provides:"verified" has to exist alongside it, or the app never opens
+    # the gate at all (SPEC_LOCKED §8.1)
+    "verify_required",
 })
 TEMPLATE_KEYS = frozenset({"fine_state", "any_of", "when_event", "optional",
                            "note", "inferred",
@@ -126,6 +117,9 @@ CONSTRAINT_KEYS = frozenset({
 })
 # `gating` had no key lock, so a misspelling (`max_sucessful_calls`) validated clean and
 # then enforced nothing — the exact failure TOP_KEYS/STATE_KEYS exist to prevent.
+# The tool that declares itself the verification unlock. No tool name and no field
+# name is hardcoded anywhere; the app reads these two keys (SPEC_LOCKED §8.1)
+VERIFIED_WHEN_KEYS = frozenset({"field", "equals", "any_success"})
 GATING_KEYS = frozenset({
     # enforced by SpecGate at call time
     "max_successful_calls", "max_calls_per_conversation",
@@ -135,8 +129,8 @@ GATING_KEYS = frozenset({
 })
 CATALOG_KEYS = frozenset({
     "text_id", "_fine_state", "template",                 # the three that matter
-    "hint",                                               # เมื่อไหร่ควรใช้สำนวนนี้
-    "company", "state", "intent_name", "category",        # derived; accepted if present
+    "hint",                                               # when to use this wording
+    "company", "state", "intent_name",                    # derived; accepted if present
     "_hint_where", "_example_AEON", "is_closer", "is_demand",
     "is_acknowledgment", "expects_response", "note", "desc",
 })
@@ -186,21 +180,57 @@ def validate_strict(spec: dict, catalog: list[dict] | None = None) -> list[str]:
                 errors.append(f"state {sid} template[{i}]: ต้องมี fine_state หรือ any_of")
         for i, tr in enumerate(st.get("on") or []):
             _check_keys(f"state {sid} on[{i}]", tr, TRANSITION_KEYS, errors)
+    for st in spec.get("states") or []:
+        if isinstance(st.get("outcome"), dict):
+            _check_keys(f"state {st.get('id','?')} outcome", st["outcome"],
+                        OUTCOME_KEYS, errors)
     si = spec.get("session_init") or {}
     of = si.get("on_failure") or {}
     if of:
         beats = {e.get("_fine_state") for e in (catalog or [])}
         if catalog is not None and of.get("fine_state") not in beats:
             errors.append(f"session_init.on_failure: ไม่มี beat '{of.get('fine_state')}' ในคลัง")
-        res = (of.get("outcome") or {}).get("result")
+        res = outcome_result(spec, of.get("outcome"))
         if res and res not in set(derive_outcomes(spec)):
             errors.append(f"session_init.on_failure: result '{res}' ไม่อยู่ในผลลัพธ์ที่ flow นี้ประกาศ")
+        # On this path **the app calls the tool itself** with args from the spec, so an
+        # argument that does not exist or a value outside its enum gets rejected by
+        # gate 2 at the moment nobody is watching (the CRM is down) — which is why it
+        # has to be checked at upload time
+        errors.extend(f"session_init.on_failure: {m}"
+                      for m in _check_outcome_args(spec, of.get("outcome")))
     for c in spec.get("constraints") or []:
         _check_keys(f"constraint {c.get('id', c.get('type', '?'))}", c,
                     CONSTRAINT_KEYS, errors)
     for d in (spec.get("tools") or {}).get("declarations") or []:
         _check_keys(f"tool {d.get('name','?')} gating", d.get("gating") or {},
                     GATING_KEYS, errors)
+        # The verification unlock: declaring half of it is a trap. `provides` without
+        # `verified_when` leaves the app guessing how to read the API's answer, which
+        # is exactly what this schema exists to remove, and `verified_when` without
+        # `provides` is read by nobody.
+        if d.get("provides") and d["provides"] != "verified":
+            errors.append(f"tool {d.get('name','?')}: provides รับได้ค่าเดียวคือ \"verified\"")
+        if d.get("provides") and not d.get("verified_when"):
+            errors.append(f"tool {d.get('name','?')}: ประกาศ provides แล้วต้องมี verified_when "
+                          "({field, equals} หรือ {any_success: true})")
+        if d.get("verified_when") and not d.get("provides"):
+            errors.append(f"tool {d.get('name','?')}: มี verified_when แต่ไม่ได้ประกาศ provides")
+        vw = d.get("verified_when") or {}
+        if vw:
+            _check_keys(f"tool {d.get('name','?')} verified_when", vw, VERIFIED_WHEN_KEYS, errors)
+            if not vw.get("any_success") and not vw.get("field"):
+                errors.append(f"tool {d.get('name','?')} verified_when: ต้องมี field+equals "
+                              "หรือ any_success")
+    # events: {name: {desc, cues}} — a bare string still loads (the renderer accepts
+    # it) but is reported on write, because `cues` is what tells the model which words
+    # count as that event
+    for name, ev in (spec.get("events") or {}).items():
+        if isinstance(ev, str):
+            errors.append(f"events[{name}]: ใช้รูป {{\"desc\": …, \"cues\": [...]}} "
+                          "ไม่ใช่ string เปล่า")
+        elif isinstance(ev, dict) and not ev.get("desc"):
+            errors.append(f"events[{name}]: ต้องมี desc")
     for i, e in enumerate(catalog or []):
         _check_keys(f"catalog[{i}]", e, CATALOG_KEYS, errors, allow_underscore=True)
         # A catalog entry keys its beat `_fine_state`; the bare name belongs to a
@@ -226,26 +256,113 @@ def load_flow_spec(path: str | Path) -> dict:
         return json.load(f)
 
 
+OUTCOME_KEYS = frozenset({
+    # `args` = the arguments the closing tool has to receive (that tool's own real
+    # argument names). `result`/`reason` = the older shape; it still loads and is
+    # normalized into `args`.
+    "args", "result", "reason", "reasons", "desc",
+    # Author's notes — read by no code (like note/spec_note/inferred at state level).
+    # AEON's `reason_by_event` writes down which event should get which reason, but
+    # **nothing reads it**: the reason actually sent comes from the model, so it is a
+    # record of intent, not a rule.
+    "note", "spec_note", "inferred", "reason_by_event",
+})
+
+
+def closing_tool(spec: dict) -> dict | None:
+    """The closing tool's declaration — the one that declares
+    `gating.required_at: "end_of_call"`."""
+    for d in (spec.get("tools") or {}).get("declarations", []):
+        if (d.get("gating") or {}).get("required_at") == "end_of_call":
+            return d
+    return None
+
+
+def outcome_key(spec: dict) -> str:
+    """The name of the argument that carries the call result — the first argument the
+    closing tool declares.
+
+    The whole system used to hardcode this as `result`, which is the argument name of
+    one debt-collection tool: AMT closes with `save_appointment(status, new_slot)`, so
+    the prompt taught it to send a value to an argument named `reason` that the tool
+    does not have. Reading it from the declaration instead makes the name always
+    match.
+    """
+    d = closing_tool(spec) or {}
+    return next(iter((d.get("args") or {})), "result")
+
+
+def outcome_args(spec: dict, outcome: dict | None) -> dict:
+    """`outcome` → the arguments to hand the closing tool (the older shape is
+    converted here).
+
+    The current shape declares `args` directly, using that tool's own argument names.
+    The older shape (a bare `result` plus `reason`) becomes
+    `{<first arg>: result, "reason": reason}`, so a file written earlier keeps
+    behaving exactly as it did.
+    """
+    o = outcome or {}
+    if isinstance(o.get("args"), dict):
+        return dict(o["args"])
+    args: dict = {}
+    if o.get("result") is not None:
+        args[outcome_key(spec)] = o["result"]
+    if o.get("reason") is not None:
+        args["reason"] = o["reason"]
+    return args
+
+
+def outcome_result(spec: dict, outcome: dict | None) -> str | None:
+    """This outcome's call result — the value of the argument that carries it."""
+    v = outcome_args(spec, outcome).get(outcome_key(spec))
+    return None if v is None else str(v)
+
+
+def _check_outcome_args(spec: dict, outcome: dict | None) -> list[str]:
+    """A declared `outcome` has to be a call the closing tool can actually accept.
+
+    Two things nothing checked before, each failing differently:
+      · an argument absent from the declaration — that value can never be sent (the
+        prompt teaches something the tool does not have)
+      · a value outside that argument's `enum` — gate 2 rejects it at closing time
+        with `<arg>_invalid`, which means the call cannot end at all, and nothing
+        warned at upload
+    """
+    d = closing_tool(spec)
+    if not d or not outcome:
+        return []
+    declared = d.get("args") or {}
+    errs: list[str] = []
+    for name, val in outcome_args(spec, outcome).items():
+        meta = declared.get(name)
+        if meta is None:
+            errs.append(f"outcome args: `{name}` ไม่ใช่ argument ของ {d.get('name')} "
+                        f"(มี: {', '.join(declared) or '—'})")
+            continue
+        enum = (meta or {}).get("enum")
+        if enum and val not in enum:
+            errs.append(f"outcome args: {name}={val!r} ไม่อยู่ใน enum ของ "
+                        f"{d.get('name')} ({', '.join(map(str, enum))})")
+    return errs
+
+
 def derive_outcomes(spec: dict) -> dict:
-    """The call results this flow can actually produce — assembled from the states.
+    """The call results this flow can produce — assembled from the states.
 
-    A state that ends the call already says what it records; a terminal FAQ route says
-    the same. A separate top-level `outcomes` block was an index of that, and being a
-    copy it drifted: AEON's block listed `refused` with no reasons while its own state
-    named three, and both AEON and KBANK listed `busy` / `voice_mail`, which no state
-    can reach. It also forced every flow to HAVE call results — a notification call or
-    a survey had to invent them to pass validation.
-
-    `desc` (a note to the model about what a result means) has nowhere to be derived
-    from, so it rides on the state's own `outcome`. A spec that still carries the old
-    block keeps working: its entries fill in what the states did not say.
+    A state that ends the call already says what it records, and so does a terminal FAQ
+    route. A top-level `outcomes` block was an index of that and, being a copy, drifted
+    (AEON listed `refused` with no reasons while its state named three; both AEON and
+    KBANK listed results no state could reach). It also forced every flow to HAVE
+    results — a survey had to invent them to validate. `desc` rides on the state's own
+    `outcome` because it cannot be derived from anything.
     """
     out: dict[str, dict] = {}
 
     def add(o: dict) -> None:
-        if not o or not o.get("result"):
+        res = outcome_result(spec, o)
+        if not o or not res:
             return
-        e = out.setdefault(o["result"], {"reasons": [], "desc": ""})
+        e = out.setdefault(res, {"reasons": [], "desc": ""})
         for r in o.get("reasons") or []:
             if r not in e["reasons"]:
                 e["reasons"].append(r)
@@ -258,34 +375,24 @@ def derive_outcomes(spec: dict) -> dict:
         then = route.get("then")
         if isinstance(then, dict):
             add(then.get("outcome") or {})
-    for code, info in ((spec.get("outcomes") or {}).get("results") or {}).items():
-        e = out.setdefault(code, {"reasons": [], "desc": ""})
-        for r in (info or {}).get("reasons") or []:
-            if r not in e["reasons"]:
-                e["reasons"].append(r)
-        if not e["desc"]:
-            e["desc"] = (info or {}).get("desc", "")
     return out
 
 
 def load_tenant_spec(path: "Path | str") -> dict:
     """Read one tenant file and fill in the identity the filename already carries.
 
-    A spec used to repeat its own `company` and `flow_id`, which is data that can
-    disagree with the file it lives in — and did: the blank template said
-    `company: "YOURCO"` while sitting in `_TEMPLATE.company.json`. Deriving them here
-    means every reader downstream still sees a complete spec while the file on disk
-    says each fact once.
+        `<CODE>.company.json`  -> company = CODE,    flow_id = CODE
+        `<FLOW_ID>.json`       -> flow_id = FLOW_ID, company = the part before the `-`
 
-    `<CODE>.company.json`  -> company = CODE
-    `<FLOW_ID>.json`       -> flow_id = FLOW_ID, company = the part before the first `-`
+    A spec used to repeat its own `company`/`flow_id`, which can disagree with the file
+    it lives in — and did. Deriving them here lets the file say each fact once.
     """
     p = Path(path)
     spec = json.loads(p.read_text(encoding="utf-8"))
     stem = p.name[: -len(".company.json")] if p.name.endswith(".company.json") else p.stem
     if p.name.endswith(".company.json"):
         spec.setdefault("company", stem)
-        spec.setdefault("flow_id", f"{stem}-outbound-call")
+        spec.setdefault("flow_id", stem)
     else:
         spec.setdefault("flow_id", stem)
         spec.setdefault("company", stem.split("-")[0])
@@ -294,43 +401,23 @@ def load_tenant_spec(path: "Path | str") -> dict:
 
 
 def resolve_catalog(spec: dict, flows_dir: Path | None = None) -> list[dict]:
-    """The catalog for a spec, whichever layout it uses.
+    """The catalog of a spec — `catalog` IS the list of templates.
 
-    - **single file** — ``catalog_inline`` holds the templates (``catalog`` may say
-      ``"__inline__"``). One company, one file, nothing to keep in sync.
-    - **split** — ``catalog`` names a file, resolved under ``data/pre-scripts/``
-      (or repo-root-relative if it contains a separator).
-
-    Ported from ``aax6.core.flowspec.resolve_catalog`` in the training repo so both
-    sides read the SAME two layouts. This is the one place that decides which, so
-    every caller stays agnostic.
+    Three shapes used to be accepted: a list; `catalog: "__inline__"` paired with
+    `catalog_inline`; and `catalog` naming a *file* to be found under
+    `data/pre-scripts/`. The last two are inherited from when a spec and its template
+    store were two files — being separate, they drifted apart. No file under
+    `data/flows/` uses them any more (measured: all of them hold a list), and
+    accepting them made "one company, one file" not quite true. One shape is left.
     """
-    if isinstance(spec.get("catalog"), list):
-        return spec["catalog"]                      # current shape: `catalog` IS the list
-    if spec.get("catalog") == "__inline__" or spec.get("catalog_inline") is not None:
-        # older shape kept readable: `catalog: "__inline__"` + a separate `catalog_inline`
-        cat = spec.get("catalog_inline")
-        if not isinstance(cat, list):
-            raise ValueError("catalog_inline ต้องเป็น list ของ template")
+    cat = spec.get("catalog")
+    if isinstance(cat, list):
         return cat
-    name = spec.get("catalog")
-    if not name:
-        raise ValueError("spec ไม่มีทั้ง catalog_inline และ catalog")
-    path = Path(name)
-    if not path.is_absolute():
-        root = (flows_dir or FLOWS_DIR).parent.parent
-        path = (root / name) if ("/" in str(name) or "\\" in str(name)) \
-            else (root / "data" / "pre-scripts" / name)
-    return load_catalog(path)
-
-
-def load_catalog(path: str | Path) -> list[dict]:
-    """Load a pre-script catalog (flat list of template entries)."""
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, list):
-        raise ValueError(f"catalog {path} is not a flat list")
-    return data
+    if isinstance(cat, str) or spec.get("catalog_inline") is not None:
+        raise ValueError(
+            "`catalog` ต้องเป็น list ของ template ในไฟล์เดียวกับสเปค — "
+            "รูป `catalog_inline` และ `catalog` ที่เป็นชื่อไฟล์ไม่รองรับแล้ว")
+    raise ValueError("spec ไม่มี `catalog`")
 
 
 def _template_refs(spec: dict):
@@ -346,6 +433,13 @@ def _template_refs(spec: dict):
             yield f"faq:{route.get('intent')}", t.get("fine_state")
     for t in spec.get("auxiliary_templates", {}).get("allowed", []):
         yield "auxiliary", t.get("fine_state")
+    # `fallback_fine_state` is a real binding — `_fallback_reply()` takes that beat
+    # straight from the catalog when the model replies with nothing, so it has to
+    # count. Otherwise a spec that declares a fallback is told the sentence is
+    # "referred to by nobody", and the author has to declare it a second time under
+    # auxiliary_templates.
+    if isinstance(spec.get("fallback_fine_state"), str):
+        yield "fallback", spec["fallback_fine_state"]
 
 
 def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[list[str], list[str]]:
@@ -449,8 +543,9 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
                     errors.append(f"state {sid}: transition tool not enabled: {tool}")
         out = st.get("outcome")
         if out:
-            if out.get("result") not in valid_results:
-                errors.append(f"state {sid}: outcome result invalid: {out.get('result')}")
+            if outcome_result(spec, out) not in valid_results:
+                errors.append(f"state {sid}: outcome result invalid: {outcome_result(spec, out)}")
+            errors.extend(f"state {sid}: {m}" for m in _check_outcome_args(spec, out))
         elif st.get("terminal"):
             warnings.append(f"state {sid}: terminal state without an outcome")
 
@@ -468,8 +563,10 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
         then = route.get("then")
         if then != "resume":
             out = (then or {}).get("outcome", {})
-            if out.get("result") not in valid_results:
-                errors.append(f"faq {intent}: terminal route outcome invalid: {out.get('result')}")
+            if outcome_result(spec, out) not in valid_results:
+                errors.append(f"faq {intent}: terminal route outcome invalid: "
+                              f"{outcome_result(spec, out)}")
+            errors.extend(f"faq {intent}: {m}" for m in _check_outcome_args(spec, out))
 
     # --- constraints ---
     seen_cids: set[str] = set()
@@ -493,7 +590,15 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
         layers = set(c.get("enforce", []))
         if not layers:
             errors.append(f"constraint {cid}: missing enforce layers")
-        elif not layers <= {"prompt", "reward", "backend"}:
+        elif "backend" in layers:
+            # `backend` is retired: runtime enforcement moved entirely to each tool's
+            # `gating`. The validator used to accept it in silence even though the docs
+            # called it retired — reject it and name the right place, so nobody
+            # declares it and believes something is enforcing it.
+            errors.append(f"constraint {cid}: เลิกใช้ enforce 'backend' แล้ว — "
+                          "การบังคับตอนรันประกาศที่ `gating` ของ tool "
+                          "(หรือให้ API ของ tenant ปฏิเสธเอง)")
+        elif not layers <= {"prompt"}:
             errors.append(f"constraint {cid}: invalid enforce layers: {sorted(layers)}")
         ev = c.get("event")
         if ev and ev not in events:
@@ -504,13 +609,6 @@ def validate_flow_spec(spec: dict, catalog: list[dict] | None = None) -> tuple[l
         for tool in filter(None, (c.get("tool"), c.get("first"), c.get("second"))):
             if tool not in enabled:
                 errors.append(f"constraint {cid}: references non-enabled tool: {tool}")
-
-    # --- outcomes ---
-    # Results now come FROM the states, so there is no list to cross-check against —
-    # what remains worth saying is when a result code is declared and unreachable.
-    for result in ((spec.get("outcomes") or {}).get("results") or {}):
-        if result not in valid_results:
-            warnings.append(f"outcomes: `{result}` is declared but no state or FAQ route records it")
 
     # --- catalog cross-check ---
     if catalog is not None:
@@ -582,12 +680,15 @@ __all__ = [
     "KNOWN_IMPLS",
     "load_tenant_spec",
     "derive_outcomes",
+    "closing_tool",
+    "outcome_key",
+    "outcome_args",
+    "outcome_result",
     "CONSTRAINT_TYPES",
     "GATING_KEYS",
     "CONSTRAINT_KEYS",
     "RETIRED_CONSTRAINT_TYPES",
     "load_flow_spec",
-    "load_catalog",
     "validate_flow_spec",
     "declared_tools",
     "build_tool_schemas",
@@ -612,23 +713,14 @@ def is_chain_state(state: dict) -> bool:
     return not any(t.get("when_event") for t in tpl)
 
 def normalize_catalog(catalog: list[dict], spec: dict | None = None) -> list[dict]:
-    """Fill in the catalog fields that can be DERIVED, so an author only has to
-    write the three that carry meaning: ``text_id``, ``_fine_state``, ``template``.
+    """Fill in the catalog fields that can be DERIVED, so an author writes only the
+    three that carry meaning: ``text_id``, ``_fine_state``, ``template``.
 
-    Everything else was duplicated information an author had to keep in sync by
-    hand:
-
-    * ``company``    — the spec already says which company this is.
-    * ``state``      — the spec already says which state binds this beat; that IS
-      the binding. Written by hand it could disagree with the spec, and the
-      prompt would then group the line under a state that never reaches it.
-    * ``intent_name``— a label for the prompt line; the fine_state is the name.
-    * ``category``   — A (say something) / B (ask something). Inferred from the
-      beat name when unset: a beat that asks (``ask_``/``probe_``/``request_``)
-      is B, everything else is A.
-
-    Only MISSING keys are filled, so the shipped catalogs — which spell all of
-    this out — keep their exact current values and prompt layout.
+    The rest was duplicated information kept in sync by hand — ``company`` (the spec
+    says it), ``state`` (the spec's binding IS it, and a hand-written one could
+    disagree, grouping the line under a state that never reaches it), ``intent_name``
+    (the fine_state is the name). Only MISSING keys are filled, so a catalog that
+    spells them out keeps its exact values and prompt layout.
     """
     spec = spec or {}
     company = spec.get("company", "")
@@ -665,8 +757,5 @@ def normalize_catalog(catalog: list[dict], spec: dict | None = None) -> list[dic
         e.setdefault("intent_name", fs)
         if fs_to_state.get(fs):
             e.setdefault("state", fs_to_state[fs])
-        if not e.get("category"):
-            asks = fs.startswith(("ask_", "probe_", "request_")) or fs.endswith("_ask")
-            e["category"] = "B" if asks else "A"
         out.append(e)
     return out

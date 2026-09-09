@@ -1,0 +1,664 @@
+{
+ "display_name": "ห้องสมุดกลาง",
+ "agent_role": "เจ้าหน้าที่ห้องสมุดกลาง",
+ "goal": "เตือนว่าหนังสือครบกำหนดคืนพรุ่งนี้ และรับเรื่องขอต่ออายุถ้าลูกค้าขอ",
+ "events": {
+  "confirms_return": {
+   "desc": "รับทราบ จะคืนตามกำหนด",
+   "cues": [
+    "ได้ครับ",
+    "คืนตามกำหนด",
+    "จะไปคืน",
+    "รับทราบ"
+   ]
+  },
+  "request_extend": {
+   "desc": "ขอต่ออายุการยืม",
+   "cues": [
+    "ขอต่อ",
+    "ต่ออายุได้ไหม",
+    "ขอยืมต่อ",
+    "เลื่อนคืนได้ไหม"
+   ]
+  },
+  "gives_date": {
+   "desc": "ระบุวันที่ต้องการคืน",
+   "cues": [
+    "วันที่ 20",
+    "ศุกร์หน้า",
+    "สัปดาห์หน้า",
+    "สิ้นเดือน"
+   ]
+  },
+  "already_returned": {
+   "desc": "แจ้งว่าคืนไปแล้ว",
+   "cues": [
+    "คืนไปแล้ว",
+    "เอาไปคืนแล้ว",
+    "คืนเมื่อวาน"
+   ]
+  },
+  "wrong_person": {
+   "desc": "ไม่ใช่เจ้าของบัตรห้องสมุด",
+   "cues": [
+    "ไม่ใช่ผม",
+    "โทรผิด",
+    "ไม่รู้จัก"
+   ]
+  },
+  "asks_fine": {
+   "desc": "ถามค่าปรับ",
+   "cues": [
+    "ปรับเท่าไหร่",
+    "ค่าปรับ",
+    "เกินกำหนดแล้วไง"
+   ]
+  },
+  "no_input": {
+   "desc": "ไม่ตอบ / เงียบ",
+   "cues": [
+    "…"
+   ]
+  },
+  "asks_due": {
+   "desc": "ถามว่าต้องคืนเมื่อไหร่",
+   "cues": [
+    "เมื่อไหร่",
+    "วันไหน",
+    "ต้องคืนเมื่อไรนะ",
+    "กำหนดคืนวันไหน"
+   ]
+  }
+ },
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "book_title",
+  "due_date",
+  "fine_per_day",
+  "library_phone"
+ ],
+ "crm_labels": {
+  "book_title": "ชื่อหนังสือ",
+  "fine_per_day": "ค่าปรับต่อวัน"
+ },
+ "session_init": {
+  "url": "{API_BASE}/LIB/init?msisdn={msisdn}",
+  "method": "GET",
+  "timeout": 8,
+  "on_failure": {
+   "fine_state": "close_handoff",
+   "outcome": {
+    "args": {
+     "result": "handoff",
+     "reason": "ระบบไม่ตอบ ให้เจ้าหน้าที่ติดต่อกลับ"
+    }
+   }
+  }
+ },
+ "tools": {
+  "declarations": [
+   {
+    "name": "check_extend",
+    "impl": "http",
+    "url": "{API_BASE}/LIB/check_extend",
+    "method": "POST",
+    "desc": "ตรวจว่าต่ออายุถึงวันที่ลูกค้าขอได้ไหม — ห้ามตัดสินเอง",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "วันที่ลูกค้าบอก แปลงเป็น canonical ก่อนส่ง"
+     }
+    },
+    "returns": {
+     "in_range": {
+      "type": "boolean",
+      "desc": "ต่อได้ไหม"
+     },
+     "valid_dates": {
+      "type": "array",
+      "desc": "วันที่ต่อได้ (canonical)"
+     },
+     "max_extend_days": {
+      "type": "number",
+      "desc": "ต่อได้ไม่เกินกี่วัน"
+     },
+     "new_due_date": {
+      "type": "string",
+      "desc": "วันครบกำหนดใหม่ที่ผ่านการตรวจ"
+     }
+    },
+    "gating": {
+     "after_event": "gives_date",
+     "note": "เรียกเมื่อลูกค้าระบุวันแล้วเท่านั้น การนับวันเป็นหน้าที่ของระบบ"
+    },
+    "mock": {
+     "rules": [
+      {
+       "when": {
+        "arg": "date",
+        "within_days_of": {
+         "field": "due_date",
+         "days_field": "max_extend_days"
+        }
+       },
+       "body": {
+        "in_range": true,
+        "max_extend_days": 14,
+        "new_due_date": "{{body 'args.date'}}"
+       },
+       "label": "ต่อได้ (due_date + max_extend_days)"
+      }
+     ],
+     "default": {
+      "in_range": false,
+      "valid_dates": [],
+      "max_extend_days": 14,
+      "new_due_date": "",
+      "note": "เกินกำหนดที่ต่อได้"
+     }
+    }
+   },
+   {
+    "name": "record_call_result",
+    "impl": "http",
+    "url": "{API_BASE}/LIB/record_call_result",
+    "method": "POST",
+    "desc": "บันทึกผลสาย — เรียกครั้งเดียวก่อนวางสาย",
+    "args": {
+     "result": {
+      "type": "string",
+      "desc": "ผลของสายนี้",
+      "enum": [
+       "confirmed",
+       "extended",
+       "returned",
+       "wrong_person",
+       "handoff",
+       "unreachable"
+      ]
+     },
+     "new_due_date": {
+      "type": "string",
+      "optional": true,
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "วันครบกำหนดใหม่ — บังคับเมื่อ result=extended ใช้ค่าที่ check_extend คืนมา",
+      "required_when": {
+       "arg": "result",
+       "equals": "extended"
+      },
+      "one_of_from": {
+       "tool": "check_extend",
+       "field": "valid_dates"
+      }
+     },
+     "reason": {
+      "type": "string",
+      "optional": true,
+      "desc": "เหตุผลของผลสายนี้ (ระบบเติมเองเมื่อ session_init ไม่ตอบ)"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    }
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_remind"
+    }
+   ],
+   "on": [
+    {
+     "event": "confirms_return",
+     "to": "close_confirmed"
+    },
+    {
+     "event": "request_extend",
+     "to": "ask_new_date"
+    },
+    {
+     "event": "already_returned",
+     "to": "close_returned"
+    },
+    {
+     "event": "wrong_person",
+     "to": "close_wrong"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "ask_new_date",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_new_date"
+    }
+   ],
+   "on": [
+    {
+     "event": "gives_date",
+     "to": "confirm_extend"
+    }
+   ]
+  },
+  {
+   "id": "confirm_extend",
+   "phase": "main",
+   "templates": [
+    {
+     "any_of": [
+      "confirm_new_due",
+      "date_too_far"
+     ]
+    }
+   ],
+   "entry_tools": [
+    "check_extend"
+   ],
+   "on": [
+    {
+     "event": "confirms_return",
+     "to": "close_extended"
+    },
+    {
+     "event": "gives_date",
+     "to": "confirm_extend"
+    }
+   ]
+  },
+  {
+   "id": "close_confirmed",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_confirmed"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "confirmed"
+    }
+   }
+  },
+  {
+   "id": "close_extended",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_extended"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "extended"
+    }
+   }
+  },
+  {
+   "id": "close_returned",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_returned"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "returned"
+    }
+   }
+  },
+  {
+   "id": "close_wrong",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_wrong"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "wrong_person"
+    }
+   }
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_unreachable"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "unreachable"
+    }
+   }
+  },
+  {
+   "id": "close_handoff",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_handoff"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "handoff"
+    }
+   }
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "due",
+    "templates": [
+     {
+      "fine_state": "faq_due"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "fine",
+    "templates": [
+     {
+      "fine_state": "faq_fine"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "hours",
+    "templates": [
+     {
+      "fine_state": "faq_hours"
+     }
+    ],
+    "then": "resume"
+   }
+  ]
+ },
+ "auxiliary_templates": {
+  "allowed": [
+   {
+    "fine_state": "faq_repeat"
+   }
+  ]
+ },
+ "fallback_fine_state": "faq_repeat",
+ "constraints": [
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "desc": "พูดหนึ่งจังหวะต่อเทิร์น",
+   "enforce": [
+    "prompt"
+   ]
+  },
+  {
+   "id": "system_counts_days",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ห้ามนับวันเอง — ลูกค้าบอกวันแล้วต้องเรียก check_extend แล้วอ่าน in_range จากคำตอบ"
+  },
+  {
+   "id": "greeting_once",
+   "type": "once_per_call",
+   "template_fine_states": [
+    "greet_remind"
+   ],
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ทักทายแจ้งกำหนดคืนครั้งเดียวต่อสาย"
+  },
+  {
+   "id": "open_with_greeting",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "เปิดสายด้วย greet_remind ก่อนเสมอ — แจ้งชื่อหนังสือและกำหนดคืนจาก CRM snapshot ได้ทันที ไม่ต้องยืนยันตัวตน"
+  },
+  {
+   "id": "no_close_before_answer",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ห้ามเรียก record_call_result ก่อนที่ลูกค้าจะตอบว่าจะคืนตามกำหนด/ขอต่ออายุ/คืนไปแล้ว — คำรับสาย (ฮัลโหล/สวัสดี/ว่าไงครับ) ไม่นับเป็นคำตอบ ให้ทักทายแจ้งกำหนดคืนก่อน"
+  }
+ ],
+ "catalog": [
+  {
+   "text_id": 7001,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "สวัสดี{suffix} คุณ[customer_name] ห้องสมุดกลางโทรมาแจ้งว่าหนังสือ [book_title] ครบกำหนดคืน [due_date] นะ{q_suffix}",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7002,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "สวัสดี{suffix} ที่นี่ห้องสมุดกลาง{suffix} หนังสือ [book_title] ของคุณ[customer_name] ถึงกำหนดคืน [due_date] แล้วนะ{q_suffix}",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7003,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "เรียนคุณ[customer_name] ห้องสมุดกลางแจ้งเตือนกำหนดคืน [book_title] วันที่ [due_date] {suffix} สะดวกคืนตามกำหนดไหม{q_suffix}",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7004,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "สวัสดี{suffix} ห้องสมุดกลางนะ{q_suffix} โทรมาเตือนเรื่อง [book_title] ที่ครบกำหนด [due_date] {suffix}",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7005,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "คุณ[customer_name] {suffix} ห้องสมุดกลางโทรมาเตือนว่า [book_title] ต้องคืนภายใน [due_date] นะ{q_suffix}",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7006,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "สวัสดี{suffix} ห้องสมุดกลางแจ้งกำหนดคืนหนังสือ [book_title] ของคุณ[customer_name] คือ [due_date] {suffix} ไม่ทราบว่าสะดวกคืนตามกำหนดไหม{q_suffix}",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7010,
+   "_fine_state": "ask_new_date",
+   "state": "main",
+   "template": "ได้{suffix} ไม่ทราบว่าต้องการต่ออายุถึงวันไหน{q_suffix}",
+   "company": "LIB",
+   "intent_name": "ask_new_date"
+  },
+  {
+   "text_id": 7011,
+   "_fine_state": "ask_new_date",
+   "state": "main",
+   "template": "ได้{suffix} รบกวนแจ้งวันที่ต้องการต่ออายุด้วยนะ{q_suffix}",
+   "company": "LIB",
+   "intent_name": "ask_new_date"
+  },
+  {
+   "text_id": 7012,
+   "_fine_state": "ask_new_date",
+   "state": "main",
+   "template": "ต่ออายุได้{suffix} ขอทราบวันที่คุณต้องการคืนแทนนะ{q_suffix}",
+   "company": "LIB",
+   "intent_name": "ask_new_date"
+  },
+  {
+   "text_id": 7020,
+   "_fine_state": "confirm_new_due",
+   "state": "main",
+   "template": "รับทราบ{suffix} ต่ออายุถึงวันที่ [new_due_date] ให้แล้วนะ{q_suffix} ยืนยันตามนี้ได้เลยไหม{q_suffix}",
+   "company": "LIB",
+   "intent_name": "confirm_new_due"
+  },
+  {
+   "text_id": 7021,
+   "_fine_state": "confirm_new_due",
+   "state": "main",
+   "template": "ได้{suffix} กำหนดคืนใหม่เป็น [new_due_date] {suffix} ยืนยันไหม{q_suffix}",
+   "company": "LIB",
+   "intent_name": "confirm_new_due"
+  },
+  {
+   "text_id": 7025,
+   "_fine_state": "date_too_far",
+   "state": "main",
+   "template": "ขออภัย{suffix} ห้องสมุดต่ออายุให้ได้ไม่เกิน [max_extend_days] วัน{suffix} สะดวกวันอื่นภายในนี้ไหม{q_suffix}",
+   "company": "LIB",
+   "intent_name": "date_too_far"
+  },
+  {
+   "text_id": 7030,
+   "_fine_state": "close_confirmed",
+   "state": "closing",
+   "template": "ขอบคุณ{suffix} ห้องสมุดบันทึกไว้ว่าจะได้รับคืน [due_date] นะ{q_suffix} สวัสดี{suffix}",
+   "company": "LIB",
+   "intent_name": "close_confirmed"
+  },
+  {
+   "text_id": 7031,
+   "_fine_state": "close_extended",
+   "state": "closing",
+   "template": "ขอบคุณ{suffix} ต่ออายุถึง [new_due_date] เรียบร้อยแล้วนะ{q_suffix} สวัสดี{suffix}",
+   "company": "LIB",
+   "intent_name": "close_extended"
+  },
+  {
+   "text_id": 7032,
+   "_fine_state": "close_returned",
+   "state": "closing",
+   "template": "รับทราบ{suffix} ขอเวลาตรวจสอบในระบบก่อนนะ{q_suffix} หากไม่พบรายการคืนจะติดต่อกลับ{suffix} ขอบคุณ{suffix}",
+   "company": "LIB",
+   "intent_name": "close_returned"
+  },
+  {
+   "text_id": 7033,
+   "_fine_state": "close_wrong",
+   "state": "closing",
+   "template": "ขออภัยที่รบกวน{suffix} สวัสดี{suffix}",
+   "company": "LIB",
+   "intent_name": "close_wrong"
+  },
+  {
+   "text_id": 7034,
+   "_fine_state": "close_unreachable",
+   "state": "closing",
+   "template": "ขออภัย{suffix} ห้องสมุดขออนุญาตติดต่อใหม่ภายหลังนะ{q_suffix} ขอบคุณ{suffix}",
+   "company": "LIB",
+   "intent_name": "close_unreachable"
+  },
+  {
+   "text_id": 7035,
+   "_fine_state": "close_handoff",
+   "state": "closing",
+   "template": "เดี๋ยวให้เจ้าหน้าที่ติดต่อกลับไปนะ{q_suffix} ขอบคุณ{suffix}",
+   "company": "LIB",
+   "intent_name": "close_handoff"
+  },
+  {
+   "text_id": 7040,
+   "_fine_state": "faq_fine",
+   "state": "faq",
+   "template": "ถ้าเกินกำหนดจะมีค่าปรับวันละ [fine_per_day] บาท{suffix}",
+   "company": "LIB",
+   "intent_name": "faq_fine"
+  },
+  {
+   "text_id": 7041,
+   "_fine_state": "faq_hours",
+   "state": "faq",
+   "template": "ห้องสมุดเปิด 8:30 ถึง 18:00 ทุกวันทำการ{suffix} สอบถามเพิ่มเติมที่ [library_phone] ได้{suffix}",
+   "company": "LIB",
+   "intent_name": "faq_hours"
+  },
+  {
+   "text_id": 7050,
+   "_fine_state": "faq_repeat",
+   "state": "faq",
+   "template": "ขออภัย{suffix} รบกวนแจ้งอีกครั้งได้ไหม{q_suffix}",
+   "company": "LIB",
+   "intent_name": "faq_repeat"
+  },
+  {
+   "text_id": 7060,
+   "_fine_state": "faq_due",
+   "state": "faq",
+   "template": "[due_date] {suffix}",
+   "hint": "ตอบสั้นที่สุด — ใช้เมื่อลูกค้าถามห้วนๆ สั้นๆ เช่น \"เมื่อไหร่\" \"วันไหน\" ที่ต้องการแค่วัน"
+  },
+  {
+   "text_id": 7061,
+   "_fine_state": "faq_due",
+   "state": "faq",
+   "template": "ครบกำหนดคืนวันที่ [due_date] {suffix}",
+   "hint": "ตอบระดับปกติ — ใช้เมื่อลูกค้าถามเป็นประโยคเต็มแต่ไม่ได้ขอรายละเอียดเพิ่ม"
+  },
+  {
+   "text_id": 7062,
+   "_fine_state": "faq_due",
+   "state": "faq",
+   "template": "หนังสือ [book_title] ครบกำหนดคืนวันที่ [due_date] {suffix} หากเกินกำหนดมีค่าปรับวันละ [fine_per_day] บาท{suffix}",
+   "hint": "ตอบละเอียด — ใช้เมื่อลูกค้าขอรายละเอียด ถามหลายเรื่องพร้อมกัน หรือถามถึงค่าปรับด้วย"
+  }
+ ]
+}

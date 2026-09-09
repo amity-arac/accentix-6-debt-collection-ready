@@ -6,19 +6,16 @@ duplicated here where it could drift from the customer's system of record. The a
 contributes only what a phone call needs and an API cannot know:
 
 - **SpecGate** (flow/spec_gate.py) enforces the spec's declared per-call rules
-  before the request goes out (call caps, tool ordering, args matching a prior
-  commitment). These are conversation invariants, and they are also the error
-  signals the RL policy was trained to read.
-- The API's JSON response is returned **flat, as-is** — the observation the model
-  sees is exactly what the backend said, including an `error` field.
+  before the request goes out (call caps, ordering, args matching a prior
+  commitment). They are conversation invariants, and also the error signals the
+  model was trained to read.
+- The API's JSON response is returned **flat, as-is**, including an `error` field:
+  the observation is exactly what the backend said.
 - `session_init` (flow/session_init.py) fetches the call's context once, before
   turn 1, so every reply template is filled from live data.
 
-`impl: "generic"` survives for a tool whose API does not exist yet: it validates
-args against the declaration and returns a canned response. Any other impl is
-rejected with a hint rather than silently handled, so a stale spec fails loudly.
-
-The dispatch surface stays `dispatch(name, args) -> dict`, so callers are unchanged.
+`impl: "generic"` survives for a tool whose API does not exist yet. Any other impl
+is rejected with a hint, so a stale spec fails loudly.
 """
 from __future__ import annotations
 
@@ -28,26 +25,26 @@ def _gen_id(prefix: str) -> str:
     import secrets
     return f"{prefix}-{secrets.token_hex(3).upper()}"
 from demo_v2.server.flow.flowspec import declared_tools
+from demo_v2.lib.datetime_utils import resolve_spoken_date
 from demo_v2.server.flow.spec_gate import SpecGate
+
+import re as _re
+
+_DATE_ISO_RE = _re.compile(r"^\d{4}-\d{2}-\d{2}")
 
 
 class SpecBackend:
     def __init__(self, customer_data: dict, spec: dict) -> None:
         self.spec = spec
         self._decls = declared_tools(spec)
-        # The customer's row, verbatim. This used to be wrapped in CaseBackend — the
-        # debt collector's backend — which carried a 4-digit KYC check, a verbal-
-        # commitment state machine and that domain's result codes. In the flow path
-        # every tool dispatches through the spec, so none of it ran; only its debt
-        # assumptions stayed wired in. Holding the row directly keeps this executor
-        # free of any one company's idea of what a call contains.
-        # NOT a copy: the session hands in its own render context and `_merge_context`
-        # writes each tool's answer back into it, so a re-checked balance is what the
-        # next template speaks. Copying here silently restores the session-init snapshot.
+        # The customer's row, verbatim — no domain wrapper, so this executor carries no
+        # company's idea of what a call contains. NOT a copy: the session hands in its
+        # own render context and `_merge_context` writes each answer back into it, so a
+        # re-checked balance is what the next template speaks.
         self.customer_data = customer_data
 
-        # Per-conversation call log — the raw material for gating checks,
-        # state-summary injection, and the GRPO reward.
+        # Per-conversation call log — the raw material for gating checks, state-summary
+        # injection, and (on the training side, not here) trajectory scoring.
         self.call_log: list[dict] = []
         # spec-driven gate (call caps / ordering / arg-match) — reads the spec's own
         # tools[].gating + constraints, so any company's spec is enforced with no
@@ -61,35 +58,42 @@ class SpecBackend:
     def dispatch(self, name: str, args: dict) -> dict:
         """Run one tool call and return what the model should see.
 
-            The only way a tool reaches the tenant's API. Four checks run before the call
-            is made, in this order, and each returns instead of raising:
+        The only way a tool reaches the tenant's API. Four checks run first, in this order,
+        each returning rather than raising:
 
-              unknown_tool           the spec does not declare it
-              missing_required_args  an arg without `optional` arrived empty
-              value_not_offered      `one_of_from` — a value the owning tool never returned
-              SpecGate.check()       counts, ordering, argument matching (spec_gate.py)
+          unknown_tool           the spec does not declare it
+          missing_required_args  an arg without `optional` arrived empty
+          value_not_offered      `one_of_from` — a value the owning tool never returned
+          SpecGate.check()       counts, ordering, argument matching (spec_gate.py)
 
-            The return value is a flat dict either way. A rejection carries `error` and a
-            Thai `message` beginning "Error: <code>" — the same shape the training
-            environment used, so the policy reads a refusal it already knows. Wrapping the
-            API's payload under a key would show the model a shape it has never seen.
-
+        Either way the return is a flat dict; a rejection carries `error` and a message
+        beginning "Error: <code>", the shape the model saw in training. Wrapping the API's
+        payload under a key would show it a shape it has never seen.
         """
         decl = self._decls.get(name)
         if decl is None:
             result = {"error": "unknown_tool", "name": name,
                       "valid_tools": sorted(self._decls)}
         else:
-            # spec-declared gating FIRST (call caps, tool ordering, arg-match). This is
-            # what restores train/serve parity: the training env rejected these same
-            # calls with an error the policy learned to read (e.g. "already recorded →
-            # stop and reply"). Purely spec-driven — see flow/spec_gate.py.
-            # An arg the spec declares WITHOUT `optional` has to arrive with a value.
-            # Accepting `""` let a save go through that recorded nothing: the call was
-            # stamped closed on the empty write, the retry that carried the real date
-            # was refused as `call_already_closed`, and the sentence that speaks the
-            # value went out with a hole in it. Checked before gating so the model is
-            # told what is missing instead of being told the call is over.
+            # An argument declared with a date format also accepts the words the
+            # customer said ("tomorrow", "end of the month") and the code turns them
+            # into ISO. The model only copies what it heard; the calendar arithmetic
+            # stays here (measured: model-computed dates 62% right, copied from a
+            # table 92%). A value already in ISO is untouched.
+            args = dict(args or {})
+            for _a, _meta in (decl.get("args") or {}).items():
+                if not str((_meta or {}).get("format", "")).startswith("YYYY-MM-DD"):
+                    continue
+                _v = str(args.get(_a, "") or "").strip()
+                if not _v or _DATE_ISO_RE.match(_v):
+                    continue
+                _hit = resolve_spoken_date(_v)
+                if _hit is not None:
+                    args[_a] = _hit.isoformat()
+            # A required arg must arrive with a value: accepting "" let a save record
+            # nothing, the call was stamped closed on that empty write, and the retry
+            # carrying the real date was refused `call_already_closed`. Checked before
+            # the gate so the model is told what is missing, not that the call is over.
             missing = [a for a, spec_arg in (decl.get("args") or {}).items()
                        if not (spec_arg or {}).get("optional")
                        and str((args or {}).get(a, "")).strip() == ""]
@@ -103,6 +107,8 @@ class SpecBackend:
             if bad is not None:
                 self.call_log.append({"tool": name, "args": args, "result": bad})
                 return bad
+            # Spec-declared gating (call caps, ordering, arg-match) — see spec_gate.py
+            # for why the rejection shape has to stay as the model saw it in training.
             gate_err = self._gate.check(name, args or {}, self.call_log)
             if gate_err is not None:
                 self.call_log.append({"tool": name, "args": args, "result": gate_err})
@@ -128,18 +134,12 @@ class SpecBackend:
     def _not_offered(self, decl: dict, args: dict) -> dict | None:
         """Reject an arg whose value was never offered by the tool that owns the set.
 
-        An arg can declare `one_of_from: {tool, field}` — "the valid values are what
-        that tool last returned under that field". The agent booked appointments the
-        clinic never offered: it invented a Thursday the doctor was not on duty, and
-        it sent "" when the day the customer asked for was not in the list. Both were
-        recorded as real bookings, because nothing compared the value against the set
-        the API had already returned. Spec-driven, so any company that offers a
-        choice set from its own API gets the same check with no code here.
-
-        `required_when` covers the other half: an arg that is optional in general but
-        mandatory for one value of a sibling arg (a reschedule needs a date, a
-        confirmation does not) — `optional: true` alone let the empty reschedule
-        through.
+        An arg can declare `one_of_from: {tool, field}` — "valid values are what that tool
+        last returned under that field". Without it the agent booked a Thursday the doctor
+        was not on duty, and sent "" when the requested day was not in the list; both were
+        recorded as real bookings. `required_when` covers the other half: an arg optional in
+        general but mandatory for one value of a sibling (a reschedule needs a date, a
+        confirmation does not) — `optional: true` alone let the empty reschedule through.
         """
         for a, spec_arg in (decl.get("args") or {}).items():
             spec_arg = spec_arg or {}
@@ -186,16 +186,13 @@ class SpecBackend:
     def _merge_context(self, result: dict) -> None:
         """A successful tool response updates the render context, in place.
 
-        The API is the system of record, so its latest answer must be what the agent
-        SAYS — not just something the model saw in the transcript. Without this the
-        reply templates keep speaking the session-init snapshot: measured, a
-        re-check returning 99999 was read aloud as the older 45000.
+        The API is the system of record, so its latest answer must be what the agent SAYS,
+        not just something the model read in the transcript — without this a re-check
+        returning 99999 was still spoken as the older 45000.
 
-        Only successes merge. An error payload carries diagnostic keys (`got`,
-        `hint`, `expected`) that are not facts about the customer, and letting them
-        into the context would put them one template away from being spoken.
-        Flattened the same way session_init flattens, so a nested response works
-        without configuration.
+        Only successes merge: an error payload carries diagnostic keys that are not facts
+        about the customer, and one template away from being spoken. Flattened the same way
+        session_init flattens, so a nested response needs no configuration.
         """
         if not isinstance(result, dict) or result.get("error"):
             return
@@ -225,6 +222,11 @@ class SpecBackend:
         import os as _os
         ctx = {**self.customer_data, **(args or {})}
         ctx.setdefault("API_BASE", _os.getenv("AAX6_API_BASE", "http://127.0.0.1:3001"))
+        # The tenant's own code, so a spec can write `{API_BASE}/{company}/<tool>` and
+        # stay correct after it is copied. The Builder clones a base spec verbatim, so
+        # without this every company it created kept the base's hardcoded path segment
+        # and posted its writes to the template tenant.
+        ctx.setdefault("company", self.spec.get("company"))
         # Default body = the call itself: the tool's own name, the args the model
         # supplied, and the identifiers an API needs to find the record. So a spec
         # declares nothing but `url` and the API receives everything — a `body`

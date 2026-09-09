@@ -1,7 +1,5 @@
 {
- "flow_id": "KBANK-outbound-remind",
  "display_name": "กสิกรไทย",
- "role": "เลียนแบบบอทโทรจริงในโปรดักชัน (flow \"Outbound - Remind\" สกัดจาก 30,000 สาย)",
  "goal": "ทักทาย/ยืนยันชื่อ → แจ้งยอด → ชวนชำระวันนี้ → (ลังเล) โน้มน้าวตามเหตุ → ปิดสาย/นัด — สั้น กระชับ เหมือนคนคุยโทรศัพท์",
  "crm_fields": [
   "today",
@@ -30,8 +28,10 @@
   "on_failure": {
    "fine_state": "apology",
    "outcome": {
-    "result": "unreachable",
-    "reason": "ระบบไม่ตอบ ติดต่อกลับภายหลัง"
+    "args": {
+     "result": "unreachable",
+     "reason": "ระบบไม่ตอบ ติดต่อกลับภายหลัง"
+    }
    }
   }
  },
@@ -94,7 +94,6 @@
   }
  },
  "tools": {
-  "require_kyc": false,
   "notes": [
    "ไม่มี KYC ถามเลข 4 หลัก และไม่มีการโอนสายไปเจ้าหน้าที่จริง (ตามบอทจริง)"
   ],
@@ -111,7 +110,11 @@
      "note": "ห้ามเรียก turn แรกก่อนทักทาย; เรียกทันทีหลังลูกค้ายืนยันชื่อ ก่อน reply แจ้งยอดครั้งแรก"
     },
     "url": "{API_BASE}/KBANK/check_account_status",
-    "method": "POST"
+    "method": "POST",
+    "provides": "verified",
+    "verified_when": {
+     "any_success": true
+    }
    },
    {
     "name": "record_verbal_commitment",
@@ -263,14 +266,6 @@
     "counter_service",
     "mobile_app",
     "other"
-   ],
-   "result_codes": [
-    "ptp",
-    "refused",
-    "unreachable",
-    "reached",
-    "tcb",
-    "tin"
    ]
   }
  },
@@ -401,7 +396,8 @@
      "to": "close_confirm_info"
     }
    ],
-   "counts_as": "pay_ask"
+   "counts_as": "pay_ask",
+   "verify_required": true
   },
   {
    "id": "convince",
@@ -468,7 +464,9 @@
     "record_outcome"
    ],
    "outcome": {
-    "result": "ptp",
+    "args": {
+     "result": "ptp"
+    },
     "reasons": [
      "ptp",
      "minimum"
@@ -487,7 +485,9 @@
     }
    ],
    "outcome": {
-    "result": "ptp",
+    "args": {
+     "result": "ptp"
+    },
     "reasons": [
      "paid"
     ],
@@ -508,7 +508,9 @@
     }
    ],
    "outcome": {
-    "result": "refused",
+    "args": {
+     "result": "refused"
+    },
     "reasons": [],
     "desc": "ปฏิเสธชัดเจนหลังครบโควตาโน้มน้าว หรือ stop_signal"
    },
@@ -531,7 +533,9 @@
     "record_outcome"
    ],
    "outcome": {
-    "result": "tcb",
+    "args": {
+     "result": "tcb"
+    },
     "reasons": [
      "callback"
     ],
@@ -553,7 +557,9 @@
     }
    ],
    "outcome": {
-    "result": "unreachable",
+    "args": {
+     "result": "unreachable"
+    },
     "reasons": [
      "other_person",
      "wrong_number",
@@ -575,7 +581,9 @@
     }
    ],
    "outcome": {
-    "result": "reached",
+    "args": {
+     "result": "reached"
+    },
     "reasons": [
      "no_input"
     ],
@@ -643,7 +651,9 @@
     ],
     "then": {
      "outcome": {
-      "result": "tcb",
+      "args": {
+       "result": "tcb"
+      },
       "reasons": [
        "agent"
       ],
@@ -691,7 +701,8 @@
       "fine_state": "faq_amount"
      }
     ],
-    "then": "resume"
+    "then": "resume",
+    "verify_required": true
    },
    {
     "intent": "due",
@@ -701,7 +712,8 @@
       "fine_state": "faq_due"
      }
     ],
-    "then": "resume"
+    "then": "resume",
+    "verify_required": true
    },
    {
     "intent": "wrong_name",
@@ -713,7 +725,9 @@
     ],
     "then": {
      "outcome": {
-      "result": "tin",
+      "args": {
+       "result": "tin"
+      },
       "reasons": [
        "wrong_name"
       ],
@@ -732,7 +746,9 @@
     ],
     "then": {
      "outcome": {
-      "result": "reached",
+      "args": {
+       "result": "reached"
+      },
       "reasons": [
        "mourning"
       ],
@@ -766,8 +782,7 @@
     "to": "close_refused"
    },
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "ขอให้จ่ายได้สูงสุด 2 ครั้งต่อสาย (ask_pay_today 1 + convince 1) นับทุกเหตุผลที่ลูกค้าให้ ครบแล้วยังไม่รับปาก → refused ปิดทันที"
   },
@@ -775,8 +790,7 @@
    "id": "disclose_once",
    "type": "once_per_call",
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "แจ้งยอด/วันครบกำหนดพูดครั้งเดียวต่อสาย — ถามยอดซ้ำให้ใช้ faq_amount ไม่ใช่ disclose ใหม่",
    "template_fine_states": [
@@ -788,8 +802,7 @@
    "type": "repeat_only_on",
    "event": "no_input",
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "ถามคำถามเดิมซ้ำได้เฉพาะกรณีลูกค้าเงียบ (NO-INPUT) เท่านั้น — การปฏิเสธ/บอกจ่ายไม่ได้คือ input ชัดเจน ห้ามถามซ้ำ"
   },
@@ -802,8 +815,7 @@
     "verify_name"
    ],
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "ยืนยันชื่อแล้วห้ามถามชื่อซ้ำ — check_account_status แล้วแจ้งยอดทันที"
   },
@@ -811,8 +823,7 @@
    "id": "answered_no_repeat",
    "type": "no_repeat_answered_request",
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "ลูกค้าตอบ request แล้ว (จ่ายไม่ได้/ให้วันมา/ปฏิเสธ) = เดินหน้าต่อ ห้ามยิงคำถามเดิมซ้ำ"
   },
@@ -822,8 +833,7 @@
    "event": "stop_signal",
    "to": "close_refused",
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "เจอสัญญาณหยุด → record_outcome(refused) ปิดทันที ไม่ต้องรอครบโควตาโน้มน้าว"
   },
@@ -832,32 +842,28 @@
    "type": "max_templates_per_reply",
    "max": 1,
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "template = หนึ่ง turn เต็ม เลือก 1 อัน/turn — ห้าม chain เนื้อซ้ำ (ยกเว้นคู่ที่ระบุ)"
   },
   {
    "id": "faq_resume",
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "ตอบ FAQ แล้วกลับเข้า flow จากจุดเดิม — ห้ามเริ่มสายใหม่/แจ้งยอดซ้ำ"
   },
   {
    "id": "outcome_required",
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "จบสายต้อง record_outcome(result, reason, remark) เสมอ ครั้งเดียว"
   },
   {
    "id": "kyc_verbal_gate",
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**KYC gate:** ห้ามเปิดเผยจำนวนหนี้/ยอด/วันครบกำหนด (disclose_balance, faq_amount, faq_due) ก่อนลูกค้ายืนยันตัวตนชัดเจน. ถ้าลูกค้าถามยอด/วันครบกำหนด **ก่อน verify → ตอบ verify_first (1115) ขอยืนยันตัวตนก่อน ห้ามบอกยอด/รายละเอียด**. การยืนยันตัวตนที่ชัดเจน = ลูกค้าตอบรับตรงๆ ว่า 'ใช่ / ใช่ครับ / ใช่ค่ะ / ถูกต้อง / ผมเอง / ดิฉันเอง' เท่านั้น — คำรับสั้นๆ กำกวมอย่าง 'ครับ / ค่ะ / อือ / อ๋อ / โอเค' **ไม่นับว่ายืนยันตัวตน** ให้ถาม verify_first ต่อ ห้ามแจ้งยอด"
   },
@@ -879,56 +885,35 @@
     "faq_due"
    ],
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "ก่อนลูกค้ายืนยันตัวตน (name_confirmed) ห้ามเปิดเผยยอด/วันครบกำหนด/ประเภทหนี้"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ความเงียบไม่ใช่การตกลง:** ลูกค้าตอบว่า '...' / '(เงียบ)' / ตอบไม่เป็นคำพูดที่ตีความได้ = เหตุการณ์ `no_input` เท่านั้น — **ห้ามถือเป็น agrees_to_pay ห้ามเรียก record_verbal_commitment / payment_date และห้ามบันทึกผลเป็น ptp** ให้เดินตาม transition ของ no_input ใน state ปัจจุบัน (ถามซ้ำ หรือปิดสายตามที่ flow กำหนด) การบันทึกคำมั่นจากความเงียบถือว่าผิดร้ายแรงเทียบเท่ากับบันทึกคำมั่นที่ลูกค้าไม่ได้ให้"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ลูกค้าแจ้งเหตุติดขัด (ตกงาน/ป่วย/เงินช็อต/ยังไม่มีเงิน) → ต้องพูด convince ก่อนเสมอ** (convince_lost_job / convince_sick / convince_other ตามเหตุ) แล้วรอคำตอบ — **ห้ามข้ามไป record_verbal_commitment และห้ามปิดสาย** จนกว่าลูกค้าจะรับปากชำระเอง"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**`handoff_refuse` ใช้ได้เฉพาะเมื่อลูกค้าขอคุยกับเจ้าหน้าที่ที่เป็นคนเท่านั้น** — ลูกค้าเงียบ ถามยอด หรือถามเรื่องอื่น **ห้ามตอบด้วย handoff_refuse** เพราะไม่ได้ตอบสิ่งที่ถาม ให้เดินตาม flow ของ state ปัจจุบันแทน"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ลูกค้าเงียบหลังได้รับข้อมูลครบแล้ว (no_input ที่ disclose_ask/convince)** → ปิดด้วย `confirm_info` ที่ทวนว่าได้รับข้อมูลครบถ้วนแล้ว และบันทึกผลเป็น reached — **ห้ามปิดด้วย close/close_paid** และห้ามบันทึกเป็น ptp"
   }
  ],
- "compliance": {
-  "note": "beat roles the training side reads. `close_fine_states` is the set a call may legitimately END on — derived from states marked `terminal` and from FAQ routes whose `then.terminal` is true. The earlier auto-derivation over-matched and listed `disclose_balance`, the beat that OPENS the negotiation: the harness treats this list as 'the call is over', so every SKL/KBANK call was cut the moment the balance was disclosed.",
-  "verify_fine_states": [
-   "greet_verify",
-   "verify_name"
-  ],
-  "disclose_fine_states": [
-   "disclose_balance"
-  ],
-  "close_fine_states": [
-   "apology",
-   "close",
-   "close_paid",
-   "offer_callback"
-  ]
- },
  "auxiliary_templates": {
   "note": "template ที่ไม่ผูกกับ state เดียว — ใช้ได้ตามบริบทใน phase ที่ตรง",
   "allowed": [
@@ -960,16 +945,14 @@
    "_fine_state": "greet_verify",
    "template": "สวัสดี{suffix} {pronoun}ติดต่อจากธนาคารกสิกรไทย เพื่อดูแลเรื่องสินเชื่อที่คุณลูกค้าใช้งานอยู่นะ{q_suffix} ไม่ทราบว่า{pronoun}เรียนสายคุณ [customer_name] ใช่หรือไม่{q_suffix}",
    "state": "opening",
-   "intent_name": "opening_greet_verify",
-   "category": "A"
+   "intent_name": "opening_greet_verify"
   },
   {
    "text_id": 1001,
    "_fine_state": "verify_name",
    "template": "ไม่ทราบว่า {pronoun}กําลังเรียนสายคุณ [customer_name] ใช่หรือไม่{q_suffix}",
    "state": "opening",
-   "intent_name": "opening_verify_name",
-   "category": "B"
+   "intent_name": "opening_verify_name"
   },
   {
    "text_id": 1005,
@@ -977,24 +960,21 @@
    "template": "ขออภัยที่รบกวน{suffix} ไม่ทราบว่า คุณมีเบอร์ติดต่อคุณ [customer_name] หรือไม่{q_suffix}",
    "_synthetic": true,
    "state": "opening",
-   "intent_name": "opening_third_party",
-   "category": "B"
+   "intent_name": "opening_third_party"
   },
   {
    "text_id": 1018,
    "_fine_state": "disclose_balance",
    "template": "ขอบคุณ{suffix} ธนาคารขอเรียนแจ้งให้ทราบว่า[loan_type] ที่ลงท้ายด้วยเลข [last_4_digits] ถึงกำหนดชำระไปแล้วเมื่อ[due_date] คุณลูกค้ามียอดเรียกเก็บจำนวน [minimum_payment] บาท {suffix} รบกวนคุณลูกค้าชำระยอดค้างภายในวันนี้ ผ่านทาง Application K PLUS หรือช่องทางที่สะดวกที่สุด คุณลูกค้าสะดวกชำระยอดค้างภายในวันนี้หรือไม่{q_suffix}",
    "state": "negotiation",
-   "intent_name": "negotiation_ask_pay_today",
-   "category": "B"
+   "intent_name": "negotiation_ask_pay_today"
   },
   {
    "text_id": 1020,
    "_fine_state": "ask_pay_today",
    "template": "รบกวนคุณลูกค้าชำระยอดเรียกเก็บจำนวน [minimum_payment] บาท ภายในวันนี้ได้หรือไม่{q_suffix}",
    "state": "negotiation",
-   "intent_name": "negotiation_ask_pay_today",
-   "category": "B"
+   "intent_name": "negotiation_ask_pay_today"
   },
   {
    "text_id": 1067,
@@ -1002,8 +982,7 @@
    "template": "ธนาคารขอแจ้งถึงผลกระทบว่า หากคุณลูกค้าชำระล่าช้า อาจจะมีค่าธรรมเนียมผิดนัดชำระ และมีค่าติดตามทวงถามหนี้เพิ่มขึ้นนะ{q_suffix} รบกวนคุณลูกค้าลองพยายามชำระภายในวันนี้ได้ไหม{q_suffix}",
    "_synthetic": true,
    "state": "hardship",
-   "intent_name": "hardship_convince_lost_job",
-   "category": "A"
+   "intent_name": "hardship_convince_lost_job"
   },
   {
    "text_id": 1068,
@@ -1011,16 +990,14 @@
    "template": "ธนาคารเข้าใจในความไม่สะดวกนะ{q_suffix} อย่างไรก็ตาม หากคุณลูกค้าชำระล่าช้า อาจจะมีค่าธรรมเนียมผิดนัดชำระ และค่าติดตามทวงถามหนี้เพิ่มขึ้น รบกวนคุณลูกค้าลองพยายามชำระภายในวันนี้ได้ไหม{q_suffix}",
    "_synthetic": true,
    "state": "hardship",
-   "intent_name": "hardship_convince_sick",
-   "category": "A"
+   "intent_name": "hardship_convince_sick"
   },
   {
    "text_id": 1069,
    "_fine_state": "convince_other",
    "template": "ธนาคารเข้าใจในความไม่สะดวกนะ{q_suffix} แต่หากคุณลูกค้าชำระล่าช้า อาจจะมีค่าธรรมเนียมผิดนัดชำระ และค่าติดตามทวงถามหนี้เพิ่มขึ้น รบกวนคุณลูกค้าลองพยายามชำระภายในวันนี้ได้ไหม{q_suffix}",
    "state": "hardship",
-   "intent_name": "hardship_convince_other",
-   "category": "A"
+   "intent_name": "hardship_convince_other"
   },
   {
    "text_id": 1041,
@@ -1028,8 +1005,7 @@
    "template": "รบกวนคุณลูกค้าลองพยายามชำระภายในวันนี้ได้ไหม{q_suffix}",
    "_synthetic": true,
    "state": "hardship",
-   "intent_name": "hardship_probe_hardship",
-   "category": "A"
+   "intent_name": "hardship_probe_hardship"
   },
   {
    "text_id": 1109,
@@ -1037,32 +1013,28 @@
    "template": "คุณลูกค้าได้รับข้อมูลครบถ้วนแล้วนะ{q_suffix}",
    "_synthetic": true,
    "state": "closing",
-   "intent_name": "closing_confirm_info",
-   "category": "A"
+   "intent_name": "closing_confirm_info"
   },
   {
    "text_id": 1047,
    "_fine_state": "close",
    "template": "ธนาคารขอขอบพระคุณเป็นอย่างสูง หากคุณลูกค้ามีข้อสงสัยเพิ่มเติม สามารถติดต่อได้ที่ [company_phone] ได้{suffix}",
    "state": "closing",
-   "intent_name": "closing_close",
-   "category": "A"
+   "intent_name": "closing_close"
   },
   {
    "text_id": 1051,
    "_fine_state": "offer_callback",
    "template": "ขออภัย{suffix} ธนาคารขออนุญาตติดต่อใหม่ภายหลังนะ{q_suffix} หากคุณลูกค้ามีข้อสงสัยเพิ่มเติม สามารถติดต่อได้ที่ [company_phone] ขอบคุณ{suffix}",
    "state": "closing",
-   "intent_name": "closing_offer_callback",
-   "category": "A"
+   "intent_name": "closing_offer_callback"
   },
   {
    "text_id": 1036,
    "_fine_state": "apology",
    "template": "ธนาคารเข้าใจในความไม่สะดวกของคุณลูกค้านะ{q_suffix} และจะขอติดต่อคุณลูกค้ากลับไปภายหลังนะ{q_suffix} หากคุณลูกค้ามีข้อสงสัยเพิ่มเติม หรือต้องการสอบถามโครงการให้ความช่วยเหลือของธนาคาร สามารถติดต่อได้ที่ [company_phone] ขอบคุณที่ใช้บริการ สวัสดี{suffix}",
    "state": "closing",
-   "intent_name": "negotiation_ask_pay_today",
-   "category": "B"
+   "intent_name": "negotiation_ask_pay_today"
   },
   {
    "text_id": 1114,
@@ -1070,8 +1042,7 @@
    "template": "{pronoun}ติดต่อจากธนาคารกสิกรไทย{suffix} เป็นผู้ช่วยอัตโนมัติ ติดต่อเรื่องบัญชีของคุณลูกค้า{suffix}",
    "_synthetic": true,
    "state": "opening",
-   "intent_name": "faq_caller",
-   "category": "A"
+   "intent_name": "faq_caller"
   },
   {
    "text_id": 1013,
@@ -1079,8 +1050,7 @@
    "template": "{pronoun}เป็นผู้ช่วยอัตโนมัติจากธนาคารกสิกรไทย{suffix} ไม่ทราบว่า ลูกค้าสะดวกชำระภายในวันนี้เลยไหม{q_suffix}",
    "_synthetic": true,
    "state": "opening",
-   "intent_name": "opening_ai_disclosure",
-   "category": "A"
+   "intent_name": "opening_ai_disclosure"
   },
   {
    "text_id": 1071,
@@ -1088,8 +1058,7 @@
    "template": "ได้{suffix} ถ้าสะดวกแล้วแจ้งนะ{q_suffix}",
    "_synthetic": true,
    "state": "opening",
-   "intent_name": "faq_hold",
-   "category": "A"
+   "intent_name": "faq_hold"
   },
   {
    "text_id": 1076,
@@ -1097,16 +1066,14 @@
    "template": "ขออภัย{suffix} {pronoun}ขออนุญาตแจ้งอีกครั้งนะ{q_suffix}",
    "_synthetic": true,
    "state": "negotiation",
-   "intent_name": "faq_repeat",
-   "category": "A"
+   "intent_name": "faq_repeat"
   },
   {
    "text_id": 1031,
    "_fine_state": "handoff_refuse",
    "template": "{pronoun}ไม่สามารถโอนสายให้เจ้าหน้าที่ได้นะ{q_suffix} หากต้องการสอบถามข้อมูลเพิ่มเติม สามารถติดต่อได้ที่ [company_phone] {suffix} รบกวนคุณลูกค้าชำระยอดเรียกเก็บจำนวน [minimum_payment] บาท ภายในวันนี้ได้หรือไม่{q_suffix}",
    "state": "closing",
-   "intent_name": "negotiation_ask_pay_today",
-   "category": "B"
+   "intent_name": "negotiation_ask_pay_today"
   },
   {
    "text_id": 1072,
@@ -1114,8 +1081,7 @@
    "template": "{pronoun}เข้าใจในความกังวลนะ{q_suffix} {pronoun}เป็นผู้ช่วยอัตโนมัติจากธนาคารกสิกรไทยจริงๆ {suffix} ไม่ใช่มิจฉาชีพ หากไม่มั่นใจ รบกวนติดต่อกลับที่ [company_phone] ได้{suffix}",
    "_synthetic": true,
    "state": "opening",
-   "intent_name": "faq_scam",
-   "category": "A"
+   "intent_name": "faq_scam"
   },
   {
    "text_id": 1073,
@@ -1123,8 +1089,7 @@
    "template": "ขออภัยที่รบกวนนะ{q_suffix} {pronoun}ขออนุญาตแจ้งเรื่องสำคัญสั้นๆ {suffix}",
    "_synthetic": true,
    "state": "opening",
-   "intent_name": "faq_annoyed",
-   "category": "A"
+   "intent_name": "faq_annoyed"
   },
   {
    "text_id": 1110,
@@ -1132,24 +1097,21 @@
    "template": "คุณลูกค้าสามารถชำระเงินผ่าน Application K PLUS หรือสาขาของธนาคาร หากต้องการสอบถามช่องทางชำระเพิ่มเติม กรุณาติดต่อ [company_phone] นะ{q_suffix}",
    "_synthetic": true,
    "state": "negotiation",
-   "intent_name": "negotiation_offer_channel_only",
-   "category": "A"
+   "intent_name": "negotiation_offer_channel_only"
   },
   {
    "text_id": 1077,
    "_fine_state": "faq_amount",
    "template": "คุณลูกค้ามียอดเรียกเก็บจำนวน [minimum_payment] บาท {suffix}",
    "state": "negotiation",
-   "intent_name": "faq_amount",
-   "category": "A"
+   "intent_name": "faq_amount"
   },
   {
    "text_id": 1078,
    "_fine_state": "faq_due",
    "template": "คุณลูกค้ามีกำหนดชำระ[due_date] {suffix}",
    "state": "negotiation",
-   "intent_name": "faq_due",
-   "category": "A"
+   "intent_name": "faq_due"
   },
   {
    "text_id": 1075,
@@ -1157,8 +1119,7 @@
    "template": "ขออภัยด้วยนะ{q_suffix} หากเรียนชื่อไม่ถูกต้อง รบกวนคุณลูกค้าช่วยยืนยันชื่ออีกครั้งได้ไหม{q_suffix}",
    "_synthetic": true,
    "state": "opening",
-   "intent_name": "faq_wrong_name",
-   "category": "A"
+   "intent_name": "faq_wrong_name"
   },
   {
    "text_id": 1074,
@@ -1166,8 +1127,7 @@
    "template": "ขอแสดงความเสียใจด้วยนะ{q_suffix} {pronoun}ขออนุญาตบันทึกเรื่องและให้เจ้าหน้าที่ติดต่อกลับภายหลังนะ{q_suffix}",
    "_synthetic": true,
    "state": "closing",
-   "intent_name": "faq_mourning",
-   "category": "A"
+   "intent_name": "faq_mourning"
   },
   {
    "text_id": 1079,
@@ -1175,8 +1135,7 @@
    "template": "เรื่องนี้รบกวนติดต่อสอบถามรายละเอียดเพิ่มเติมที่ [company_phone] ได้{suffix}",
    "_synthetic": true,
    "state": "closing",
-   "intent_name": "faq_faq_referral",
-   "category": "A"
+   "intent_name": "faq_faq_referral"
   },
   {
    "text_id": 1115,
@@ -1184,16 +1143,14 @@
    "_fine_state": "verify_first",
    "_real_count": 0,
    "state": "opening",
-   "intent_name": "verify_first",
-   "category": "A"
+   "intent_name": "verify_first"
   },
   {
    "text_id": 1048,
    "_fine_state": "close_paid",
    "template": "ธนาคารขอขอบคุณสำหรับการชำระเงินนะ{q_suffix} และขออภัยที่รบกวน{suffix} สวัสดี{suffix}",
    "state": "closing",
-   "intent_name": "closing_close_paid",
-   "category": "A"
+   "intent_name": "closing_close_paid"
   }
  ]
 }

@@ -1,5 +1,4 @@
 {
- "flow_id": "SHOP-outbound-predue",
  "display_name": "ร้านค้า (Pre-Due Reminder)",
  "crm_fields": [
   "today",
@@ -25,8 +24,10 @@
   "on_failure": {
    "fine_state": "close_handoff",
    "outcome": {
-    "result": "handoff",
-    "reason": "ระบบไม่ตอบ ให้เจ้าหน้าที่ติดต่อกลับ"
+    "args": {
+     "result": "handoff",
+     "reason": "ระบบไม่ตอบ ให้เจ้าหน้าที่ติดต่อกลับ"
+    }
    }
   }
  },
@@ -158,6 +159,10 @@
       "note": "เกินเกณฑ์ที่ร้านรับได้",
       "new_date": ""
      }
+    },
+    "provides": "verified",
+    "verified_when": {
+     "any_success": true
     }
    },
    {
@@ -191,6 +196,11 @@
        "tool": "check_new_date",
        "field": "valid_dates"
       }
+     },
+     "reason": {
+      "type": "string",
+      "optional": true,
+      "desc": "เหตุผลของผลสายนี้ (ระบบเติมเองเมื่อ session_init ไม่ตอบ)"
      }
     },
     "gating": {
@@ -322,7 +332,9 @@
     "record_call_result"
    ],
    "outcome": {
-    "result": "confirmed",
+    "args": {
+     "result": "confirmed"
+    },
     "reasons": [
      "confirmed"
     ],
@@ -342,7 +354,9 @@
     "record_call_result"
    ],
    "outcome": {
-    "result": "rescheduled",
+    "args": {
+     "result": "rescheduled"
+    },
     "reasons": [
      "rescheduled"
     ],
@@ -362,7 +376,9 @@
     "record_call_result"
    ],
    "outcome": {
-    "result": "paid_claimed",
+    "args": {
+     "result": "paid_claimed"
+    },
     "reasons": [
      "paid_claimed"
     ],
@@ -382,7 +398,9 @@
     "record_call_result"
    ],
    "outcome": {
-    "result": "handoff",
+    "args": {
+     "result": "handoff"
+    },
     "reasons": [
      "asks_human",
      "out_of_scope",
@@ -398,50 +416,43 @@
  "constraints": [
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ห้ามตัดสินเองว่าวันที่ลูกค้าขอเลื่อนอยู่ในเกณฑ์ไหม** — เรียก `check_new_date(date)` ทุกครั้งที่ลูกค้าระบุวัน แล้วอ่าน `in_range` และ `valid_dates` จากผลลัพธ์ · `in_range=true` → พูด `confirm_new_date` (9004) · `in_range=false` → พูด `date_too_far` (9005) การนับวันเป็นหน้าที่ของระบบ"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ยืนยันวันใหม่ก่อนบันทึกเสมอ** — หลัง `confirm_new_date` (9004) ต้องรอให้ลูกค้าตอบรับก่อน จึงเรียก `record_call_result(result=\"rescheduled\", new_date=…)` · **ห้ามบันทึกทันทีที่ลูกค้าเอ่ยวัน** เพราะวันนั้นยังไม่ผ่านการยืนยัน"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**`new_date` ต้องเป็นค่าที่ `check_new_date` คืนมา** ห้ามพิมพ์ตามที่ลูกค้าพูดดิบๆ และห้ามเว้นว่าง เมื่อ result=rescheduled"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ลูกค้าอ้างว่าจ่ายแล้ว** → พูด `close_paid_claim` (9007) บันทึก result=paid_claimed แล้วจบสาย · **ห้ามเถียง ห้ามขอหลักฐาน ห้ามทวงต่อ** เพราะการตรวจสอบเป็นงานของ backend"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ลูกค้าขอคุยเจ้าหน้าที่ หรือถามเรื่องนอก flow การชำระ** (เปลี่ยนรุ่น โปรโมชั่น ฯลฯ) → พูด `close_handoff` (9008) บันทึก result=handoff แล้วจบสาย · **ห้ามพยายามตอบเอง**"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**ความเงียบไม่ใช่การตกลง** — ลูกค้าตอบ '...' / '(เงียบ)' = เหตุการณ์ `no_input` เท่านั้น ห้ามถือเป็น confirms_pay และห้ามบันทึก result=confirmed"
   },
   {
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "**พูดครั้งละหนึ่งประโยค** เลือกจาก catalog เท่านั้น ห้ามแต่งข้อความเอง ห้ามพูดยอดหรือวันครบกำหนดซ้ำ หลังแจ้งไปแล้วในประโยคเปิด"
   },
@@ -454,10 +465,16 @@
     "to": "close_handoff"
    },
    "enforce": [
-    "prompt",
-    "reward"
+    "prompt"
    ],
    "desc": "บอกว่าเลื่อนได้ไม่เกินกี่วันได้สูงสุด 2 ครั้งต่อสาย — ครบแล้วลูกค้ายังเสนอวันที่เกินเกณฑ์ ให้ปิดด้วย close_handoff (9008) ส่งต่อเจ้าหน้าที่"
+  },
+  {
+   "id": "no_close_before_answer",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "ห้ามเรียก record_call_result ก่อนที่ลูกค้าจะตอบว่ายืนยัน/ขอเลื่อน/ชำระแล้ว — คำรับสาย (ฮัลโหล/สวัสดี/ว่าไงครับ) และการเงียบตอนเปิดสาย ไม่นับเป็นคำตอบ ให้ทักทายแจ้งกำหนดก่อน"
   }
  ],
  "catalog": [
