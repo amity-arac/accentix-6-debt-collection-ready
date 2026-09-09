@@ -10,8 +10,8 @@ company; deleting it removes it. The platform holds no logic about any tenant, s
 **everything the agent does comes from this file**, and every defect in it ships.
 
 A worked example — one real requirement walked through to the finished file — is
-[docs/FLOW_WALKTHROUGH.md](../../../docs/FLOW_WALKTHROUGH.md). The format is locked and
-documented once, in [docs/SPEC_LOCKED.md](../../../docs/SPEC_LOCKED.md) — every key, what reads it, what
+[demo_v2/docs/MANUAL.md](../../../demo_v2/docs/MANUAL.md). The format is locked and
+documented once, in [demo_v2/docs/SPEC_LOCKED.md](../../../demo_v2/docs/SPEC_LOCKED.md) — every key, what reads it, what
 values it takes, and which rules the runtime actually enforces. This skill is the
 process around it.
 

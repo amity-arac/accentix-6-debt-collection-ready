@@ -81,7 +81,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("company")
     ap.add_argument("--case", required=True, help="persona id, e.g. TC-SHOP-BUILD-001")
-    ap.add_argument("--model", default=os.environ.get("AAX6_FLOW_MODEL", "grpo400"))
+    ap.add_argument("--model", default=os.environ.get("AAX6_FLOW_MODEL", ""),
+                    help="served model id; empty = let the app pick what it serves")
     ap.add_argument("--say", nargs="*", default=None, help="one scenario, given inline")
     ap.add_argument("--scenarios", help="json file of named scenarios")
     ap.add_argument("--keep", default="in_range,valid_dates,recorded,result,available_dates",

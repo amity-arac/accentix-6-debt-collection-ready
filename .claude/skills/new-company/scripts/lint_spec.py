@@ -227,8 +227,11 @@ def main() -> int:
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     a = ap.parse_args()
 
-    from demo.server.flow.flowspec import (normalize_catalog, resolve_catalog,
-                                            validate_flow_spec, validate_strict)
+    # อ่านสคีมาจากแอปที่รันจริง (demo_v2 — README ชี้ไปที่นั่น) ไม่ใช่ demo รุ่นแรก
+    # ที่ค้างไว้: ตอนเพิ่ม `verify_required` ที่ states linter ยังฟ้อง unknown key อยู่
+    # หลายรอบเพราะมันอ่านสคีมาของแอปที่เลิกใช้แล้ว
+    from demo_v2.server.flow.flowspec import (normalize_catalog, resolve_catalog,
+                                              validate_flow_spec, validate_strict)
 
     worst, report = 0, {}
     for path in a.specs:
