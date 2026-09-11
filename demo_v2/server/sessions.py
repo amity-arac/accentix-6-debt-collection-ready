@@ -1147,6 +1147,17 @@ def _recover_toolcalls(content: str) -> list[dict]:
                 continue
         name = obj.get("name")
         args = obj.get("arguments", obj.get("parameters", {}))
+        # Same reason as the parsed path below: the chat template iterates the
+        # arguments, so anything that is not an object poisons every later hop of the
+        # turn. A string is kept only if it really holds one — `"{...}"` is how the
+        # OpenAI shape carries arguments and must survive.
+        if isinstance(args, str):
+            try:
+                args = args if isinstance(json.loads(args), dict) else {}
+            except (ValueError, TypeError):
+                args = {}
+        elif not isinstance(args, dict):
+            args = {}
         if name:
             out.append({"id": "call_rec", "type": "function", "function": {
                 "name": name,
@@ -1483,12 +1494,32 @@ class FlowLiveSession:
 
     def reset_pointer(self) -> None:
         """Start the call over on the same case: clear the transcript, rebuild the
-        agent from the spec. The CRM row fetched at construction is kept — restarting
-        the conversation is not a reason to hit the tenant's API again.
+        agent from the spec. The CRM row fetched at construction is restored —
+        restarting the conversation is not a reason to hit the tenant's API again,
+        but it is every reason to forget what the last call wrote into that row.
+
+        Everything reset here is per-conversation. Clearing the transcript alone is
+        not enough: the flow's position lives in four more attributes, and with
+        `_recorded_result` still stamped the first reply of the NEW call is refused
+        by the closing gate below ("บันทึกผล ptp แล้ว, now say that result's
+        farewell"), so the model hangs up on the identity turn. Measured on AEON,
+        answering the identity check with "ครับ": 3/3 calls ended there before this,
+        0/3 after.
         """
         self._turn_count = 0
         self.done = False
         self._transcript = []
+        # `SpecBackend._merge_context` writes each successful tool answer back into
+        # customer_data in place, on purpose, so a re-checked balance is what the next
+        # template speaks. That makes the row conversation state too.
+        if self._crm_snapshot is not None:
+            self.customer_data = dict(self._crm_snapshot)
+        self._recorded_result = None
+        self._step_nudges = 0
+        self._off_catalog_replies = 0
+        _init = next((st["id"] for st in (self._spec.get("states") or [])
+                      if st.get("initial")), None)
+        self._cur_states = {_init} if _init else set()
         self._init_agent()
 
     async def prewarm(self) -> None:  # protocol parity; flow mode skips prewarm
@@ -1525,6 +1556,11 @@ class FlowLiveSession:
         # agent read the session-init snapshot of 45000 aloud.
         self.customer_data = {k: v for k, v in self.customer_data.items()
                               if not str(k).startswith("_")}
+        # The row as the tenant gave it, kept so `reset_pointer` can hand the next
+        # call the same starting facts without asking the API again. Taken once, at
+        # construction — a later reset must not re-snapshot what the last call wrote.
+        if getattr(self, "_crm_snapshot", None) is None:
+            self._crm_snapshot: dict | None = dict(self.customer_data)
         self._backend = self._SpecBackend(self.customer_data, self._spec)
         self._messages: list[dict[str, Any]] = [{"role": "system", "content": self._system}]
         self._greeted = False
@@ -1703,7 +1739,24 @@ class FlowLiveSession:
                     tc = tcs[0]
                     fn = tc["function"]
                     raw_args = fn.get("arguments")
-                    args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+                    try:
+                        args = (json.loads(raw_args) if isinstance(raw_args, str)
+                                else (raw_args or {}))
+                    except (ValueError, TypeError):
+                        # The tool loop's `try` has only a `finally`, so a decode error
+                        # here left the turn as an unhandled exception mid-stream.
+                        args = {}
+                    # A tool call is stored back into `_messages` and re-rendered on
+                    # every later hop of the same turn, and the chat template does
+                    # `tool_call.arguments|items` — so anything that is not an object
+                    # kills the REST of the turn with a 400 ("Can only get item pairs
+                    # from a mapping"), not just the hop that produced it. The parser
+                    # hands back a bare list often enough to matter (`_render_reply`
+                    # already tolerates stringified args on the way out; this is the
+                    # way in). Verified against the served model: `[1908]` → 400,
+                    # `{}` → 200.
+                    if not isinstance(args, dict):
+                        args = {}
                     # The model sometimes calls a BEAT as if it were a tool
                     # (convince_other, say) instead of replying with that beat's
                     # text_id. The name is the intent, and it is clear enough to act
