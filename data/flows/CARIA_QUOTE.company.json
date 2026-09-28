@@ -146,6 +146,16 @@
      "airline": "Pegasus",
      "fare": "GBP 742.00"
     },
+    "returns": {
+     "airline": {
+      "type": "string",
+      "desc": "carrier the cheapest fare is on"
+     },
+     "fare": {
+      "type": "string",
+      "desc": "total for the whole party, as quoted"
+     }
+    },
     "url": "{API_BASE}/CARIA_QUOTE/price_search",
     "method": "POST"
    },
