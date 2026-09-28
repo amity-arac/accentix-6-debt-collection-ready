@@ -113,7 +113,11 @@ for c in COMPANIES:
     for fs in USED:
         p = proto.get(fs, {})
         catalog.append({
-            "company": c["code"], "text_id": tid, "intent_name": p.get("intent_name", fs),
+            # intent_name is the beat name, NOT the prototype's. Carrying `p`'s value
+            # forward is what put the v6 grouping key into every generated catalog:
+            # several beats share one intent there on purpose, so the prompt ended up
+            # naming four different lines `negotiation_ask_pay_today`.
+            "company": c["code"], "text_id": tid, "intent_name": fs,
             "category": p.get("category", "A"), "state": p.get("state", fs.split("_")[0]),
             "template": c["text"][fs], "is_closer": p.get("is_closer", False),
             "is_demand": p.get("is_demand", False), "is_acknowledgment": p.get("is_acknowledgment", False),

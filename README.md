@@ -10,7 +10,6 @@ Six tenants ship in this repo, and they are deliberately not all the same shape:
 | | what the call is | tools |
 |---|---|---|
 | `AEON` `KBANK` `SKL` | debt collection — negotiate a payment date | 7 |
-| `AEONLITE` | AEON with one tool and one beat per state | 1 |
 | `AMT` | a clinic confirming an appointment | 2 |
 | `SHOP` | a shop reminding about tomorrow's instalment | 2 |
 
