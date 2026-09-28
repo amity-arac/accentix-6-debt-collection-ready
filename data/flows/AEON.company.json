@@ -237,6 +237,16 @@
     "มีแค่พันเดียว",
     "Can I pay just 1,000?"
    ]
+  },
+  "wrong_person": {
+   "desc": "ปลายสายไม่ใช่เจ้าของชื่อ และไม่รู้จักเจ้าของชื่อ (โทรผิด) — ต่างจาก third_party ที่รู้จักแต่ไม่ใช่ตัวเอง",
+   "cues": [
+    "ไม่ใช่ผม",
+    "ไม่ใช่ครับ ผมไม่รู้จัก",
+    "โทรผิดแล้ว",
+    "ไม่รู้จักใครชื่อนี้",
+    "ไม่มีคนชื่อนี้"
+   ]
   }
  },
  "tools": {
@@ -436,6 +446,10 @@
    "note": "reply ทักทาย+ยืนยันชื่อก่อน ยังไม่เรียก tool ใดๆ",
    "on": [
     {
+     "event": "wrong_person",
+     "to": "close_wrong_person"
+    },
+    {
      "event": "name_confirmed",
      "tools": [
       "check_account_status"
@@ -462,6 +476,10 @@
    ],
    "note": "ถามยืนยันชื่อซ้ำ — อนุญาตเฉพาะกรณี NO-INPUT เท่านั้น",
    "on": [
+    {
+     "event": "wrong_person",
+     "to": "close_wrong_person"
+    },
     {
      "event": "name_confirmed",
      "tools": [
@@ -493,6 +511,10 @@
    ],
    "note": "คนอื่นรับสาย — ขอเบอร์/ฝากติดต่อ ห้ามเปิดเผยยอดหนี้",
    "on": [
+    {
+     "event": "wrong_person",
+     "to": "close_wrong_person"
+    },
     {
      "event": "gives_new_phone",
      "tools": [
@@ -756,6 +778,29 @@
    "entry_tools": [
     "record_outcome"
    ]
+  },
+  {
+   "id": "close_wrong_person",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "apology_close"
+    }
+   ],
+   "outcome": {
+    "args": {
+     "result": "unreachable"
+    },
+    "reasons": [
+     "wrong_number"
+    ],
+    "desc": "โทรผิดคน — ปลายสายไม่รู้จักเจ้าของชื่อ"
+   },
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ],
+   "spec_note": "แยกจาก close_unreachable: close/apology ของ state นั้นพูดกับคนที่อาจเป็นลูกค้า (ขอบคุณที่ใช้บริการ / จะติดต่อกลับ) ซึ่งผิดทั้งคู่เมื่อโทรผิดคน"
   },
   {
    "id": "close_confirm_info",
@@ -1723,7 +1768,7 @@
   },
   {
    "text_id": 1074,
-   "template": "ขอแสดงความเสียใจด้วยนะ{q_suffix} {pronoun}ขออนุญาตบันทึกเรื่องและให้เจ้าหน้าที่ติดต่อกลับภายหลังนะ{q_suffix}",
+   "template": "ขอแสดงความเสียใจด้วยนะ{q_suffix} {pronoun}ขออนุญาตบันทึกเรื่องและให้เจ้าหน้าที่ติดต่อกลับภายหลังนะ{q_suffix} สวัสดี{suffix}",
    "_fine_state": "faq_mourning",
    "_flow_id": "faq_mourning",
    "_real_count": 0,
