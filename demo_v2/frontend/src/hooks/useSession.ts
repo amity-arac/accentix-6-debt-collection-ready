@@ -7,9 +7,11 @@ import {
   type Engine,
   type CustomerData,
   type Hop,
+  type Lang,
   type VoiceGender,
   type VoiceMode,
 } from "../api";
+import { getLang } from "../i18n";
 import * as audio from "../audio";
 import * as latency from "../latency";
 
@@ -47,6 +49,7 @@ export type SessionState = {
   serverAgent: Engine | null;
   model: string;                   // "" = backend default (env)
   instructionVersion: string;      // "" = flow default (latest); A/B v11 vs v11.1
+  lang: Lang;                      // th | en — fixed per call; switching restarts it
   voiceGender: VoiceGender;        // what the server is told (ครับ/ค่ะ)
   voiceMode: VoiceMode;            // what the control shows: F / M / OFF
   serverVoiceGender: VoiceGender | null;  // what the live session was actually built with
@@ -71,6 +74,7 @@ export function useSession() {
     serverAgent: null,
     model: "",
     instructionVersion: "",
+    lang: getLang() as Lang,
     voiceGender: "F",
     voiceMode: "F",
     serverVoiceGender: null,
@@ -92,6 +96,10 @@ export function useSession() {
   // Latest user-chosen TTS voice gender, read inside start(). Independent of
   // the reply text's own grammatical gender — this only picks which Chirp 3 HD
   // voice speaks it (see audio.ts's setVoiceGender).
+  // Seeded from i18n, which restores the last choice from localStorage — so a
+  // reload keeps the language the UI is already showing instead of quietly
+  // opening the next call in Thai.
+  const langRef = useRef<Lang>(getLang() as Lang);
   const voiceGenderRef = useRef<VoiceGender>("F");
   const modelRef = useRef<string>("");
   const instructionVersionRef = useRef<string>("");
@@ -109,6 +117,16 @@ export function useSession() {
   const setInstructionVersion = useCallback((instructionVersion: string) => {
     instructionVersionRef.current = instructionVersion;
     setState((s) => ({ ...s, instructionVersion }));
+  }, []);
+
+  // The language is chosen before a call and cannot change inside one: the catalog,
+  // the instruction and the voice all switch together, and a half-Thai transcript is
+  // not a thing the product can produce. App.tsx restarts the session on change.
+  const setLang = useCallback((next: Lang) => {
+    langRef.current = next;
+    audio.setLang(next);
+    if (typeof window !== "undefined") (window as any).__aax6Lang = next;
+    setState((s) => ({ ...s, lang: next }));
   }, []);
 
   const setVoiceGender = useCallback((mode: VoiceMode) => {
@@ -322,6 +340,7 @@ export function useSession() {
           voiceGender: voiceGenderRef.current,
           model: modelRef.current || undefined,
           instructionVersion: instructionVersionRef.current || undefined,
+          lang: langRef.current,
         },
       );
     } catch (e: any) {
@@ -500,6 +519,7 @@ export function useSession() {
     setModel,
     setInstructionVersion,
     setVoiceGender,
+    setLang,
     selectCase,
     fireOpening,
     sendUserMessage,

@@ -17,12 +17,22 @@
  * unchanged from the previous `<audio>` implementation, so callers are untouched.
  */
 
+import { getLang } from "./i18n";
 import * as latency from "./latency";
 
 // Which Chirp 3 HD voice /api/tts should use — set once per session via
 // setVoiceGender() (see useSession.ts). Independent of the reply text's own
 // grammatical gender (ครับ/ค่ะ particles); this only picks who speaks it.
 let voiceGender: "M" | "F" = "F";
+// The Chirp voice pair is locale-scoped, so the synth needs to know which language
+// this session is in — a Thai voice name is not valid under en-US and vice versa.
+//
+// Seeded from i18n, which restores the last choice from localStorage. Hardcoding
+// "th" here meant a reload with English already chosen rendered an English page and
+// then asked for `lang=th`, so Chirp read the English reply with a Thai-locale
+// voice: a real voice name in the wrong locale, hence English with a Thai accent
+// and no error anywhere.
+let lang: "th" | "en" = getLang();
 // "Text" mode: skip synthesis entirely rather than synthesising and muting. A
 // muted clip still costs the round-trip and the wait, which is the whole reason
 // to turn it off when iterating on what the agent SAYS rather than how it sounds.
@@ -30,6 +40,10 @@ let ttsEnabled = true;
 
 export function setVoiceGender(gender: "M" | "F"): void {
   voiceGender = gender;
+}
+
+export function setLang(next: "th" | "en"): void {
+  lang = next;
 }
 
 export function setTtsEnabled(on: boolean): void {
@@ -41,7 +55,7 @@ export function isTtsEnabled(): boolean {
 }
 
 function ttsUrl(text: string): string {
-  return `/api/tts?text=${encodeURIComponent(text)}&gender=${voiceGender}`;
+  return `/api/tts?text=${encodeURIComponent(text)}&gender=${voiceGender}&lang=${lang}`;
 }
 
 // Chirp 3 HD streams PCM at this rate (matches DEFAULT_SAMPLE_RATE server-side).

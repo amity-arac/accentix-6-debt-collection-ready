@@ -84,6 +84,8 @@ export type PersonaCase = {
   case_status_note?: string | null;
 };
 
+export type Lang = "th" | "en";
+
 export type VoiceGender = "M" | "F";
 // What the voice control is set to. "OFF" is a UI-only mode — the server still
 // gets a real gender (the reply text's ครับ/ค่ะ particles depend on it); only
@@ -316,6 +318,7 @@ export async function streamSession(
     voiceGender?: VoiceGender;
     model?: string;
     instructionVersion?: string;
+    lang?: Lang;
   } = {},
 ): Promise<void> {
   const qs = new URLSearchParams();
@@ -327,6 +330,7 @@ export async function streamSession(
   if (opts.voiceGender) qs.set("gender", opts.voiceGender);
   if (opts.model) qs.set("model", opts.model);
   if (opts.instructionVersion) qs.set("instruction_version", opts.instructionVersion);
+  if (opts.lang) qs.set("lang", opts.lang);
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const resp = await fetch(`/api/session${suffix}`);
   await consumeNdjson(resp, handlers);

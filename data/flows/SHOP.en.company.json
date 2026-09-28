@@ -1,0 +1,537 @@
+{
+ "display_name": "Shop (pre-due reminder)",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "shop_name",
+  "due_date",
+  "amount",
+  "max_extend_days"
+ ],
+ "crm_labels": {
+  "today": "Today",
+  "customer_name": "Customer name",
+  "shop_name": "Shop name",
+  "due_date": "Original due date",
+  "amount": "Instalment amount",
+  "max_extend_days": "Can be postponed by at most (days)"
+ },
+ "session_init": {
+  "url": "{API_BASE}/SHOP/init?msisdn={msisdn}&lang=en",
+  "method": "GET",
+  "timeout": 8,
+  "note": "Called once at the start of the call - the response is the context directly",
+  "on_failure": {
+   "fine_state": "close_handoff",
+   "outcome": {
+    "args": {
+     "result": "handoff",
+     "reason": "The system did not answer; a member of staff will follow up"
+    }
+   }
+  }
+ },
+ "events": {
+  "confirms_pay": {
+   "desc": "The customer confirms they will pay on the original date, with no conditions",
+   "cues": [
+    "Yes, I'll transfer it tomorrow",
+    "Understood",
+    "All right",
+    "I'm paying it anyway",
+    "that's fine"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "Still intends to pay, but asks to move the date (not a refusal of the debt)",
+   "cues": [
+    "I won't have it by tomorrow, could we make it Friday?",
+    "Let me wait until payday",
+    "My customer is paying me soon, could I have a little longer?"
+   ]
+  },
+  "gives_date": {
+   "desc": "The customer names the date they will pay",
+   "cues": [
+    "Would this Friday work?",
+    "The 30th, please",
+    "In three days",
+    "Could I make it next month?",
+    "In a couple of weeks"
+   ]
+  },
+  "confirms_new_date": {
+   "desc": "Confirms the new date that was offered",
+   "cues": [
+    "yes",
+    "All right, that works",
+    "Yes, all right",
+    "agreed"
+   ]
+  },
+  "already_paid": {
+   "desc": "Claims to have paid already - a dispute about status, not a refusal",
+   "cues": [
+    "I transferred it yesterday",
+    "I've already paid",
+    "Check again, I made the transfer"
+   ]
+  },
+  "asks_human": {
+   "desc": "Asks for a real person, or asks something outside the payment flow",
+   "cues": [
+    "Could I speak to a person?",
+    "Is this a robot?",
+    "Could I change to another model?",
+    "What offers do you have?"
+   ]
+  },
+  "no_input": {
+   "desc": "Silence, or an answer that is not interpretable speech",
+   "cues": [
+    "...",
+    "…",
+    "(silence)",
+    "(no answer)",
+    "uh..."
+   ]
+  }
+ },
+ "tools": {
+  "declarations": [
+   {
+    "name": "check_new_date",
+    "impl": "http",
+    "desc": "Check whether the date the customer asked to move to is within the shop's limit (no more than max_extend_days from due_date) - returns {in_range: bool, valid_dates: [...], max_extend_days: n}, where valid_dates are the acceptable dates (including the one the customer asked for, if in_range=true). Call it every time the customer names a date; never decide this yourself",
+    "url": "{API_BASE}/SHOP/check_new_date?lang=en",
+    "method": "POST",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "The date the customer named, converted to canonical form before sending"
+     }
+    },
+    "gating": {
+     "after_event": "gives_date",
+     "note": "Call it only once the customer has named a date - if there is no date yet, ask with ask_new_date first and never call it with an empty date. Counting days is the system's job, not the agent's"
+    },
+    "returns": {
+     "in_range": {
+      "type": "boolean",
+      "desc": "Is the requested date within the limit?"
+     },
+     "valid_dates": {
+      "type": "array",
+      "desc": "All acceptable dates (canonical)"
+     },
+     "max_extend_days": {
+      "type": "number",
+      "desc": "The maximum number of days it can be moved by"
+     },
+     "new_date": {
+      "type": "string",
+      "desc": "The date once checked - the same name as the slot in the line"
+     }
+    },
+    "mock": {
+     "rules": [
+      {
+       "when": {
+        "arg": "date",
+        "within_days_of": {
+         "field": "due_date",
+         "days_field": "max_extend_days"
+        }
+       },
+       "body": {
+        "in_range": true,
+        "max_extend_days": 7,
+        "new_date": "{{body 'args.date'}}"
+       },
+       "label": "Within the limit (due_date + max_extend_days)"
+      }
+     ],
+     "default": {
+      "in_range": false,
+      "valid_dates": [],
+      "max_extend_days": 7,
+      "note": "Beyond what the shop accepts",
+      "new_date": ""
+     }
+    },
+    "provides": "verified",
+    "verified_when": {
+     "any_success": true
+    }
+   },
+   {
+    "name": "record_call_result",
+    "impl": "http",
+    "desc": "Record the call outcome - always called before the closing reply",
+    "url": "{API_BASE}/SHOP/record_call_result?lang=en",
+    "method": "POST",
+    "args": {
+     "result": {
+      "type": "string",
+      "desc": "The outcome of this call",
+      "enum": [
+       "confirmed",
+       "rescheduled",
+       "paid_claimed",
+       "handoff",
+       "unreachable"
+      ]
+     },
+     "new_date": {
+      "type": "string",
+      "optional": true,
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "The new payment date the customer confirmed - required when result=rescheduled; use the value check_new_date returned",
+      "required_when": {
+       "arg": "result",
+       "equals": "rescheduled"
+      },
+      "one_of_from": {
+       "tool": "check_new_date",
+       "field": "valid_dates"
+      }
+     },
+     "reason": {
+      "type": "string",
+      "optional": true,
+      "desc": "The reason for this call's outcome (filled in by the system when session_init does not answer)"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "returns": {
+     "recorded": {
+      "type": "boolean"
+     },
+     "result": {
+      "type": "string"
+     },
+     "new_date": {
+      "type": "string"
+     }
+    }
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_remind"
+    }
+   ],
+   "note": "Remind them one day ahead, then wait for the answer - never call record_call_result on the first turn",
+   "on": [
+    {
+     "event": "confirms_pay",
+     "to": "close_confirmed"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "ask_new_date"
+    },
+    {
+     "event": "gives_date",
+     "to": "check_date",
+     "note": "The customer asks to postpone and names the date in the same sentence - skip asking for the date"
+    },
+    {
+     "event": "already_paid",
+     "to": "close_paid_claim"
+    },
+    {
+     "event": "asks_human",
+     "to": "close_handoff"
+    },
+    {
+     "event": "no_input",
+     "to": "close_handoff",
+     "note": "Silent from the start = could not be reached; a member of staff will follow up"
+    }
+   ]
+  },
+  {
+   "id": "ask_new_date",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_new_date"
+    }
+   ],
+   "on": [
+    {
+     "event": "gives_date",
+     "to": "check_date"
+    },
+    {
+     "event": "asks_human",
+     "to": "close_handoff"
+    },
+    {
+     "event": "no_input",
+     "to": "close_handoff"
+    }
+   ]
+  },
+  {
+   "id": "check_date",
+   "phase": "main",
+   "templates": [
+    {
+     "any_of": [
+      "confirm_new_date",
+      "date_too_far"
+     ]
+    }
+   ],
+   "entry_tools": [
+    "check_new_date"
+   ],
+   "note": "Once the customer names a date, call check_new_date before answering, then pick the line from the result: in_range=true -> confirm_new_date (9004); in_range=false -> date_too_far (9005), then wait for a new date",
+   "on": [
+    {
+     "event": "confirms_new_date",
+     "to": "close_rescheduled"
+    },
+    {
+     "event": "gives_date",
+     "to": "check_date",
+     "note": "The customer offers another date - check it again"
+    },
+    {
+     "event": "asks_human",
+     "to": "close_handoff"
+    },
+    {
+     "event": "no_input",
+     "to": "close_handoff"
+    }
+   ]
+  },
+  {
+   "id": "close_confirmed",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_confirmed"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "confirmed"
+    },
+    "reasons": [
+     "confirmed"
+    ],
+    "desc": "Confirms they will pay on the original date"
+   }
+  },
+  {
+   "id": "close_rescheduled",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_rescheduled"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "rescheduled"
+    },
+    "reasons": [
+     "rescheduled"
+    ],
+    "desc": "The payment date was moved and the new date confirmed"
+   }
+  },
+  {
+   "id": "close_paid_claim",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_paid_claim"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "paid_claimed"
+    },
+    "reasons": [
+     "paid_claimed"
+    ],
+    "desc": "The customer claims to have paid - waiting for the backend to check"
+   }
+  },
+  {
+   "id": "close_handoff",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_handoff"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "handoff"
+    },
+    "reasons": [
+     "asks_human",
+     "out_of_scope",
+     "no_input"
+    ],
+    "desc": "Passed to a member of staff (asked for a person / out of scope / could not be reached)"
+   }
+  }
+ ],
+ "faq_routing": {
+  "routes": []
+ },
+ "constraints": [
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**Never decide for yourself whether the date the customer asked for is within the limit** - call `check_new_date(date)` every time the customer names a date, then read `in_range` and `valid_dates` from the result. `in_range=true` -> say `confirm_new_date` (9004); `in_range=false` -> say `date_too_far` (9005). Counting days is the system's job"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**Always confirm the new date before recording it** - after `confirm_new_date` (9004), wait for the customer to accept before calling `record_call_result(result=\"rescheduled\", new_date=…)`. **Never record the moment the customer mentions a date**, because that date has not been confirmed yet"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**`new_date` must be the value `check_new_date` returned** - never type what the customer said verbatim, and never leave it empty when result=rescheduled"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**The customer claims to have paid** -> say `close_paid_claim` (9007), record result=paid_claimed and end the call. **Never argue, never ask for proof, never keep chasing** - checking is the backend's job"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**The customer asks for a person, or asks about something outside the payment flow** (changing model, promotions, and so on) -> say `close_handoff` (9008), record result=handoff and end the call. **Never try to answer it yourself**"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**Silence is not consent** - a customer who answers '...' or '(silence)' is the `no_input` event and nothing else; never treat it as confirms_pay and never record result=confirmed"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**One sentence at a time**, chosen from the catalog only. Never write your own text, and never repeat the amount or the due date after the opening line has given them"
+  },
+  {
+   "id": "max_date_retries",
+   "type": "max_occurrences",
+   "counts": "date_too_far",
+   "max": 2,
+   "on_exceed": {
+    "to": "close_handoff"
+   },
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Say how many days it can be moved by at most twice per call - once that is used and the customer still offers a date beyond the limit, close with close_handoff (9008) and pass it to a member of staff"
+  },
+  {
+   "id": "no_close_before_answer",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Never call record_call_result before the customer has said they confirm, want to postpone, or have already paid - a greeting on picking up (hello / hi / yes?) and silence at the start of the call do not count as an answer; greet and give the due date first"
+  }
+ ],
+ "catalog": [
+  {
+   "text_id": 9001,
+   "_fine_state": "greet_remind",
+   "template": "Hello [customer_name], [shop_name] is calling with a reminder. Tomorrow, [due_date], an instalment of [amount] baht falls due. Can we look out for your transfer tomorrow?"
+  },
+  {
+   "text_id": 9002,
+   "_fine_state": "close_confirmed",
+   "template": "Thank you [customer_name]. We have noted that [amount] baht will arrive tomorrow. If anything changes, just give us a call. Goodbye."
+  },
+  {
+   "text_id": 9003,
+   "_fine_state": "ask_new_date",
+   "template": "Of course. Which day would suit you for the payment?"
+  },
+  {
+   "text_id": 9004,
+   "_fine_state": "confirm_new_date",
+   "template": "Noted. We will move the due date to [new_date]. Shall I confirm that?"
+  },
+  {
+   "text_id": 9005,
+   "_fine_state": "date_too_far",
+   "template": "I'm sorry, we can only move the date by up to [max_extend_days] days. Would another date within that work?"
+  },
+  {
+   "text_id": 9006,
+   "_fine_state": "close_rescheduled",
+   "template": "Thank you. The new payment date is recorded as [new_date]. Goodbye."
+  },
+  {
+   "text_id": 9007,
+   "_fine_state": "close_paid_claim",
+   "template": "Noted. Let us check the amount in our system first. If we do not find it, we will call you back. Thank you."
+  },
+  {
+   "text_id": 9008,
+   "_fine_state": "close_handoff",
+   "template": "I will have a member of staff contact you. Thank you."
+  },
+  {
+   "text_id": 9009,
+   "_fine_state": "faq_repeat",
+   "template": "I'm sorry, could you say that again?",
+   "hint": "Used when the customer was not heard or understood - the fallback line for any point in the call"
+  }
+ ],
+ "auxiliary_templates": {
+  "note": "A template not tied to a state - it can be said at any point in the call",
+  "allowed": [
+   {
+    "fine_state": "faq_repeat",
+    "desc": "Ask the customer to repeat"
+   }
+  ]
+ }
+}

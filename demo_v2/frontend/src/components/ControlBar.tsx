@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, Volume2, VolumeX, X } from "lucide-react";
+import { Cpu, Mic, MicOff, Pause, Play, RotateCcw, Save, Volume2, VolumeX, X,} from "lucide-react";
 import { ThinkingDot } from "./ThinkingDot";
 import { LatencyMetrics } from "./LatencyMetrics";
 import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
 import type { VoiceMode } from "../api";
 import { fetchModels, type Engine, type VoiceGender } from "../api";
+import { t } from "../i18n";
+import { useLang } from "../hooks/useLang";
 
 // Preferred default checkpoint for the qwen picker (all local models live here).
 // Measured on an A100 over the 43 gold cases: sft-9b-v3 scored 42/43, sft-27b-w4a16
@@ -145,7 +147,7 @@ export function ControlBar({
           </button>
         </div>
         {agent !== "gemini" && modelList.length > 0 && (
-          <label className="agent-model" title="เลือก checkpoint ที่ vLLM เสิร์ฟ">
+          <label className="agent-model" title={t("pickCheckpoint")}>
             <span className="agent-segmented-label">version</span>
             <select
               className="agent-model-select"
@@ -196,7 +198,7 @@ export function ControlBar({
             onClick={() => onVoiceGenderChange("OFF")}
             disabled={starting}
             aria-pressed={voiceMode === "OFF"}
-            title="ข้อความอย่างเดียว — ไม่สังเคราะห์เสียง เทสได้เร็วขึ้น"
+            title={t("textOnly")}
           >
             Text
           </button>
@@ -207,7 +209,7 @@ export function ControlBar({
             className="btn"
             onClick={onBuildFlow}
             disabled={starting}
-            title="สร้างบริษัทใหม่สำหรับ flow mode"
+            title={t("newCompanyForFlow")}
           >
             ＋ New company
           </button>

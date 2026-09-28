@@ -18,6 +18,7 @@ contributes only what a phone call needs and an API cannot know:
 is rejected with a hint, so a stale spec fails loudly.
 """
 from __future__ import annotations
+from demo_v2.lib import lang as _L
 
 def _gen_id(prefix: str) -> str:
     """Reference id for a recorded write. Two lines, vendored rather than importing
@@ -99,8 +100,8 @@ class SpecBackend:
                        and str((args or {}).get(a, "")).strip() == ""]
             if missing:
                 err = {"error": "missing_required_args", "tool": name, "args": missing,
-                       "message": f"Error: missing_required_args — {name} ต้องมีค่าของ "
-                                  f"{', '.join(missing)}"}
+                       "message": _L.tool_err("missing_required_args", tool=name,
+                                              args=", ".join(missing))}
                 self.call_log.append({"tool": name, "args": args, "result": err})
                 return err
             bad = self._not_offered(decl, args or {})
@@ -150,9 +151,11 @@ class SpecBackend:
                 if sib == req.get("equals"):
                     return self._reject(
                         "missing_required_args", tool=decl["name"], args=[a],
-                        message=(f"Error: missing_required_args — {decl['name']} "
-                                 f"ต้องมีค่าของ {a} เมื่อ {req['arg']}="
-                                 f"{req['equals']}"))
+                        message=("Error: missing_required_args — "
+                                 + decl["name"] + " "
+                                 + _L.tool_err("value_required_when", arg=a,
+                                               when=req["arg"])
+                                 + str(req["equals"])))
             src = spec_arg.get("one_of_from") or {}
             if not (src and val):
                 continue
@@ -161,9 +164,9 @@ class SpecBackend:
                 return self._reject(
                     "value_not_offered", tool=decl["name"], arg=a, got=val,
                     valid_values=offered,
-                    message=(f"Error: value_not_offered — {a}={val!r} ไม่ได้อยู่ใน"
-                             f"รายการที่ {src['tool']} คืนมา เลือกจาก: "
-                             f"{', '.join(offered)}"))
+                    message=(_L.tool_err("value_not_offered", arg=a, val=val)
+                             + _L.tool_err("value_not_offered2", tool=src["tool"])
+                             + ", ".join(offered)))
         return None
 
     def _last_result(self, tool: str | None, field: str | None) -> list[str]:

@@ -126,6 +126,7 @@ GATING_KEYS = frozenset({
     "requires_prior", "must_precede", "args_must_match", "required_at",
     # rendered into the instruction only — a live caller gives no reliable event tag
     "after_event", "required_before_state", "required_before", "note",
+    "only_in_states",
 })
 CATALOG_KEYS = frozenset({
     "text_id", "_fine_state", "template",                 # the three that matter
@@ -390,6 +391,14 @@ def load_tenant_spec(path: "Path | str") -> dict:
     p = Path(path)
     spec = json.loads(p.read_text(encoding="utf-8"))
     stem = p.name[: -len(".company.json")] if p.name.endswith(".company.json") else p.stem
+    # A language variant is the SAME tenant in another language, so its identity is
+    # the code without the suffix: `AEON.en.company.json` is company AEON, not a
+    # company called "AEON.en" — which is what the model was told it worked for, and
+    # what the tool gate would then compare its calls against.
+    for _suf in (".en",):
+        if stem.endswith(_suf):
+            stem = stem[: -len(_suf)]
+            break
     if p.name.endswith(".company.json"):
         spec.setdefault("company", stem)
         spec.setdefault("flow_id", stem)
@@ -721,6 +730,13 @@ def normalize_catalog(catalog: list[dict], spec: dict | None = None) -> list[dic
     disagree, grouping the line under a state that never reaches it), ``intent_name``
     (the fine_state is the name). Only MISSING keys are filled, so a catalog that
     spells them out keeps its exact values and prompt layout.
+
+    ``intent_name`` is the exception: it is OVERWRITTEN, not defaulted. It is the one
+    derived field a stale value actively breaks, because the prompt prints it as the
+    name of the line. The catalogs inlined on 2026-08-26 carried the v6 grouping key
+    forward, where several beats share one intent on purpose — so a spelled-out
+    `negotiation_ask_pay_today` survived on four different KBANK beats and the model was
+    offered four lines under one name. Filling it only when absent could not repair that.
     """
     spec = spec or {}
     company = spec.get("company", "")
@@ -754,7 +770,10 @@ def normalize_catalog(catalog: list[dict], spec: dict | None = None) -> list[dic
             next_id += 1
         if company:
             e.setdefault("company", company)
-        e.setdefault("intent_name", fs)
+        if fs:
+            e["intent_name"] = fs
+        else:
+            e.setdefault("intent_name", fs)
         if fs_to_state.get(fs):
             e.setdefault("state", fs_to_state[fs])
         out.append(e)

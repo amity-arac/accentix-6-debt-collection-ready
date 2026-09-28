@@ -69,7 +69,11 @@ export function createRecognizer(
     start: () => {
       if (running) return;
       rec = new SR();
-      rec.lang = "th-TH";
+      // The browser recogniser is the fallback when the server STT socket is not
+      // available, so it has to follow the call's language too — otherwise an
+      // English call silently degrades to Thai recognition of English speech.
+      const l = (typeof window !== "undefined" && (window as any).__aax6Lang) || "th";
+      rec.lang = l === "en" ? "en-US" : "th-TH";
       rec.interimResults = true;
       rec.continuous = true;
       rec.maxAlternatives = 1;

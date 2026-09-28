@@ -81,8 +81,17 @@ def parse_date(s: str) -> _dt.date:
 
 
 def render_date_thai(s: str) -> str:
-    """`2026-05-23 (Saturday)` → `วันเสาร์ที่ 23 พฤษภาคม 2026`."""
+    """`2026-05-23 (Saturday)` → `วันเสาร์ที่ 23 พฤษภาคม 2026`, or the English
+    reading of the same date when the session is in English.
+
+    The name is kept because a dozen call sites spell it, and every one of them
+    means "say this date the way the agent speaks" — which is exactly what should
+    follow the session's language. Renaming it would have been the honest thing
+    and a wider diff; this comment is the compromise."""
     d = parse_date(s)
+    from demo_v2.lib import lang as _lang
+    if _lang.current() == _lang.EN:
+        return d.strftime("%A %-d %B %Y")
     return f"วัน{WEEKDAYS_TH[d.weekday()]}ที่ {d.day} {MONTHS_TH[d.month - 1]} {d.year}"
 
 
@@ -96,6 +105,9 @@ def render_time_thai(s: str) -> str:
     """
     if not is_valid_time(s):
         raise ValueError(f"invalid time string: {s!r}")
+    from demo_v2.lib import lang as _lang
+    if _lang.current() == _lang.EN:
+        return s            # "14:00" already reads as a time in English
     return f"{s} น."
 
 

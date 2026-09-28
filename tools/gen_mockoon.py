@@ -21,8 +21,8 @@ spec declares and the RL environment accepts, silently breaking four terminal pa
 per company so none of them could close its call. Read the vocabulary from the spec
 and that class of bug cannot recur.
 
-Add a company to `data/flows/flow_registry.json` and it gets its routes here with no
-edit to this file.
+Drop a `<CODE>.company.json` into `data/flows/` and it gets its routes here with no
+edit to this file. (There is no index file — `flow_registry.json` was retired.)
 
 WHAT IT SERVES  (`/:company/...`)
 
@@ -77,6 +77,8 @@ def load_specs() -> dict[str, dict]:
     for f in sorted(FLOWS.glob("*.company.json")):
         if f.name.startswith("_"):
             continue                     # `_TEMPLATE.company.json` is the blank
+        if f.name.endswith(".en.company.json"):
+            continue                     # the English twin is the same tenant
         spec = json.loads(f.read_text(encoding="utf-8"))
         out[str(spec.get("company") or f.name.split(".")[0])] = spec
     return out
@@ -93,7 +95,7 @@ def personas_for(company: str) -> "list[tuple[str, dict]]":
     """
     import sys
     sys.path.insert(0, str(REPO))
-    from demo.server import sessions
+    from demo_v2.server import sessions
 
     demo_first = persona_for(company)
     rows = [c for c in sessions.list_cases()
@@ -115,7 +117,7 @@ def personas_for(company: str) -> "list[tuple[str, dict]]":
 def _demo_case_id(company: str) -> "str | None":
     import sys
     sys.path.insert(0, str(REPO))
-    from demo.server import sessions
+    from demo_v2.server import sessions
     ids = [c["id"] for c in sessions.list_cases()
            if str(c["id"]).startswith(f"TC-{company.upper()}-")
            and str(c["id"]).split("-")[-2] in ("BUILD", "PREDUE")]
@@ -140,7 +142,7 @@ def persona_for(company: str) -> dict:
     construction rather than by two people remembering to edit both."""
     import sys
     sys.path.insert(0, str(REPO))
-    from demo.server import sessions
+    from demo_v2.server import sessions
 
     rows = [c for c in sessions.list_cases()
             if str(c.get("company", "")).upper() == company.upper()]

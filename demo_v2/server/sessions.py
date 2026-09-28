@@ -27,6 +27,15 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TEST_CASES_FILE = REPO_ROOT / "data" / "test-cases" / "personas_data.json"
 
 MAX_LIVE_TURNS = 30
+
+# How many times one beat may be spoken before it is withdrawn from the menu.
+_BEAT_REPEAT_MAX = 2
+# How many replies in a row may leave the call exactly where it was. Per-beat quotas
+# are not enough on their own: two resume beats alternating never reach either cap, and
+# a measured call bounced faq_repeat ↔ ask_clarify for ten turns that way. This counts
+# movement, not wording — whatever the beats are, three replies that change nothing end
+# the call rather than letting the customer sit on a line that cannot finish.
+_NO_PROGRESS_MAX = 3
 # Spoken by the UI while a tool call is in flight. It used to live in the replay
 # module, which owned nothing else once replay mode was dropped.
 FILLER_TEXT = ("" if os.environ.get("AAX6_PROMPT_VERSION", "").strip() in ("v10", "v11")
@@ -273,6 +282,40 @@ def default_served_model() -> str:
     return served[0] if served else FLOW_MODEL
 
 
+LANG_SUFFIXES = (".en",)
+
+
+def _variant_lang(path) -> str | None:
+    """`AEON.en.company.json` -> "en"; `AEON.company.json` -> None.
+
+    A language variant is a sibling file, not a separate tenant: the same company,
+    the same beats and text_ids, its words in another language. Keeping them apart
+    as files means a tenant can be translated (or not) one at a time, and the Thai
+    file is never touched by the English work.
+    """
+    stem = path.name[: -len(TENANT_SUFFIX)] if path.name.endswith(TENANT_SUFFIX) else path.stem
+    for suf in LANG_SUFFIXES:
+        if stem.endswith(suf):
+            return suf[1:]
+    return None
+
+
+def tenant_path(company: str, lang: str | None = None):
+    """The file to read for this company in this language.
+
+    Falls back to the Thai file when no variant exists, so a company that has not
+    been translated yet still runs — in Thai — instead of failing the session. The
+    caller can tell the difference by comparing the returned name.
+    """
+    from demo_v2.lib import lang as _lang
+    code = (lang or _lang.current())
+    if code != _lang.TH:
+        cand = FLOW_DIR / f"{company}.{code}{TENANT_SUFFIX}"
+        if cand.exists():
+            return cand
+    return FLOW_DIR / f"{company}{TENANT_SUFFIX}"
+
+
 def load_flow_registry() -> dict[str, dict[str, str]]:
     """company code -> {spec, display_name}, DERIVED from the tenant files present.
 
@@ -286,6 +329,10 @@ def load_flow_registry() -> dict[str, dict[str, str]]:
     for f in sorted(FLOW_DIR.glob("*" + TENANT_SUFFIX)):
         if f.name.startswith("_"):
             continue                     # a file starting with `_` is not a tenant
+        if _variant_lang(f):
+            continue                     # `<CODE>.en.company.json` is AEON in English,
+                                         # not a second company — it must not show up
+                                         # in the picker beside the tenant it belongs to
         try:
             spec = load_tenant_spec(f)
         except (json.JSONDecodeError, OSError):
@@ -402,8 +449,16 @@ def _flow_spec_path(company: str, instruction_version: str | None = None) -> "An
     served. No override file exists any more, so the lookup only ever fell through to
     the canonical file while still reporting a version that pointed nowhere. The
     parameter stays so old callers keep working; it is ignored.
+
+    The session's language decides WHICH file of that company: `tenant_path` returns
+    `<CODE>.en.company.json` when one exists and the session is English, and the Thai
+    file otherwise. Every caller in this module comes through here, so no call site
+    has to know that variants exist.
     """
-    return REPO_ROOT / "data" / "flows" / load_flow_registry()[company]["spec"]
+    registry = load_flow_registry()
+    if company not in registry:
+        raise KeyError(company)
+    return tenant_path(company)
 
 
 def _read_catalog(spec: "dict | None") -> list[dict]:
@@ -1204,7 +1259,14 @@ class FlowLiveSession:
     agent_name = "flow"
 
     def __init__(self, case_id: str, voice_gender: str = "F", model: str | None = None,
-                 instruction_version: str | None = None) -> None:
+                 instruction_version: str | None = None, lang: str | None = None) -> None:
+        # The language is fixed when the call opens and never changes inside it —
+        # switching mid-call would leave half a conversation in each language and a
+        # catalog whose text_ids no longer match what was already spoken. The UI
+        # toggle therefore starts a NEW session rather than mutating this one.
+        from demo_v2.lib import lang as _lang
+        self.lang = _lang.normalise(lang)
+        _lang.LANG.set(self.lang)   # the instruction is rendered below, in this language
         self._model_override = model
         # `instruction_version` is accepted so old callers keep working, and ignored:
         # the versioned override files it selected (`{stem}__{version}.json`) are gone
@@ -1327,19 +1389,84 @@ class FlowLiveSession:
         self._tools = build_tool_schemas(self._spec) + [
             _flow_reply_schema([e["text_id"] for e in self._catalog])
         ]
+        # How many times each beat may be spoken in one call, read from the spec's own
+        # constraints. `enforce` only ever legally says "prompt", so a rule like
+        # max_convince:1 was a request in the prompt and nothing more — and it was
+        # measured being ignored (convince spoken twice in one call). A beat is not a
+        # tool, so `gating` has nowhere to hang this. Capping the enum the model may
+        # choose from is the one place the rule can actually bind: what is not offered
+        # cannot be said.
+        self._beat_cap: dict[str, int] = {}
+        _beats = {e.get("_fine_state") for e in self._catalog}
+        for c in (self._spec.get("constraints") or []):
+            ctype, cap = c.get("type"), None
+            if ctype == "once_per_call":
+                cap = 1
+            elif ctype == "max_occurrences" and isinstance(c.get("max"), int):
+                cap = c["max"]
+            if cap is None:
+                continue
+            named = list(c.get("template_fine_states") or [])
+            if c.get("counts") in _beats:
+                named.append(c["counts"])
+            for b in named:
+                self._beat_cap[b] = min(cap, self._beat_cap.get(b, cap))
+        self._beat_count: dict[str, int] = {}
         # instruction-grounded step-completeness: fine_state -> [required tool names]
         # from each state's own entry_tools (spec: "must be called before this state's
         # reply", e.g. AEON ptp_capture requires get_current_datetime+record_verbal_
         # commitment+payment_date before its "close" reply). Session-wide call_log =
         # each of these tools is a once-per-call step, so "called at least once" = done.
-        self._fine_state_requires: dict[str, list[str]] = {}
+        # A beat can belong to SEVERAL states, and they need not require the same tools.
+        # Assigning (`= et`) let the last state in the file win, which is both wrong and
+        # order-dependent: AEON's `apology` sits in `close_unreachable` (record_outcome)
+        # and in `close_new_phone` (update_phone + record_outcome), so closing a call with
+        # a caller who said "ไม่รู้จัก ไม่มีเบอร์" demanded `update_phone` and the model
+        # invented a number to satisfy it. `close` has the same collision the other way —
+        # it is in `ptp_capture` (4 tools) and `close_unreachable` (1), and only survives
+        # because the lighter state happens to come later in the file.
+        # So: INTERSECT. A beat reachable from two states can only be held for what BOTH
+        # of them require — anything else gates a reply on a step its own path never had.
+        _req: dict[str, set] = {}
+        _seq: dict[str, list] = {}      # the declared order, for the hint the model reads
         for st in self._spec.get("states", []):
             et = st.get("entry_tools")
             if not et:
                 continue
             for t in st.get("templates", []):
                 for fs in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or []):
-                    self._fine_state_requires[fs] = et
+                    _req[fs] = set(et) if fs not in _req else (_req[fs] & set(et))
+                    _seq.setdefault(fs, list(et))
+        # Keep the spec's own `entry_tools` order — it is the chain the prompt tells the
+        # model to follow, and a hint that lists the steps out of order reads as a different
+        # instruction from the one it was given.
+        self._fine_state_requires: dict[str, list[str]] = {
+            fs: [t for t in _seq[fs] if t in tools]
+            for fs, tools in _req.items() if tools
+        }
+        # A FAQ route that ENDS the call carries the same obligation, and `entry_tools`
+        # cannot express it because the route is not a state. AEON's `mourning` route
+        # declares `then.outcome` (result "reached") and `then.terminal`, so speaking
+        # `faq_mourning` closes the call and the result has to be stamped first — exactly
+        # what the walker-driven gold harness required, and what GOLD-P01 expects: one
+        # beat, one turn. Without this the app let the reply through unstamped, the model
+        # stamped the outcome a turn later and then needed a SECOND closing line, which is
+        # how a bereaved relative ended up hearing `confirm_info`.
+        # The closing tool by what the spec SAYS it is (`required_at: end_of_call`), not
+        # by name — an appointment tenant calls it something else.
+        _outcome_tool = next((d["name"] for d in
+                              ((self._spec.get("tools") or {}).get("declarations") or [])
+                              if (d.get("gating") or {}).get("required_at") == "end_of_call"),
+                             None)
+        for r in ((self._spec.get("faq_routing") or {}).get("routes") or []) if _outcome_tool else []:
+            then = r.get("then")
+            if not isinstance(then, dict) or not then.get("outcome"):
+                continue
+            for t in (r.get("templates") or []):
+                if not isinstance(t, dict):
+                    continue
+                for fs in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or []):
+                    self._fine_state_requires.setdefault(fs, [_outcome_tool])
         # chain obligation: fine_state -> ordered required steps (each a set of
         # acceptable beats) of the chain state it belongs to. The instruction now
         # A part-spoken chain is the #1 failure the gold eval sees (KBANK: `close`
@@ -1400,6 +1527,20 @@ class FlowLiveSession:
             for t in st.get("templates", [])
             for b in ([t["fine_state"]] if t.get("fine_state") else t.get("any_of") or [])
         }
+        # A FAQ route can end the call too, and says so with `then.terminal` — AEON's
+        # `mourning` route is the case: the debtor has died, the line is answered by a
+        # relative, and the flow's answer IS the goodbye. Only `states[].terminal` was
+        # read, so the route's declaration did nothing and the call ran on past its own
+        # farewell, which is how the next turn ended up speaking `confirm_info`
+        # ("ได้รับข้อมูลครบถ้วนแล้วนะคะ") to someone who had just reported a death.
+        for r in ((self._spec.get("faq_routing") or {}).get("routes") or []):
+            then = r.get("then")
+            if not isinstance(then, dict) or not then.get("terminal"):
+                continue
+            for t in (r.get("templates") or []):
+                if isinstance(t, dict):
+                    self._terminal_beats.update(
+                        [t["fine_state"]] if t.get("fine_state") else (t.get("any_of") or []))
         self._step_nudges = 0   # per-session cap on self-correction retries (avoid loop burn)
         # Where the app is in the flow — tracked from the beats it spoke itself, not
         # from a label put on the customer
@@ -1453,6 +1594,7 @@ class FlowLiveSession:
 
     async def aiter_opening(self) -> AsyncIterator[dict[str, Any]]:
         """Bot-first outbound greeting: emit the spec-seeded opener. No LLM call."""
+        self._enter_lang()
         if self._greeted:
             return
         self._greeted = True
@@ -1480,6 +1622,7 @@ class FlowLiveSession:
         into history first, so the model always sees greeting → customer → agent, the
         order it trained on.
         """
+        self._enter_lang()
         if self.done:
             return
         # If the caller speaks before the opening was fired, seed the greeting
@@ -1491,6 +1634,17 @@ class FlowLiveSession:
             self._greeting_hops()
         async for hop in self._aiter_run(user_msg):
             yield hop
+
+    def _enter_lang(self) -> None:
+        """Make this session's language current for the rest of this request.
+
+        Set, not set-and-reset: each HTTP request runs in its own task with its own
+        copy of the context, so the value cannot leak into another session's turn,
+        and a plain `set` survives every `await` inside the generator that follows —
+        which a `with` block around an async generator would not.
+        """
+        from demo_v2.lib import lang as _lang
+        _lang.LANG.set(self.lang)
 
     def reset_pointer(self) -> None:
         """Start the call over on the same case: clear the transcript, rebuild the
@@ -1506,6 +1660,7 @@ class FlowLiveSession:
         answering the identity check with "ครับ": 3/3 calls ended there before this,
         0/3 after.
         """
+        self._enter_lang()
         self._turn_count = 0
         self.done = False
         self._transcript = []
@@ -1632,6 +1787,88 @@ class FlowLiveSession:
                 strict_dates=True, gender=self.voice_gender))
         return good, " ".join(texts), dyn if isinstance(dyn, dict) else {}, unknown
 
+    def _stuck_close(self):
+        """The beat to speak when the call has stopped moving, chosen from the spec.
+
+        Prefers a close the tenant wrote for exactly this (an outcome whose result or
+        reason mentions being stuck / off-topic); otherwise any terminal close, so a
+        tenant that never thought about it still ends the call instead of hanging on."""
+        want = None
+        for st in (self._spec.get("states") or []):
+            if not st.get("terminal"):
+                continue
+            o = st.get("outcome") or {}
+            blob = f"{(o.get('args') or {}).get('result','')} {' '.join(o.get('reasons') or [])}"
+            if any(k in blob for k in ("disruptive", "off_topic", "stuck")):
+                want = st
+                break
+            want = want or st
+        if not want:
+            return None
+        # Speak the closing line AND write the outcome. Swapping only the sentence left
+        # the call sounding finished while the CRM got nothing — the worst of both: the
+        # customer hears goodbye, operations sees a call that never happened.
+        # Return the close; do NOT write it here. Dispatching from inside this helper
+        # put a row in the CRM that never appeared as a hop — an outcome nobody watching
+        # the call could see, which is the exact failure this whole exercise keeps
+        # finding. The caller has `push` and does both, visibly.
+        o = want.get("outcome") or {}
+        closer = args_out = None
+        if o.get("args"):
+            closer = next((d["name"] for d in
+                           ((self._spec.get("tools") or {}).get("declarations") or [])
+                           if (d.get("gating") or {}).get("required_at") == "end_of_call"), None)
+            if closer:
+                args_out = dict(o["args"])
+                if o.get("reasons"):
+                    args_out.setdefault("reason", o["reasons"][0])
+                args_out.setdefault("remark", "ปิดสายอัตโนมัติ: บทสนทนาไม่คืบหน้า")
+        for tmpl in (want.get("templates") or []):
+            fs = tmpl.get("fine_state") if isinstance(tmpl, dict) else None
+            e = next((x for x in self._catalog if x.get("_fine_state") == fs), None)
+            if e:
+                return ([e["text_id"]],
+                        self._fill_template(e["template"], self.customer_data,
+                                            gender=self.voice_gender),
+                        closer, args_out)
+        return None
+
+    def _tools_now(self) -> list:
+        """The tool schemas for THIS turn, with any beat that has used up its declared
+        quota removed from the reply enum.
+
+        Never returns an empty enum: if every remaining beat is capped out the full list
+        is offered again, because a call the model cannot answer at all is worse than one
+        that repeats a line."""
+        from demo_v2.server.flow.flowspec import build_tool_schemas
+        if os.environ.get("AAX6_FREEZE_TOOLS"):
+            return self._tools
+        spent = {b for b, n in self._beat_count.items()
+                 if b in self._beat_cap and n >= self._beat_cap[b]}
+        # Saying the same line over and over is its own defect: probes that repeated
+        # one sentence got the identical beat back up to nine turns running and the
+        # call never closed. After it has been given twice, take it off the menu —
+        # the model then has to move the call somewhere instead of holding still.
+        spent |= {b for b, n in self._beat_count.items() if n >= _BEAT_REPEAT_MAX}
+        # A tool can be scoped to the part of the flow it belongs to. `after_event`
+        # cannot do this: nothing tracks events at runtime, so it renders into the
+        # prompt and binds nothing — which is how update_number stayed callable at
+        # any moment and wrote a phone number nobody had been asked for.
+        blocked = set()
+        for d in ((self._spec.get("tools") or {}).get("declarations") or []):
+            only = (d.get("gating") or {}).get("only_in_states")
+            if only and not (set(only) & (self._cur_states or set())):
+                blocked.add(d["name"])
+        if not spent and not blocked:
+            return self._tools
+        allowed = [e["text_id"] for e in self._catalog
+                   if e.get("_fine_state") not in spent]
+        if not allowed:
+            allowed = [e["text_id"] for e in self._catalog]
+        schemas = [s for s in build_tool_schemas(self._spec)
+                   if (s.get("function") or {}).get("name") not in blocked]
+        return schemas + [_flow_reply_schema(allowed)]
+
     def _reachable_ids(self, cap: int = 6) -> str:
         """Example ids of beats reachable from the current state — used as the hint on a
         reject.
@@ -1719,7 +1956,7 @@ class FlowLiveSession:
                     t0 = time.perf_counter()
                     msg = _flow_vllm_chat(self._base_url, {
                         "model": self._model, "messages": self._messages,
-                        "tools": self._tools, "temperature": 0.0, "max_tokens": 400,
+                        "tools": self._tools_now(), "temperature": 0.0, "max_tokens": 400,
                     })
                     llm_ms += (time.perf_counter() - t0) * 1000.0
                     llm_hops += 1
@@ -1736,6 +1973,15 @@ class FlowLiveSession:
                                 fb_ids, agent_text = self._fallback_reply()
                                 push({"kind": "reply", "text": agent_text, "text_ids": fb_ids, "dynamic_vars": {}})
                             break
+                    if os.environ.get("AAX6_DEBUG_TCS"):
+                        print("[tcs] loop=%d n=%d names=%s" % (
+                            _loop, len(tcs),
+                            [t.get("function", {}).get("name") for t in tcs]), flush=True)
+                        for _m in self._messages[-3:]:
+                            print("      <%s> %s" % (
+                                _m.get("role"),
+                                (_m.get("content") or
+                                 json.dumps(_m.get("tool_calls"), ensure_ascii=False))[:220]), flush=True)
                     tc = tcs[0]
                     fn = tc["function"]
                     raw_args = fn.get("arguments")
@@ -1834,6 +2080,34 @@ class FlowLiveSession:
                             push({"kind": "tool_result", "name": "reply",
                                   "result": {"sent": False, "reason": "unknown_text_id",
                                              "unknown_text_ids": _unknown_ids}})
+                            continue
+                        # Quota gate. Narrowing the reply enum does NOT stop the model
+                        # emitting a beat — the same lesson update_number taught, and
+                        # then two more mechanisms were built the same wrong way: the
+                        # only check on a spoken id is `unknown_text_id`, which asks
+                        # whether the beat exists at all, not whether it is still
+                        # allowed. `convince` was measured three times against a
+                        # declared max of one. Refuse it here, where the reply is
+                        # actually processed, and hand back the reason so the model
+                        # picks something that moves the call instead.
+                        _over = [i for i in ids
+                                 if (_b := (self._by_id.get(i) or {}).get("_fine_state"))
+                                 and _b in self._beat_cap
+                                 and self._beat_count.get(_b, 0) >= self._beat_cap[_b]]
+                        if _over and len(ids) == len(_over):
+                            _bs = sorted({self._by_id[i]["_fine_state"] for i in _over})
+                            self._messages.append({
+                                "role": "tool", "tool_call_id": tc.get("id", "call_x"),
+                                "content": json.dumps(
+                                    {"sent": False, "reason": "beat_quota_exceeded",
+                                     "beats": _bs,
+                                     "hint": f"พูด {_bs} ครบโควตาของสายนี้แล้ว "
+                                             f"เลือกบทอื่นที่พาสายไปต่อหรือปิดสาย"},
+                                    ensure_ascii=False)})
+                            push({"kind": "tool_call", "name": "reply", "args": args})
+                            push({"kind": "tool_result", "name": "reply",
+                                  "result": {"sent": False, "reason": "beat_quota_exceeded",
+                                             "beats": _bs}})
                             continue
                         if not ids and not self._looks_sayable(text):  # reply [] → safe fallback
                             ids, text = self._fallback_reply()
@@ -2078,13 +2352,37 @@ class FlowLiveSession:
                                     "id": tc.get("id", "call_x"), "type": "function",
                                     "function": {"name": "reply",
                                                  "arguments": json.dumps(args, ensure_ascii=False, default=str)}}]})
+                                # Hand back the reply that was held, not only the reason.
+                                # "You forgot to call X" reads as the WHOLE turn being
+                                # rejected, so the model composes a NEW reply and throws
+                                # away wording it had already chosen correctly. Measured on
+                                # the gold harness (`gold_eval_model._gate_payload`): on
+                                # GOLD-P01 it had said `faq_mourning` to a bereaved relative
+                                # — right — and after the bare nudge said `confirm_info`
+                                # ("ได้รับข้อมูลครบถ้วนแล้วนะคะ") instead; same shape on P02 and
+                                # GOLD-17, the gate fixing tools/outcome on all three while
+                                # breaking `beats` on all three. Saying the wording was fine
+                                # and naming the exact call to resume with is what fixed it
+                                # there, so this sends the same four fields.
+                                _held = [{"text_id": t, "beat": self._by_id[t]["_fine_state"]}
+                                         for t in ids if t in self._by_id]
+                                _resume = "reply(text_ids=[%s])" % ", ".join(str(t) for t in ids)
+                                _landed = sorted({c["tool"] for c in self._backend.call_log
+                                                  if c.get("tool")
+                                                  and self._backend.successful_calls(c["tool"])})
+                                _miss_s = ", ".join(_missing)
                                 self._messages.append({"role": "tool", "tool_call_id": tc.get("id", "call_x"),
                                                        "content": json.dumps({
                                                            "sent": False, "reason": "missing_required_tools",
                                                            "missing_tools": _missing,
-                                                           "hint": f"คุณลืมเรียกเครื่องมือ: {', '.join(_missing)} "
-                                                                   "ตามขั้นตอนที่ระบุ — เรียกเครื่องมือเหล่านี้ให้ครบก่อน "
-                                                                   "แล้วค่อยตอบลูกค้า ห้ามตอบก่อนทำครบ"},
+                                                           "held_reply": _held,
+                                                           "tools_already_done": _landed,
+                                                           "resume_with": _resume,
+                                                           "hint": "คำพูดที่เลือกไว้ถูกต้องแล้ว ไม่ต้องเลือกใหม่ — "
+                                                                   f"ขาดแค่ยังไม่ได้เรียก {_miss_s} "
+                                                                   f"ลำดับที่ต้องทำ: (1) เรียก {_miss_s} ให้สำเร็จก่อน "
+                                                                   f"(2) แล้วทำต่อจากจุดเดิมด้วย {_resume} "
+                                                                   "ห้ามเปลี่ยน text_ids และห้ามเริ่มบทสนทนาใหม่"},
                                                            ensure_ascii=False)})
                                 push({"kind": "tool_call", "name": "reply", "args": args})
                                 push({"kind": "tool_result", "name": "reply",
@@ -2093,11 +2391,27 @@ class FlowLiveSession:
                                 continue  # model retries in the same tool loop
                             # already nudged twice — let it through rather than stall the
                             # call forever; the FE warning above still records the miss.
+                        _prev_states = set(self._cur_states or set())
                         _new_states = set().union(*([_beat_states(self._spec).get(
                             self._by_id[t]["_fine_state"], set()) for t in ids if t in self._by_id] or [set()]))
                         if _new_states:
                             self._cur_states = _new_states   # a FAQ has no state of its
                                                              # own → stay where we are
+                        # Did this reply move the call? A faq answers and returns, so
+                        # `_new_states` is empty — that is standing still by definition.
+                        if not _new_states or _new_states == _prev_states:
+                            self._no_progress = getattr(self, "_no_progress", 0) + 1
+                        else:
+                            self._no_progress = 0
+                        if self._no_progress >= _NO_PROGRESS_MAX:
+                            _end = self._stuck_close()
+                            if _end:
+                                ids, text, _closer, _cargs = _end
+                                if _closer and _cargs:
+                                    _res = self._backend.dispatch(_closer, _cargs)
+                                    push({"kind": "tool_call", "name": _closer, "args": _cargs})
+                                    push({"kind": "tool_result", "name": _closer, "result": _res})
+                                self._no_progress = 0
                         clean_args = {"text_ids": ids, "dynamic_vars": args.get("dynamic_vars") or []}
                         self._messages.append({
                             "role": "assistant", "content": text,
@@ -2119,11 +2433,28 @@ class FlowLiveSession:
                         agent_text = text
                         # the closing line was just spoken -> the call is over
                         _spoken = {self._by_id[t]["_fine_state"] for t in ids if t in self._by_id}
+                        for _b in _spoken:
+                            self._beat_count[_b] = self._beat_count.get(_b, 0) + 1
                         if _spoken & self._terminal_beats:
                             self.done = True
                         break
                     _emit_filler(fn["name"])
-                    result = self._backend.dispatch(fn["name"], args)
+                    # `only_in_states` has to bite HERE, not in the tool schema. Dropping
+                    # a tool from the schema changes nothing: the instruction text still
+                    # describes it, the model still emits the call, and dispatch accepts
+                    # any declared name. Blocking it only at the menu was measured doing
+                    # nothing at all — update_number fired 2/2 with the schema withheld.
+                    _only = ((self._backend._decls.get(fn["name"]) or {}).get("gating")
+                             or {}).get("only_in_states")
+                    if _only and not (set(_only) & (self._cur_states or set())):
+                        result = {"error": "tool_not_available_here",
+                                  "message": (f"Error: tool_not_available_here — {fn['name']} "
+                                              f"เรียกได้เฉพาะตอนอยู่ใน {sorted(_only)} "
+                                              f"ตอนนี้อยู่ {sorted(self._cur_states or [])}"),
+                                  "allowed_in": sorted(_only),
+                                  "current": sorted(self._cur_states or [])}
+                    else:
+                        result = self._backend.dispatch(fn["name"], args)
                     # Remember the result that was successfully recorded, so the
                     # closing gate knows which farewell is the right one. What counts
                     # as a call result comes from the enum the spec declares, not from
@@ -2282,6 +2613,7 @@ def build(
     flow: bool = False,
     model: str | None = None,
     instruction_version: str | None = None,
+    lang: str | None = None,
 ) -> Session:
     """Build the session for one call.
 
@@ -2294,7 +2626,7 @@ def build(
     # One kind of session: a spec drives the call. `mode` and `agent` are accepted so
     # existing callers and query strings keep working.
     return FlowLiveSession(case_id, voice_gender=voice_gender, model=model,
-                           instruction_version=instruction_version)
+                           instruction_version=instruction_version, lang=lang)
 
 
 def flow_template() -> dict:

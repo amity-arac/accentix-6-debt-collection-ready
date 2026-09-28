@@ -1,0 +1,842 @@
+{
+ "display_name": "AMT Hospital",
+ "agent_role": "an AMT Hospital agent calling to confirm a doctor's appointment",
+ "goal": "Greet and state the appointment (patient / doctor / date) straight away, with no identity check -> if it suits them: confirm the appointment and give the hours the doctor is in -> if it does not: call check_doctor_time for the doctor's rota and offer those days -> if none of the doctor's days work, offer another doctor on a day that suits the patient -> record the outcome -> close",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "doctor_name",
+  "doctor_schedule",
+  "appointment_date",
+  "visit_time_start",
+  "visit_time_end"
+ ],
+ "session_init": {
+  "note": "Called once at the start of the call - the response is the render context directly, with no mapping. Point it somewhere else with the env var AAX6_API_BASE; the spec does not change",
+  "url": "{API_BASE}/AMT/init?msisdn={msisdn}&lang=en",
+  "method": "GET",
+  "timeout": 8,
+  "on_failure": {
+   "fine_state": "handoff_schedule",
+   "outcome": {
+    "args": {
+     "status": "unresolved",
+     "reason": "The appointment system did not answer; an agent will follow up"
+    }
+   }
+  }
+ },
+ "events": {
+  "confirms": {
+   "desc": "The patient confirms the original appointment, or picks one of the offered days the doctor is on",
+   "cues": [
+    "that works",
+    "confirmed",
+    "I'll come as booked",
+    "I'll definitely be there",
+    "same as before",
+    "that day is fine",
+    "Wednesday works"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "Asks to postpone or change the appointment (the original does not suit), or names a day to move it to",
+   "cues": [
+    "that doesn't work",
+    "postpone",
+    "change the day",
+    "not free",
+    "I have something on",
+    "could I have",
+    "another day"
+   ]
+  },
+  "slot_unavailable": {
+   "desc": "None of the days the patient's own doctor is on duty suit the patient (another option is needed)",
+   "cues": [
+    "I'm not free on any of those days",
+    "not a single day works",
+    "I'm booked up that day",
+    "a day other than the doctor's days, please",
+    "I'd like Tuesday"
+   ]
+  },
+  "no_input": {
+   "desc": "Silence, or an answer too unclear to interpret (NO-INPUT)",
+   "cues": [
+    "...",
+    "…",
+    "(silence)",
+    "(no answer)",
+    "uh..."
+   ]
+  },
+  "third_party": {
+   "desc": "The person answering is not the patient / wrong number",
+   "cues": [
+    "No.",
+    "No.",
+    "wrong number",
+    "don't know them",
+    "wrong number",
+    "nobody here by that name"
+   ]
+  },
+  "cancel_request": {
+   "desc": "The patient asks to cancel the appointment and does not want the consultation",
+   "cues": [
+    "I'd like to cancel",
+    "cancel the appointment",
+    "I won't be coming",
+    "I don't want it any more",
+    "no appointment needed",
+    "cancel it please"
+   ]
+  },
+  "other_doctor_request": {
+   "desc": "The patient asks for a different doctor (same day or any day)",
+   "cues": [
+    "could I change doctor",
+    "change the doctor",
+    "a different doctor",
+    "another doctor please",
+    "I'd rather not see this doctor"
+   ]
+  }
+ },
+ "tools": {
+  "notes": [
+   "No identity check - the appointment details (patient name / doctor / date / the doctor's hours) are all in the CRM snapshot from the start of the call"
+  ],
+  "declarations": [
+   {
+    "name": "check_doctor_time",
+    "impl": "http",
+    "desc": "Look up the named doctor's rota - returns the days and times that doctor is in. Call it after the patient asks to reschedule, so days can be offered",
+    "args": {
+     "name": {
+      "type": "string",
+      "desc": "The patient's own doctor (from the CRM: {doctor_name})"
+     }
+    },
+    "gating": {
+     "after_event": "reschedule_request",
+     "note": "Always call it (silent) before offering days to move to - never guess the doctor's days yourself"
+    },
+    "url": "{API_BASE}/AMT/check_doctor_time?lang=en",
+    "method": "POST",
+    "provides": "verified",
+    "verified_when": {
+     "any_success": true
+    },
+    "returns": {
+     "doctor_name": {
+      "type": "string",
+      "desc": "The doctor whose rota is being checked"
+     },
+     "doctor_schedule": {
+      "type": "string",
+      "desc": "The hours the doctor is in"
+     },
+     "available_dates": {
+      "type": "array",
+      "desc": "Available dates (canonical) - the source of the one_of_from on save_appointment.new_slot"
+     },
+     "available_dates_text": {
+      "type": "string",
+      "desc": "Available dates in spoken form - the same name as the slot in the offer_doctor_slot line"
+     }
+    }
+   },
+   {
+    "name": "save_appointment",
+    "impl": "http",
+    "desc": "Record the appointment status (confirmed / rescheduled) - always call it before closing",
+    "args": {
+     "status": {
+      "type": "string",
+      "desc": "confirmed / rescheduled",
+      "enum": [
+       "confirmed",
+       "rescheduled",
+       "cancelled",
+       "unreachable",
+       "unresolved"
+      ]
+     },
+     "new_slot": {
+      "type": "string",
+      "desc": "The day the patient chose to move to - required when status=rescheduled. Pick one of the available_dates that check_doctor_time returned and send the whole string including the weekday in brackets, e.g. '2026-09-02 (Wednesday)'",
+      "optional": true,
+      "format": "YYYY-MM-DD (Weekday)",
+      "required_when": {
+       "arg": "status",
+       "equals": "rescheduled"
+      },
+      "one_of_from": {
+       "tool": "check_doctor_time",
+       "field": "available_dates"
+      }
+     },
+     "reason": {
+      "type": "string",
+      "optional": true,
+      "desc": "The reason for this call's outcome (filled in by the system when session_init does not answer)"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "note": "Called once, at the close, before the closing reply - when status=rescheduled, new_slot must always carry the day the patient named",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/AMT/save_appointment?lang=en",
+    "method": "POST"
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_remind"
+    }
+   ],
+   "note": "State the appointment (doctor + date and time), then ask whether it still suits them - never call save_appointment on the first turn; always wait for the patient's answer",
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "confirm_close"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "check_slot"
+    },
+    {
+     "event": "no_input",
+     "to": "greet_retry",
+     "note": "Silent the first time - try once more; never loop at greet"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party_close"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "other_doctor_request",
+     "to": "offer_other_doctor"
+    }
+   ]
+  },
+  {
+   "id": "check_slot",
+   "phase": "main",
+   "entry_tools": [
+    "check_doctor_time"
+   ],
+   "templates": [
+    {
+     "fine_state": "offer_doctor_slot"
+    }
+   ],
+   "note": "The patient asks to reschedule - call check_doctor_time (silent) for the doctor's rota first, then offer those days for the patient to choose (offer_doctor_slot); never guess the days",
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close",
+     "note": "The patient picks a day the doctor is on -> record the reschedule with the same doctor"
+    },
+    {
+     "event": "reschedule_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close",
+     "note": "The patient names a day that matches one of the doctor's days -> record the reschedule"
+    },
+    {
+     "event": "slot_unavailable",
+     "to": "offer_other_doctor"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "note": "Silence is not consent to reschedule - close without recording a reschedule"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "other_doctor_request",
+     "to": "offer_other_doctor"
+    }
+   ]
+  },
+  {
+   "id": "offer_other_doctor",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_other_doctor"
+    }
+   ],
+   "note": "None of the patient's own doctor's days suit - ask which day does suit, saying that another doctor on duty may have to take the appointment that day",
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close_other"
+    },
+    {
+     "event": "reschedule_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "reschedule_close_other"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "note": "Silence is not consent to reschedule - close without recording a reschedule"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "slot_unavailable",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "handoff_close"
+    }
+   ]
+  },
+  {
+   "id": "confirm_close",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "args": {
+     "status": "confirmed"
+    },
+    "reasons": [
+     "confirmed"
+    ],
+    "desc": "The patient confirms the original appointment"
+   },
+   "templates": [
+    {
+     "fine_state": "confirm_visit"
+    }
+   ],
+   "note": "save_appointment(confirmed), then close with: confirm the appointment + the hours the doctor is in ([visit_time_start]-[visit_time_end]) + goodbye",
+   "on": [],
+   "entry_tools": [
+    "save_appointment"
+   ]
+  },
+  {
+   "id": "reschedule_close",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "args": {
+     "status": "rescheduled"
+    },
+    "reasons": [
+     "rescheduled"
+    ],
+    "desc": "The patient asks to reschedule (the same doctor on one of their days, or another doctor on a day that suits the patient)"
+   },
+   "templates": [
+    {
+     "fine_state": "thank_reschedule"
+    }
+   ],
+   "note": "save_appointment(rescheduled, new_slot=<the doctor's day the patient chose>) - the same doctor - then close by acknowledging the change + goodbye",
+   "on": [],
+   "entry_tools": [
+    "save_appointment"
+   ]
+  },
+  {
+   "id": "reschedule_close_other",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "args": {
+     "status": "rescheduled"
+    },
+    "reasons": [
+     "other_doctor"
+    ],
+    "desc": "The patient asks to reschedule (the same doctor on one of their days, or another doctor on a day that suits the patient)"
+   },
+   "templates": [
+    {
+     "fine_state": "thank_reschedule_other"
+    }
+   ],
+   "note": "save_appointment(rescheduled, new_slot=<the day that suits the patient>) - another doctor on duty that day takes it - then close by acknowledging the change + saying another doctor will be arranged + goodbye",
+   "on": [],
+   "entry_tools": [
+    "save_appointment"
+   ]
+  },
+  {
+   "id": "greet_retry",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "greet_retry"
+    }
+   ],
+   "note": "Try once more; if still silent, close the call",
+   "max_visits": 1,
+   "on": [
+    {
+     "event": "confirms",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "confirm_close"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "check_slot"
+    },
+    {
+     "event": "cancel_request",
+     "tools": [
+      "save_appointment"
+     ],
+     "to": "cancel_close"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party_close"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    },
+    {
+     "event": "other_doctor_request",
+     "to": "offer_other_doctor"
+    }
+   ]
+  },
+  {
+   "id": "cancel_close",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "thank_cancel"
+    }
+   ],
+   "note": "Record status=cancelled so the slot is released; never record it as rescheduled",
+   "terminal": true,
+   "outcome": {
+    "args": {
+     "status": "cancelled"
+    },
+    "reasons": [
+     "patient_request"
+    ],
+    "desc": "The patient asks to cancel the appointment"
+   }
+  },
+  {
+   "id": "third_party_close",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "wrong_person"
+    }
+   ],
+   "note": "Not the patient - do not repeat the appointment details; close politely",
+   "terminal": true,
+   "outcome": {
+    "args": {
+     "status": "unreachable"
+    },
+    "reasons": [
+     "wrong_number"
+    ],
+    "desc": "The patient could not be reached (wrong person / no answer)"
+   }
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "close_unreachable"
+    }
+   ],
+   "note": "No answer - never record a reschedule out of silence",
+   "terminal": true,
+   "outcome": {
+    "args": {
+     "status": "unreachable"
+    },
+    "reasons": [
+     "no_input"
+    ],
+    "desc": "The patient could not be reached (wrong person / no answer)"
+   }
+  },
+  {
+   "id": "handoff_close",
+   "phase": "close",
+   "entry_tools": [
+    "save_appointment"
+   ],
+   "templates": [
+    {
+     "fine_state": "handoff_schedule"
+    }
+   ],
+   "note": "No day matches - pass it to an agent; never record the reschedule as successful",
+   "terminal": true,
+   "outcome": {
+    "args": {
+     "status": "unresolved"
+    },
+    "reasons": [
+     "no_slot_agreed"
+    ],
+    "desc": "The appointment could not be agreed on this call - pass it to the scheduling team"
+   }
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "purpose",
+    "desc": "Asks what the appointment is for / what is being checked",
+    "templates": [
+     {
+      "fine_state": "faq_purpose"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "cost",
+    "desc": "Asks about the cost",
+    "templates": [
+     {
+      "fine_state": "faq_cost"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "preparation",
+    "desc": "Asks how to prepare, e.g. fasting",
+    "templates": [
+     {
+      "fine_state": "faq_preparation"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "location",
+    "desc": "Asks about the location / getting there",
+    "templates": [
+     {
+      "fine_state": "faq_location"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "ai_or_human",
+    "desc": "Asks whether this is a person or an automated system",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "repeat",
+    "desc": "Asks for the appointment to be repeated / could not hear clearly",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume"
+   }
+  ],
+  "note": "Answer briefly, then return to the flow at once. Anything out of scope goes to an agent - never guess medical information"
+ },
+ "constraints": [
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Greet and state the appointment from the CRM snapshot straight away, from the start of the call - no identity check, and nothing about money or debt"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Closing the call requires save_appointment before the closing sentence, always (status = confirmed / rescheduled)"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "If the patient confirms the appointment: the confirming sentence must give the hours the doctor is in ([visit_time_start]-[visit_time_end])"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "If the appointment does not suit the patient (they ask to reschedule): **check_doctor_time (silent) must always be called first** to see the days the patient's own doctor is in. **Never guess the days.** Then offer those days for the patient to choose (offer_doctor_slot)"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "If the patient picks one of the doctor's days: call save_appointment(status='rescheduled', new_slot='<the chosen day>') - the same doctor - then close with thank_reschedule"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "If none of the doctor's days suit the patient (slot_unavailable): ask which day does suit (ask_other_doctor), saying that another doctor on duty may have to take it that day. Once the patient names a day, call save_appointment(status='rescheduled', new_slot='<the day that suits the patient>') and close with thank_reschedule_other - new_slot must be the day the patient named and must never be left empty"
+  },
+  {
+   "id": "no_close_before_answer",
+   "desc": "Never call save_appointment before the patient has answered confirm / reschedule / cancel - a greeting on picking up (hello / hi / yes?) is not a confirmation of the appointment",
+   "enforce": [
+    "prompt"
+   ]
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**Silence is not confirmation:** a customer who answers '...' or '(silence)', or whose answer is not interpretable speech, has NOT confirmed the appointment - **never call `save_appointment` with `status=confirmed` or `rescheduled` out of silence**. Ask again (`greet_retry`) or close with `close_unreachable` and record `status=unreachable`, as the flow specifies. Recording an appointment the customer never confirmed is a serious error"
+  }
+ ],
+ "auxiliary_templates": {
+  "allowed": []
+ },
+ "catalog": [
+  {
+   "text_id": 8501,
+   "template": "Hello [customer_name], this is AMT Hospital calling to remind you that you have an appointment with [doctor_name] on [appointment_date]. Does that still suit you?",
+   "_fine_state": "greet_remind",
+   "_real_count": 0,
+   "hint": "Opens the call as a reminder",
+   "state": "opening",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 8502,
+   "template": "Hello, this is AMT Hospital calling to confirm [customer_name]'s appointment with [doctor_name] on [appointment_date]. Does that still suit you?",
+   "_fine_state": "greet_remind",
+   "_real_count": 0,
+   "hint": "Opens the call as a confirmation",
+   "state": "opening",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 8512,
+   "template": "That's no problem. I've checked the rota for you - [doctor_name] is in on [available_dates_text]. Which day would suit you, [customer_name]? I'll record the change straight away.",
+   "_fine_state": "offer_doctor_slot",
+   "_real_count": 0,
+   "hint": "The rota is already checked; offer the days",
+   "state": "main",
+   "intent_name": "offer_doctor_slot"
+  },
+  {
+   "text_id": 8513,
+   "template": "Of course. Let me check the doctor's rota for a moment - [doctor_name] is in on [available_dates_text]. Which day would you like to move to?",
+   "_fine_state": "offer_doctor_slot",
+   "_real_count": 0,
+   "hint": "Says they will check the rota for a moment, before offering days",
+   "state": "main",
+   "intent_name": "offer_doctor_slot"
+  },
+  {
+   "text_id": 8514,
+   "template": "I understand. If none of the days [doctor_name] is in suit you, which day would? Another doctor on duty may have to take the appointment that day - would that be all right?",
+   "_fine_state": "ask_other_doctor",
+   "_real_count": 0,
+   "hint": "Asks which day suits - interchangeable with 8515",
+   "state": "main",
+   "intent_name": "ask_other_doctor"
+  },
+  {
+   "text_id": 8515,
+   "template": "That's no problem. If the days your usual doctor is in don't suit, just tell me which day does. The hospital will arrange another doctor on duty for that day - would that be all right?",
+   "_fine_state": "ask_other_doctor",
+   "_real_count": 0,
+   "hint": "Asks which day suits - interchangeable with 8514",
+   "state": "main",
+   "intent_name": "ask_other_doctor"
+  },
+  {
+   "text_id": 8520,
+   "template": "Thank you. [customer_name]'s appointment is confirmed. [doctor_name] will be in between [visit_time_start] and [visit_time_end]. Please arrive a little before your appointment time. Thank you, and goodbye.",
+   "_fine_state": "confirm_visit",
+   "_real_count": 0,
+   "hint": "Appointment confirmed - interchangeable with 8521",
+   "state": "closing",
+   "intent_name": "confirm_visit"
+  },
+  {
+   "text_id": 8521,
+   "template": "Noted. We have confirmed [customer_name]'s appointment. [doctor_name] will be in between [visit_time_start] and [visit_time_end]. We'll see you at the hospital. Goodbye.",
+   "_fine_state": "confirm_visit",
+   "_real_count": 0,
+   "hint": "Appointment confirmed - interchangeable with 8520",
+   "state": "closing",
+   "intent_name": "confirm_visit"
+  },
+  {
+   "text_id": 8530,
+   "template": "Noted. I've moved [customer_name]'s appointment with [doctor_name] to [new_slot]. Thank you, and goodbye.",
+   "_fine_state": "thank_reschedule",
+   "_real_count": 0,
+   "state": "closing",
+   "intent_name": "thank_reschedule"
+  },
+  {
+   "text_id": 8540,
+   "template": "Noted. I've moved [customer_name]'s appointment to [new_slot], and another doctor on duty that day will take it. Thank you, and goodbye.",
+   "_fine_state": "thank_reschedule_other",
+   "_real_count": 0,
+   "hint": "Reschedule recorded - interchangeable with 8541",
+   "state": "closing",
+   "intent_name": "thank_reschedule_other"
+  },
+  {
+   "text_id": 8541,
+   "template": "Of course. I've moved the appointment to [new_slot]. Another doctor will be in that day in place of [doctor_name]. Thank you, and goodbye.",
+   "_fine_state": "thank_reschedule_other",
+   "_real_count": 0,
+   "hint": "Reschedule recorded - interchangeable with 8540",
+   "state": "closing",
+   "intent_name": "thank_reschedule_other"
+  },
+  {
+   "text_id": 8503,
+   "_fine_state": "greet_retry",
+   "template": "I'm sorry, the line may not be clear. Can you hear me? I'm calling from AMT Hospital.",
+   "state": "opening",
+   "intent_name": "greet_retry"
+  },
+  {
+   "text_id": 8504,
+   "_fine_state": "wrong_person",
+   "template": "Sorry to have troubled you. I'll end the call here, as I need to speak with [customer_name] directly. Thank you, and goodbye.",
+   "state": "closing",
+   "intent_name": "wrong_person"
+  },
+  {
+   "text_id": 8505,
+   "_fine_state": "close_unreachable",
+   "template": "That's no problem. I'll get in touch again another time. Thank you, and goodbye.",
+   "state": "closing",
+   "intent_name": "close_unreachable"
+  },
+  {
+   "text_id": 8531,
+   "_fine_state": "thank_cancel",
+   "template": "Noted. I've cancelled [customer_name]'s appointment with [doctor_name]. If you would like to book again, you can contact us on [company_phone]. Thank you, and goodbye.",
+   "state": "closing",
+   "intent_name": "thank_cancel"
+  },
+  {
+   "text_id": 8550,
+   "_fine_state": "faq_purpose",
+   "template": "It is a follow-up consultation with [doctor_name] as part of your treatment plan. If you would like details of what will be checked, the clinic staff will be happy to tell you on [company_phone].",
+   "state": "faq",
+   "intent_name": "faq_purpose"
+  },
+  {
+   "text_id": 8551,
+   "_fine_state": "faq_cost",
+   "template": "The cost depends on what the doctor decides to check on the day. Let me have the staff give you the details on [company_phone].",
+   "state": "faq",
+   "intent_name": "faq_cost"
+  },
+  {
+   "text_id": 8552,
+   "_fine_state": "faq_preparation",
+   "template": "How to prepare depends on what the doctor has booked. Please ask the clinic staff on [company_phone] to be sure.",
+   "state": "faq",
+   "intent_name": "faq_preparation"
+  },
+  {
+   "text_id": 8553,
+   "_fine_state": "faq_location",
+   "template": "[customer_name]'s appointment is at AMT Hospital. For directions or a contact point, you can ask on [company_phone].",
+   "state": "faq",
+   "intent_name": "faq_location"
+  },
+  {
+   "text_id": 8554,
+   "_fine_state": "ai_disclosure",
+   "template": "I am an automated assistant for AMT Hospital, calling to confirm doctor's appointments. If you would like to speak to a member of staff, you can contact us on [company_phone].",
+   "state": "faq",
+   "intent_name": "ai_disclosure"
+  },
+  {
+   "text_id": 8555,
+   "_fine_state": "faq_repeat",
+   "template": "Of course, let me say it again. [customer_name], you have an appointment with [doctor_name] on [appointment_date] at [appointment_time].",
+   "state": "faq",
+   "intent_name": "faq_repeat"
+  },
+  {
+   "text_id": 8560,
+   "_fine_state": "handoff_schedule",
+   "template": "That's no problem. I'll have a member of staff contact you to arrange a new appointment, [customer_name]. Thank you, and goodbye.",
+   "state": "closing",
+   "intent_name": "handoff_schedule"
+  }
+ ]
+}

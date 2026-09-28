@@ -1,0 +1,1156 @@
+{
+ "display_name": "Kasikornbank",
+ "goal": "Greet and confirm the name -> state the balance -> ask them to pay today -> (if hesitant) persuade according to the reason -> close or schedule. Short and to the point, the way a person talks on the phone",
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "last_4_digits",
+  "amount",
+  "minimum_payment",
+  "due_date",
+  "due_status",
+  "company_phone"
+ ],
+ "crm_labels": {
+  "today": "Today",
+  "customer_name": "Customer name",
+  "amount": "Total outstanding",
+  "minimum_payment": "Minimum payment",
+  "due_date": "Due date",
+  "due_status": "Status",
+  "company_phone": "Company phone"
+ },
+ "session_init": {
+  "note": "Called once at the start of the call - the response is the render context directly, with no mapping. Point it somewhere else with the env var AAX6_API_BASE; the spec does not change",
+  "url": "{API_BASE}/KBANK/init?msisdn={msisdn}&lang=en",
+  "method": "GET",
+  "timeout": 8,
+  "on_failure": {
+   "fine_state": "apology",
+   "outcome": {
+    "args": {
+     "result": "unreachable",
+     "reason": "System did not answer, will follow up later"
+    }
+   }
+  }
+ },
+ "events": {
+  "name_confirmed": {
+   "desc": "The customer confirms they are the named person",
+   "cues": [
+    "yes",
+    "speaking"
+   ]
+  },
+  "no_input": {
+   "desc": "Silence, or an answer too unclear to interpret (NO-INPUT - this is not a refusal)",
+   "cues": [
+    "...",
+    "…",
+    "(silence)",
+    "(no answer)",
+    "uh..."
+   ]
+  },
+  "third_party": {
+   "desc": "Someone else answers, or the person on the line says they are not the named customer"
+  },
+  "agrees_to_pay": {
+   "desc": "Promises to pay - today, or gives a date, an amount or a channel"
+  },
+  "already_paid": {
+   "desc": "States that they have already paid"
+  },
+  "hardship_lost_job": {
+   "desc": "Cannot pay because of job loss or reduced income"
+  },
+  "hardship_sick": {
+   "desc": "Cannot pay because of illness or a health problem"
+  },
+  "hardship_other": {
+   "desc": "Hesitant, or unable to pay for another reason, or a first refusal with no reason given"
+  },
+  "refuses": {
+   "desc": "Still refuses, or insists they cannot pay after being persuaded - the same words or new ones both count"
+  },
+  "stop_signal": {
+   "desc": "A refusal signal that must stop the call immediately, without waiting for the persuasion quota",
+   "cues": [
+    "I already told you",
+    "I really do not have it",
+    "Is anyone listening?",
+    "repeats the same thing a second time, sounding irritated"
+   ]
+  },
+  "reschedule_request": {
+   "desc": "Asks to postpone, or asks to be called back later"
+  },
+  "gives_new_phone": {
+   "desc": "Gives a new contact number"
+  },
+  "faq": {
+   "desc": "A question or an interjection during the call - route it with faq_routing, then return to the same state"
+  }
+ },
+ "tools": {
+  "notes": [
+   "No KYC last-four-digits check, and no real transfer to a human agent (as in the live bot)"
+  ],
+  "declarations": [
+   {
+    "name": "check_account_status",
+    "impl": "http",
+    "desc": "Read the account record (balance / due date / status)",
+    "args": {},
+    "gating": {
+     "after_event": "name_confirmed",
+     "required_before_state": "disclose_ask",
+     "max_calls_per_conversation": 1,
+     "note": "Never call it on the first turn before the greeting; call it immediately after the customer confirms their name, before the first reply that states the balance"
+    },
+    "url": "{API_BASE}/KBANK/check_account_status?lang=en",
+    "method": "POST",
+    "provides": "verified",
+    "verified_when": {
+     "any_success": true
+    }
+   },
+   {
+    "name": "record_verbal_commitment",
+    "impl": "http",
+    "desc": "Record the verbal commitment (amount, date, channel)",
+    "args": {
+     "amount": {
+      "type": "string"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ],
+      "optional": true
+     }
+    },
+    "url": "{API_BASE}/KBANK/record_verbal_commitment?lang=en",
+    "method": "POST"
+   },
+   {
+    "name": "payment_date",
+    "impl": "http",
+    "desc": "Record the payment appointment in the CRM",
+    "args": {
+     "last_4_digits": {
+      "type": "string",
+      "optional": true
+     },
+     "amount": {
+      "type": "number"
+     },
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     },
+     "channel": {
+      "type": "string",
+      "enum": [
+       "atm",
+       "bank_transfer",
+       "branch",
+       "counter_service",
+       "mobile_app",
+       "other"
+      ],
+      "optional": true
+     }
+    },
+    "gating": {
+     "requires_prior": "record_verbal_commitment",
+     "args_must_match": [
+      "amount",
+      "date",
+      "channel"
+     ]
+    },
+    "url": "{API_BASE}/KBANK/payment_date?lang=en",
+    "method": "POST"
+   },
+   {
+    "name": "callback_datetime",
+    "impl": "http",
+    "desc": "Record a callback appointment",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)"
+     }
+    },
+    "url": "{API_BASE}/KBANK/callback_datetime?lang=en",
+    "method": "POST"
+   },
+   {
+    "name": "get_current_datetime",
+    "impl": "http",
+    "desc": "Ask for the canonical date",
+    "args": {},
+    "gating": {
+     "must_precede": [
+      "record_verbal_commitment",
+      "payment_date",
+      "callback_datetime"
+     ]
+    },
+    "url": "{API_BASE}/KBANK/get_current_datetime?lang=en",
+    "method": "POST"
+   },
+   {
+    "name": "record_outcome",
+    "impl": "http",
+    "desc": "Record the call outcome (result, reason, remark)",
+    "args": {
+     "result": {
+      "type": "string",
+      "enum": [
+       "ptp",
+       "refused",
+       "unreachable",
+       "reached",
+       "tcb",
+       "tin"
+      ]
+     },
+     "reason": {
+      "type": "string",
+      "optional": true
+     },
+     "remark": {
+      "type": "string",
+      "optional": true
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/KBANK/record_outcome?lang=en",
+    "method": "POST"
+   },
+   {
+    "name": "update_phone",
+    "impl": "http",
+    "desc": "Record a new contact number",
+    "args": {
+     "phone": {
+      "type": "string"
+     }
+    },
+    "url": "{API_BASE}/KBANK/update_phone?lang=en",
+    "method": "POST"
+   }
+  ],
+  "validation": {
+   "date_format": "YYYY-MM-DD (Weekday)",
+   "payment_channels": [
+    "atm",
+    "bank_transfer",
+    "branch",
+    "counter_service",
+    "mobile_app",
+    "other"
+   ]
+  }
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_verify"
+    }
+   ],
+   "note": "Reply with the greeting and the name check first; do not call any tool yet",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "no_input",
+     "to": "verify_retry"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    }
+   ]
+  },
+  {
+   "id": "verify_retry",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "verify_name"
+    }
+   ],
+   "note": "Ask the name check again - allowed only in the NO-INPUT case",
+   "on": [
+    {
+     "event": "name_confirmed",
+     "tools": [
+      "check_account_status"
+     ],
+     "to": "disclose_ask"
+    },
+    {
+     "event": "third_party",
+     "to": "third_party"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable",
+     "note": "Silent a second time -> close the call as unreachable"
+    }
+   ]
+  },
+  {
+   "id": "third_party",
+   "phase": "opening",
+   "templates": [
+    {
+     "fine_state": "third_party"
+    }
+   ],
+   "note": "Someone else answered - ask for a number or leave a message; never disclose the debt amount",
+   "on": [
+    {
+     "event": "gives_new_phone",
+     "tools": [
+      "update_phone"
+     ],
+     "to": "close_unreachable"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    },
+    {
+     "event": "refuses",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "disclose_ask",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "disclose_balance"
+    }
+   ],
+   "note": "State the billed amount (minimum) + the due date + ask whether they can pay today - **all in one sentence (disclose_balance)**, once per call. Never ask for payment twice (there is no separate ask_pay_today) - this counts as pay request 1",
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "already_paid",
+     "to": "close_paid"
+    },
+    {
+     "event": "hardship_lost_job",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_sick",
+     "to": "convince"
+    },
+    {
+     "event": "hardship_other",
+     "to": "convince"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ],
+   "counts_as": "pay_ask",
+   "verify_required": true
+  },
+  {
+   "id": "convince",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "convince_lost_job",
+     "when_event": "hardship_lost_job"
+    },
+    {
+     "fine_state": "convince_sick",
+     "when_event": "hardship_sick"
+    },
+    {
+     "fine_state": "convince_other",
+     "when_event": "hardship_other"
+    },
+    {
+     "fine_state": "probe_hardship",
+     "optional": true,
+     "note": "Use this to ask what the obstacle is when the reason is unclear, before choosing a convince variant"
+    }
+   ],
+   "note": "Persuade according to the reason, once only - this counts as pay request 2 (the last one)",
+   "max_visits": 1,
+   "on": [
+    {
+     "event": "agrees_to_pay",
+     "to": "ptp_capture"
+    },
+    {
+     "event": "refuses",
+     "to": "close_refused"
+    },
+    {
+     "event": "stop_signal",
+     "to": "close_refused"
+    },
+    {
+     "event": "reschedule_request",
+     "to": "callback_close"
+    },
+    {
+     "event": "no_input",
+     "to": "close_confirm_info"
+    }
+   ],
+   "counts_as": "pay_ask"
+  },
+  {
+   "id": "ptp_capture",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    },
+    {
+     "fine_state": "close"
+    }
+   ],
+   "entry_tools": [
+    "record_verbal_commitment",
+    "payment_date",
+    "record_outcome"
+   ],
+   "outcome": {
+    "args": {
+     "result": "ptp"
+    },
+    "reasons": [
+     "ptp",
+     "minimum"
+    ],
+    "desc": "Promises to pay / already paid / pays the minimum"
+   },
+   "note": "Acknowledge the payment appointment and close - the catalog is extracted from live calls and does not repeat the amount or date (AEON does not either); never invent a repeat-back sentence",
+   "terminal": true
+  },
+  {
+   "id": "close_paid",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close_paid"
+    }
+   ],
+   "outcome": {
+    "args": {
+     "result": "ptp"
+    },
+    "reasons": [
+     "paid"
+    ],
+    "desc": "Promises to pay / already paid / pays the minimum"
+   },
+   "note": "The customer says they have already paid - thank them and close",
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "close_refused",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    }
+   ],
+   "outcome": {
+    "args": {
+     "result": "refused"
+    },
+    "reasons": [],
+    "desc": "A clear refusal once the persuasion quota is used up, or a stop_signal"
+   },
+   "note": "Both pay requests used and still no promise, or a stop_signal -> record_outcome(refused) and close immediately; never persuade a third time",
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "callback_close",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "offer_callback"
+    }
+   ],
+   "entry_tools": [
+    "callback_datetime",
+    "record_outcome"
+   ],
+   "outcome": {
+    "args": {
+     "result": "tcb"
+    },
+    "reasons": [
+     "callback"
+    ],
+    "inferred": true,
+    "note": "v11 does not state the callback outcome directly; tcb=transfer-to-callback per the v10 flow map",
+    "desc": "transfer-to-callback: asks for a human agent, or books a callback"
+   },
+   "terminal": true
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "close"
+    },
+    {
+     "fine_state": "apology"
+    }
+   ],
+   "outcome": {
+    "args": {
+     "result": "unreachable"
+    },
+    "reasons": [
+     "other_person",
+     "wrong_number",
+     "no_input"
+    ],
+    "desc": "Did not reach the debtor"
+   },
+   "terminal": true,
+   "entry_tools": [
+    "record_outcome"
+   ]
+  },
+  {
+   "id": "close_confirm_info",
+   "phase": "close",
+   "templates": [
+    {
+     "fine_state": "confirm_info"
+    }
+   ],
+   "outcome": {
+    "args": {
+     "result": "reached"
+    },
+    "reasons": [
+     "no_input"
+    ],
+    "inferred": true,
+    "note": "The customer goes silent after the balance was stated -> confirm they have all the information and close; result 'reached' is inferred (v11 only specifies retry_predue -> close)",
+    "desc": "Reached the debtor but the call ended another way"
+   },
+   "terminal": true,
+   "note": "The customer goes silent after the balance was stated -> confirm the information was given in full and close politely",
+   "entry_tools": [
+    "record_outcome"
+   ]
+  }
+ ],
+ "faq_routing": {
+  "note": "Can interrupt from any non-terminal state - answer with the template that matches the intent, then resume the previous state (never restart the call or state the balance again) unless marked terminal",
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "Where are you calling from?",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "bot",
+    "desc": "Are you a bot / an AI?",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "hold",
+    "desc": "One moment / hold on",
+    "templates": [
+     {
+      "fine_state": "faq_hold"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "repeat",
+    "desc": "Sorry, what? / say that again",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "agent",
+    "desc": "I want to speak to a real person",
+    "templates": [
+     {
+      "fine_state": "handoff_refuse"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "args": {
+       "result": "tcb"
+      },
+      "reasons": [
+       "agent"
+      ],
+      "desc": "transfer-to-callback: asks for a human agent, or books a callback"
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "scam",
+    "desc": "Is this a scam?",
+    "templates": [
+     {
+      "fine_state": "faq_scam"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "annoyed",
+    "desc": "Annoyed / stop calling me",
+    "templates": [
+     {
+      "fine_state": "faq_annoyed"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "channel",
+    "desc": "Where do I pay / how do I pay?",
+    "templates": [
+     {
+      "fine_state": "offer_channel_only"
+     }
+    ],
+    "then": "resume",
+    "note": "Answer the channel only; never restate the balance or the due date"
+   },
+   {
+    "intent": "amount",
+    "desc": "How much do I owe?",
+    "templates": [
+     {
+      "fine_state": "faq_amount"
+     }
+    ],
+    "then": "resume",
+    "verify_required": true
+   },
+   {
+    "intent": "due",
+    "desc": "When do I have to pay?",
+    "templates": [
+     {
+      "fine_state": "faq_due"
+     }
+    ],
+    "then": "resume",
+    "verify_required": true
+   },
+   {
+    "intent": "wrong_name",
+    "desc": "Called by the wrong name",
+    "templates": [
+     {
+      "fine_state": "faq_wrong_name"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "args": {
+       "result": "tin"
+      },
+      "reasons": [
+       "wrong_name"
+      ],
+      "desc": "incorrect name"
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "mourning",
+    "desc": "The named person has died",
+    "templates": [
+     {
+      "fine_state": "faq_mourning"
+     }
+    ],
+    "then": {
+     "outcome": {
+      "args": {
+       "result": "reached"
+      },
+      "reasons": [
+       "mourning"
+      ],
+      "inferred": true,
+      "note": "v11 only says 'condolence, record, close politely' - the result is inferred",
+      "desc": "Reached the debtor but the call ended another way"
+     },
+     "terminal": true
+    }
+   },
+   {
+    "intent": "out_of_scope",
+    "desc": "Out of scope: card_available/bill_missing/apply_loan/ask_balance/outstanding_balance/change_due/change_acc_owner/credit_limit/reduce_balance/check_interest/withdraw_after_paid",
+    "templates": [
+     {
+      "fine_state": "faq_faq_referral"
+     }
+    ],
+    "then": "resume",
+    "note": "Refer them to {company_phone}, then return to the flow"
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "max_pay_asks",
+   "type": "max_occurrences",
+   "counts": "pay_ask",
+   "max": 2,
+   "on_exceed": {
+    "to": "close_refused"
+   },
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "At most 2 pay requests per call (ask_pay_today 1 + convince 1), counting every reason the customer gives. Once both are used and there is still no promise -> refused, close immediately"
+  },
+  {
+   "id": "disclose_once",
+   "type": "once_per_call",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "The balance and due date are spoken once per call - if the customer asks for the amount again, use faq_amount, not a second disclose",
+   "template_fine_states": [
+    "disclose_balance"
+   ]
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "The same question may only be repeated when the customer was silent (NO-INPUT) - a refusal or an inability to pay is clear input, so never ask again"
+  },
+  {
+   "id": "no_reverify_after_confirm",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "template_fine_states": [
+    "greet_verify",
+    "verify_name"
+   ],
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Once the name is confirmed, never ask for it again - call check_account_status and state the balance straight away"
+  },
+  {
+   "id": "answered_no_repeat",
+   "type": "no_repeat_answered_request",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "The customer has answered the request (cannot pay / gave a date / refused) = move forward; never fire the same question again"
+  },
+  {
+   "id": "stop_signal_immediate_close",
+   "type": "immediate_transition_on",
+   "event": "stop_signal",
+   "to": "close_refused",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "On a stop signal -> record_outcome(refused) and close immediately, without waiting for the persuasion quota"
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "A template is one whole turn; pick one per turn - never chain repeated content (except the pairs named)"
+  },
+  {
+   "id": "faq_resume",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "After answering a FAQ, return to the flow where it left off - never restart the call or state the balance again"
+  },
+  {
+   "id": "outcome_required",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Every call must end with record_outcome(result, reason, remark), once"
+  },
+  {
+   "id": "kyc_verbal_gate",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**KYC gate:** never disclose the debt amount, balance or due date (disclose_balance, faq_amount, faq_due) before the customer has clearly confirmed their identity. If the customer asks the amount or the due date **before verifying -> answer verify_first (1115) and ask them to confirm their identity; never give the amount or details**. A clear confirmation means the customer answers directly with 'yes / yes it is / that is correct / this is he / this is she' only - a short ambiguous acknowledgement such as 'mm / uh-huh / ok' **does not count as identity confirmation**; keep asking verify_first and do not state the balance"
+  },
+  {
+   "id": "preverify_faq_persistence",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Before name_confirmed: if the customer asks about the amount, the due date or the debt **however many times** -> answer verify_first (1115) every time (1115 ends with the name check, so it is itself another attempt to verify). Never stop asking for the name check, never switch to answering the FAQ, and never disclose the amount or details"
+  },
+  {
+   "id": "verify_before_disclose",
+   "type": "forbid_after_event",
+   "event": "name_confirmed",
+   "inverted": true,
+   "template_fine_states": [
+    "disclose_balance",
+    "faq_amount",
+    "faq_due"
+   ],
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Before the customer confirms their identity (name_confirmed), never disclose the amount, the due date or the type of debt"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**Silence is not consent:** a customer who answers '...' or '(silence)', or whose answer is not interpretable speech, is the `no_input` event and nothing else - **never treat it as agrees_to_pay, never call record_verbal_commitment or payment_date, and never record the outcome as ptp**. Follow the no_input transition of the current state (ask again, or close as the flow specifies). Recording a commitment out of silence is as serious an error as recording one the customer never gave"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**The customer gives a reason they are stuck (job loss / illness / short on cash / no money yet) -> a convince line must always be said first** (convince_lost_job / convince_sick / convince_other, according to the reason), then wait for their answer - **never jump to record_verbal_commitment and never close the call** until the customer promises to pay of their own accord"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**`handoff_refuse` may only be used when the customer asks to speak to a human agent** - if the customer is silent, asks for the amount, or asks about something else, **never answer with handoff_refuse**, because it does not answer what was asked; follow the flow of the current state instead"
+  },
+  {
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "**The customer goes silent after receiving the full information (no_input at disclose_ask or convince)** -> close with `confirm_info`, confirming that they have all the information, and record the outcome as reached - **never close with close or close_paid**, and never record it as ptp"
+  }
+ ],
+ "auxiliary_templates": {
+  "note": "Templates that are not tied to a single state - usable as the context requires within the matching phase",
+  "allowed": [
+   {
+    "fine_state": "offer_channel_only",
+    "desc": "Give the payment channel as part of agreeing to pay"
+   },
+   {
+    "fine_state": "apology",
+    "desc": "Apologise as the context requires"
+   },
+   {
+    "fine_state": "ai_disclosure",
+    "desc": "Introduce itself as an automated system, when asked or when opening the call"
+   },
+   {
+    "fine_state": "verify_first",
+    "desc": "Answers given before identity is confirmed - never state the balance until the name is confirmed"
+   },
+   {
+    "fine_state": "ask_pay_today",
+    "desc": "Referenced in the spec's rules - must be genuinely selectable"
+   }
+  ]
+ },
+ "catalog": [
+  {
+   "text_id": 1000,
+   "_fine_state": "greet_verify",
+   "template": "Hello, I'm calling from Kasikornbank about the loan you hold with us. Am I speaking with [customer_name]?",
+   "state": "opening",
+   "intent_name": "opening_greet_verify"
+  },
+  {
+   "text_id": 1001,
+   "_fine_state": "verify_name",
+   "template": "May I ask, am I speaking with [customer_name]?",
+   "state": "opening",
+   "intent_name": "opening_verify_name"
+  },
+  {
+   "text_id": 1005,
+   "_fine_state": "third_party",
+   "template": "Sorry to trouble you. Would you happen to have a contact number for {customer_name}?",
+   "_synthetic": true,
+   "state": "opening",
+   "intent_name": "opening_third_party"
+  },
+  {
+   "text_id": 1018,
+   "_fine_state": "disclose_balance",
+   "template": "Thank you. The bank would like to inform you that the [loan_type] ending in [last_4_digits] fell due on [due_date], and you have an amount of [minimum_payment] baht to pay. Please settle the outstanding amount today, through the K PLUS application or whichever channel is most convenient. Would you be able to settle it today?",
+   "state": "negotiation",
+   "intent_name": "negotiation_ask_pay_today"
+  },
+  {
+   "text_id": 1020,
+   "_fine_state": "ask_pay_today",
+   "template": "Could you pay the billed amount of [minimum_payment] baht today?",
+   "state": "negotiation",
+   "intent_name": "negotiation_ask_pay_today"
+  },
+  {
+   "text_id": 1067,
+   "_fine_state": "convince_lost_job",
+   "template": "The bank would like to point out that a late payment may attract a default fee and additional collection charges. Could you try to pay it today?",
+   "_synthetic": true,
+   "state": "hardship",
+   "intent_name": "hardship_convince_lost_job"
+  },
+  {
+   "text_id": 1068,
+   "_fine_state": "convince_sick",
+   "template": "The bank understands this is difficult. Even so, a late payment may attract a default fee and additional collection charges. Could you try to pay it today?",
+   "_synthetic": true,
+   "state": "hardship",
+   "intent_name": "hardship_convince_sick"
+  },
+  {
+   "text_id": 1069,
+   "_fine_state": "convince_other",
+   "template": "The bank understands this is difficult, but a late payment may attract a default fee and additional collection charges. Could you try to pay it today?",
+   "state": "hardship",
+   "intent_name": "hardship_convince_other"
+  },
+  {
+   "text_id": 1041,
+   "_fine_state": "probe_hardship",
+   "template": "Could you try to pay it today?",
+   "_synthetic": true,
+   "state": "hardship",
+   "intent_name": "hardship_probe_hardship"
+  },
+  {
+   "text_id": 1109,
+   "_fine_state": "confirm_info",
+   "template": "Do you have all the information you need?",
+   "_synthetic": true,
+   "state": "closing",
+   "intent_name": "closing_confirm_info"
+  },
+  {
+   "text_id": 1047,
+   "_fine_state": "close",
+   "template": "The bank thanks you very much. If you have any further questions, you can contact us on [company_phone].",
+   "state": "closing",
+   "intent_name": "closing_close"
+  },
+  {
+   "text_id": 1051,
+   "_fine_state": "offer_callback",
+   "template": "I am sorry. The bank will get in touch again later. If you have any further questions, you can contact us on [company_phone]. Thank you.",
+   "state": "closing",
+   "intent_name": "closing_offer_callback"
+  },
+  {
+   "text_id": 1036,
+   "_fine_state": "apology",
+   "template": "The bank understands this is not a good time, and will call you back later. If you have any further questions, or would like to ask about the bank's assistance programmes, you can contact us on [company_phone]. Thank you for banking with us. Goodbye.",
+   "state": "closing",
+   "intent_name": "negotiation_ask_pay_today"
+  },
+  {
+   "text_id": 1114,
+   "_fine_state": "faq_caller",
+   "template": "I'm calling from Kasikornbank. I am an automated assistant, contacting you about your account.",
+   "_synthetic": true,
+   "state": "opening",
+   "intent_name": "faq_caller"
+  },
+  {
+   "text_id": 1013,
+   "_fine_state": "ai_disclosure",
+   "template": "I am an automated assistant from Kasikornbank. Would you be able to pay today?",
+   "_synthetic": true,
+   "state": "opening",
+   "intent_name": "opening_ai_disclosure"
+  },
+  {
+   "text_id": 1071,
+   "_fine_state": "faq_hold",
+   "template": "Of course. Just let me know when it is convenient.",
+   "_synthetic": true,
+   "state": "opening",
+   "intent_name": "faq_hold"
+  },
+  {
+   "text_id": 1076,
+   "_fine_state": "faq_repeat",
+   "template": "I am sorry. Let me say that again.",
+   "_synthetic": true,
+   "state": "negotiation",
+   "intent_name": "faq_repeat"
+  },
+  {
+   "text_id": 1031,
+   "_fine_state": "handoff_refuse",
+   "template": "I am not able to transfer you to an agent. If you would like more information, you can contact us on [company_phone]. Could you pay the billed amount of [minimum_payment] baht today?",
+   "state": "closing",
+   "intent_name": "negotiation_ask_pay_today"
+  },
+  {
+   "text_id": 1072,
+   "_fine_state": "faq_scam",
+   "template": "I understand the concern. I really am an automated assistant from Kasikornbank, not a scammer. If you are unsure, you are welcome to call us back on [company_phone].",
+   "_synthetic": true,
+   "state": "opening",
+   "intent_name": "faq_scam"
+  },
+  {
+   "text_id": 1073,
+   "_fine_state": "faq_annoyed",
+   "template": "Sorry to trouble you. May I take a moment for something important?",
+   "_synthetic": true,
+   "state": "opening",
+   "intent_name": "faq_annoyed"
+  },
+  {
+   "text_id": 1110,
+   "_fine_state": "offer_channel_only",
+   "template": "You can pay through the K PLUS application or at a bank branch. For more payment channels, please contact [company_phone].",
+   "_synthetic": true,
+   "state": "negotiation",
+   "intent_name": "negotiation_offer_channel_only"
+  },
+  {
+   "text_id": 1077,
+   "_fine_state": "faq_amount",
+   "template": "You have a billed amount of [minimum_payment] baht.",
+   "state": "negotiation",
+   "intent_name": "faq_amount"
+  },
+  {
+   "text_id": 1078,
+   "_fine_state": "faq_due",
+   "template": "Your payment is due on [due_date].",
+   "state": "negotiation",
+   "intent_name": "faq_due"
+  },
+  {
+   "text_id": 1075,
+   "_fine_state": "faq_wrong_name",
+   "template": "I do apologise if I got the name wrong. Could you confirm your name again, please?",
+   "_synthetic": true,
+   "state": "opening",
+   "intent_name": "faq_wrong_name"
+  },
+  {
+   "text_id": 1074,
+   "_fine_state": "faq_mourning",
+   "template": "I am very sorry to hear that. May I make a note of it and have an agent contact you later?",
+   "_synthetic": true,
+   "state": "closing",
+   "intent_name": "faq_mourning"
+  },
+  {
+   "text_id": 1079,
+   "_fine_state": "faq_faq_referral",
+   "template": "For that, please contact {company_phone} for more details.",
+   "_synthetic": true,
+   "state": "closing",
+   "intent_name": "faq_faq_referral"
+  },
+  {
+   "text_id": 1115,
+   "template": "May I confirm your identity first? Am I speaking with [customer_name]?",
+   "_fine_state": "verify_first",
+   "_real_count": 0,
+   "state": "opening",
+   "intent_name": "verify_first"
+  },
+  {
+   "text_id": 1048,
+   "_fine_state": "close_paid",
+   "template": "The bank thanks you for your payment, and apologises for the interruption. Goodbye.",
+   "state": "closing",
+   "intent_name": "closing_close_paid"
+  }
+ ]
+}

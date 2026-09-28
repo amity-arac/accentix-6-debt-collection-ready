@@ -1,0 +1,664 @@
+{
+ "display_name": "Central Library",
+ "agent_role": "a Central Library assistant",
+ "goal": "Remind the borrower that the book is due back tomorrow, and take a renewal request if they ask for one",
+ "events": {
+  "confirms_return": {
+   "desc": "Acknowledges, will return it on time",
+   "cues": [
+    "Yes, all right",
+    "I'll return it on time",
+    "I'll bring it back",
+    "understood"
+   ]
+  },
+  "request_extend": {
+   "desc": "Asks to renew the loan",
+   "cues": [
+    "can I renew",
+    "can it be renewed",
+    "I'd like to keep it longer",
+    "can I return it later"
+   ]
+  },
+  "gives_date": {
+   "desc": "Names the date they want to return it",
+   "cues": [
+    "the 20th",
+    "next Friday",
+    "next week",
+    "end of the month"
+   ]
+  },
+  "already_returned": {
+   "desc": "Says the book has already been returned",
+   "cues": [
+    "I already returned it",
+    "I took it back",
+    "I returned it yesterday"
+   ]
+  },
+  "wrong_person": {
+   "desc": "Not the library card holder",
+   "cues": [
+    "that isn't me",
+    "wrong number",
+    "don't know them"
+   ]
+  },
+  "asks_fine": {
+   "desc": "Asks about the fine",
+   "cues": [
+    "how much is the fine",
+    "the fine",
+    "so what if it's overdue"
+   ]
+  },
+  "no_input": {
+   "desc": "No answer / silence",
+   "cues": [
+    "…"
+   ]
+  },
+  "asks_due": {
+   "desc": "Asks when it has to be returned",
+   "cues": [
+    "when",
+    "which day",
+    "when do I have to return it",
+    "what day is it due"
+   ]
+  }
+ },
+ "crm_fields": [
+  "today",
+  "customer_name",
+  "book_title",
+  "due_date",
+  "fine_per_day",
+  "library_phone"
+ ],
+ "crm_labels": {
+  "book_title": "Book title",
+  "fine_per_day": "Fine per day"
+ },
+ "session_init": {
+  "url": "{API_BASE}/LIB/init?msisdn={msisdn}&lang=en",
+  "method": "GET",
+  "timeout": 8,
+  "on_failure": {
+   "fine_state": "close_handoff",
+   "outcome": {
+    "args": {
+     "result": "handoff",
+     "reason": "The system did not answer; a member of staff will follow up"
+    }
+   }
+  }
+ },
+ "tools": {
+  "declarations": [
+   {
+    "name": "check_extend",
+    "impl": "http",
+    "url": "{API_BASE}/LIB/check_extend?lang=en",
+    "method": "POST",
+    "desc": "Check whether the loan can be renewed to the date the customer asked for - never decide this yourself",
+    "args": {
+     "date": {
+      "type": "string",
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "The date the customer named, converted to canonical form before sending"
+     }
+    },
+    "returns": {
+     "in_range": {
+      "type": "boolean",
+      "desc": "Can it be renewed?"
+     },
+     "valid_dates": {
+      "type": "array",
+      "desc": "The date it can be renewed to (canonical)"
+     },
+     "max_extend_days": {
+      "type": "number",
+      "desc": "The maximum number of days it can be renewed by"
+     },
+     "new_due_date": {
+      "type": "string",
+      "desc": "The new due date, once checked"
+     }
+    },
+    "gating": {
+     "after_event": "gives_date",
+     "note": "Call it only once the customer has named a date - counting days is the system's job"
+    },
+    "mock": {
+     "rules": [
+      {
+       "when": {
+        "arg": "date",
+        "within_days_of": {
+         "field": "due_date",
+         "days_field": "max_extend_days"
+        }
+       },
+       "body": {
+        "in_range": true,
+        "max_extend_days": 14,
+        "new_due_date": "{{body 'args.date'}}"
+       },
+       "label": "Renewable (due_date + max_extend_days)"
+      }
+     ],
+     "default": {
+      "in_range": false,
+      "valid_dates": [],
+      "max_extend_days": 14,
+      "new_due_date": "",
+      "note": "Beyond what can be renewed"
+     }
+    }
+   },
+   {
+    "name": "record_call_result",
+    "impl": "http",
+    "url": "{API_BASE}/LIB/record_call_result?lang=en",
+    "method": "POST",
+    "desc": "Record the call outcome - called once, before hanging up",
+    "args": {
+     "result": {
+      "type": "string",
+      "desc": "The outcome of this call",
+      "enum": [
+       "confirmed",
+       "extended",
+       "returned",
+       "wrong_person",
+       "handoff",
+       "unreachable"
+      ]
+     },
+     "new_due_date": {
+      "type": "string",
+      "optional": true,
+      "format": "YYYY-MM-DD (Weekday)",
+      "desc": "The new due date - required when result=extended; use the value check_extend returned",
+      "required_when": {
+       "arg": "result",
+       "equals": "extended"
+      },
+      "one_of_from": {
+       "tool": "check_extend",
+       "field": "valid_dates"
+      }
+     },
+     "reason": {
+      "type": "string",
+      "optional": true,
+      "desc": "The reason for this call's outcome (filled in by the system when session_init does not answer)"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    }
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_remind"
+    }
+   ],
+   "on": [
+    {
+     "event": "confirms_return",
+     "to": "close_confirmed"
+    },
+    {
+     "event": "request_extend",
+     "to": "ask_new_date"
+    },
+    {
+     "event": "already_returned",
+     "to": "close_returned"
+    },
+    {
+     "event": "wrong_person",
+     "to": "close_wrong"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "ask_new_date",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_new_date"
+    }
+   ],
+   "on": [
+    {
+     "event": "gives_date",
+     "to": "confirm_extend"
+    }
+   ]
+  },
+  {
+   "id": "confirm_extend",
+   "phase": "main",
+   "templates": [
+    {
+     "any_of": [
+      "confirm_new_due",
+      "date_too_far"
+     ]
+    }
+   ],
+   "entry_tools": [
+    "check_extend"
+   ],
+   "on": [
+    {
+     "event": "confirms_return",
+     "to": "close_extended"
+    },
+    {
+     "event": "gives_date",
+     "to": "confirm_extend"
+    }
+   ]
+  },
+  {
+   "id": "close_confirmed",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_confirmed"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "confirmed"
+    }
+   }
+  },
+  {
+   "id": "close_extended",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_extended"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "extended"
+    }
+   }
+  },
+  {
+   "id": "close_returned",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_returned"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "returned"
+    }
+   }
+  },
+  {
+   "id": "close_wrong",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_wrong"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "wrong_person"
+    }
+   }
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_unreachable"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "unreachable"
+    }
+   }
+  },
+  {
+   "id": "close_handoff",
+   "phase": "close",
+   "terminal": true,
+   "templates": [
+    {
+     "fine_state": "close_handoff"
+    }
+   ],
+   "entry_tools": [
+    "record_call_result"
+   ],
+   "outcome": {
+    "args": {
+     "result": "handoff"
+    }
+   }
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "due",
+    "templates": [
+     {
+      "fine_state": "faq_due"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "fine",
+    "templates": [
+     {
+      "fine_state": "faq_fine"
+     }
+    ],
+    "then": "resume"
+   },
+   {
+    "intent": "hours",
+    "templates": [
+     {
+      "fine_state": "faq_hours"
+     }
+    ],
+    "then": "resume"
+   }
+  ]
+ },
+ "auxiliary_templates": {
+  "allowed": [
+   {
+    "fine_state": "faq_repeat"
+   }
+  ]
+ },
+ "fallback_fine_state": "faq_repeat",
+ "constraints": [
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "desc": "One beat per turn",
+   "enforce": [
+    "prompt"
+   ]
+  },
+  {
+   "id": "system_counts_days",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Never count the days yourself - once the customer names a date, call check_extend and read `in_range` from the answer"
+  },
+  {
+   "id": "greeting_once",
+   "type": "once_per_call",
+   "template_fine_states": [
+    "greet_remind"
+   ],
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Greet and give the due date once per call"
+  },
+  {
+   "id": "open_with_greeting",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Always open with greet_remind - the book title and due date come from the CRM snapshot and can be given straight away, with no identity check"
+  },
+  {
+   "id": "no_close_before_answer",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Never call record_call_result before the customer has said they will return it on time, want to renew, or have already returned it - a greeting on picking up (hello / hi / yes?) does not count as an answer; greet and give the due date first"
+  }
+ ],
+ "catalog": [
+  {
+   "text_id": 7001,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "Hello [customer_name], this is Central Library calling to let you know that [book_title] is due back on [due_date].",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7002,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "Hello, this is Central Library. Your copy of [book_title], [customer_name], is due back on [due_date].",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7003,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "Dear [customer_name], Central Library is reminding you that [book_title] is due on [due_date]. Will you be able to return it on time?",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7004,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "Hello, this is Central Library calling about [book_title], which is due on [due_date].",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7005,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "[customer_name], Central Library is calling to remind you that [book_title] must be back by [due_date].",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7006,
+   "_fine_state": "greet_remind",
+   "state": "opening",
+   "template": "Hello, Central Library here. [customer_name]'s copy of [book_title] is due on [due_date]. Will you be able to return it on time?",
+   "company": "LIB",
+   "intent_name": "greet_remind"
+  },
+  {
+   "text_id": 7010,
+   "_fine_state": "ask_new_date",
+   "state": "main",
+   "template": "Of course. Until what date would you like to renew it?",
+   "company": "LIB",
+   "intent_name": "ask_new_date"
+  },
+  {
+   "text_id": 7011,
+   "_fine_state": "ask_new_date",
+   "state": "main",
+   "template": "Of course. Could you tell me the date you would like to renew it to?",
+   "company": "LIB",
+   "intent_name": "ask_new_date"
+  },
+  {
+   "text_id": 7012,
+   "_fine_state": "ask_new_date",
+   "state": "main",
+   "template": "It can be renewed. What date would you like to return it instead?",
+   "company": "LIB",
+   "intent_name": "ask_new_date"
+  },
+  {
+   "text_id": 7020,
+   "_fine_state": "confirm_new_due",
+   "state": "main",
+   "template": "Noted, I've renewed it to [new_due_date]. Shall I confirm that?",
+   "company": "LIB",
+   "intent_name": "confirm_new_due"
+  },
+  {
+   "text_id": 7021,
+   "_fine_state": "confirm_new_due",
+   "state": "main",
+   "template": "Certainly. The new due date is [new_due_date]. Shall I confirm?",
+   "company": "LIB",
+   "intent_name": "confirm_new_due"
+  },
+  {
+   "text_id": 7025,
+   "_fine_state": "date_too_far",
+   "state": "main",
+   "template": "I'm sorry, the library can only renew for up to [max_extend_days] days. Would another date within that work?",
+   "company": "LIB",
+   "intent_name": "date_too_far"
+  },
+  {
+   "text_id": 7030,
+   "_fine_state": "close_confirmed",
+   "state": "closing",
+   "template": "Thank you. The library has noted that it will be returned on [due_date]. Goodbye.",
+   "company": "LIB",
+   "intent_name": "close_confirmed"
+  },
+  {
+   "text_id": 7031,
+   "_fine_state": "close_extended",
+   "state": "closing",
+   "template": "Thank you. It is renewed to [new_due_date]. Goodbye.",
+   "company": "LIB",
+   "intent_name": "close_extended"
+  },
+  {
+   "text_id": 7032,
+   "_fine_state": "close_returned",
+   "state": "closing",
+   "template": "Noted. Let me check the system first. If the return is not found, we will contact you. Thank you.",
+   "company": "LIB",
+   "intent_name": "close_returned"
+  },
+  {
+   "text_id": 7033,
+   "_fine_state": "close_wrong",
+   "state": "closing",
+   "template": "Sorry to have troubled you. Goodbye.",
+   "company": "LIB",
+   "intent_name": "close_wrong"
+  },
+  {
+   "text_id": 7034,
+   "_fine_state": "close_unreachable",
+   "state": "closing",
+   "template": "I am sorry, the library will get in touch again later. Thank you.",
+   "company": "LIB",
+   "intent_name": "close_unreachable"
+  },
+  {
+   "text_id": 7035,
+   "_fine_state": "close_handoff",
+   "state": "closing",
+   "template": "I will have a member of staff contact you. Thank you.",
+   "company": "LIB",
+   "intent_name": "close_handoff"
+  },
+  {
+   "text_id": 7040,
+   "_fine_state": "faq_fine",
+   "state": "faq",
+   "template": "If it is overdue there is a fine of [fine_per_day] baht a day.",
+   "company": "LIB",
+   "intent_name": "faq_fine"
+  },
+  {
+   "text_id": 7041,
+   "_fine_state": "faq_hours",
+   "state": "faq",
+   "template": "The library is open 8:30 to 18:00 on working days. For more information you can call [library_phone].",
+   "company": "LIB",
+   "intent_name": "faq_hours"
+  },
+  {
+   "text_id": 7050,
+   "_fine_state": "faq_repeat",
+   "state": "faq",
+   "template": "I am sorry, could you say that again?",
+   "company": "LIB",
+   "intent_name": "faq_repeat"
+  },
+  {
+   "text_id": 7060,
+   "_fine_state": "faq_due",
+   "state": "faq",
+   "template": "[due_date] {suffix}",
+   "hint": "The shortest answer - for a curt question such as \"when\" or \"which day\" that only wants the date"
+  },
+  {
+   "text_id": 7061,
+   "_fine_state": "faq_due",
+   "state": "faq",
+   "template": "It is due back on [due_date].",
+   "hint": "The normal answer - for a full question that does not ask for more detail"
+  },
+  {
+   "text_id": 7062,
+   "_fine_state": "faq_due",
+   "state": "faq",
+   "template": "[book_title] is due back on [due_date]. If it is overdue there is a fine of [fine_per_day] baht a day.",
+   "hint": "The detailed answer - for a customer who asks for detail, asks several things at once, or asks about the fine too"
+  }
+ ]
+}

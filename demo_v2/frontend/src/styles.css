@@ -2213,3 +2213,45 @@ button.bubble.tool-result {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+/* Language switch — fixed top-right, above every screen. Sits on the same
+   segmented-control vocabulary as the control bar so it reads as one family,
+   but it is positioned rather than laid out because it belongs to the page, not
+   to any one screen's flow. */
+.lang-switch {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 999px;
+  background: var(--panel, rgba(20, 24, 32, 0.92));
+  backdrop-filter: blur(6px);
+}
+.lang-switch-icon {
+  display: inline-flex;
+  padding: 0 4px 0 2px;
+  color: var(--muted, #8b93a7);
+}
+.lang-switch-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #8b93a7);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.lang-switch-btn:hover:not(:disabled) { color: var(--fg, #e6e9ef); }
+.lang-switch-btn.on {
+  background: var(--accent, #3b82f6);
+  color: #fff;
+}
+.lang-switch-btn:disabled { opacity: 0.45; cursor: not-allowed; }

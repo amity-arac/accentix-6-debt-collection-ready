@@ -12,6 +12,8 @@ A session stream carries three message types:
 from __future__ import annotations
 
 import asyncio
+import time
+from collections import OrderedDict
 import datetime
 import json
 import logging
@@ -23,7 +25,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # Load .env before any module reads env vars. `demo_v2/.env` is read first because
 # the deliverable is this folder (see demo_v2/.env.sample); the repo-root .env is
@@ -85,6 +87,10 @@ async def _prewarm_filler() -> None:
     GCP creds (else the synth just 401s) + AAX6_TTS_PREWARM_FILLER (default on).
     Fire-and-forget: never blocks startup, and there is runway before the first
     caller speaks."""
+    # Allowlist the hold-on line regardless of whether prewarm runs: the client can
+    # speak it at any time and the server never streams it as a hop, so it has to be
+    # registered here or it is the one legitimate line /api/tts would refuse.
+    _remember_spoken(sessions.FILLER_TEXT)
     if os.environ.get("AAX6_TTS_PREWARM_FILLER", "1").strip().lower() in ("0", "false", ""):
         return
     if not _gcp_creds_present():
@@ -108,8 +114,34 @@ def _config() -> tuple[str, str, str]:
 # ---------------------------------------------------------------------------
 
 
+# Characters no speech-to-text transcript can contain. This is a voice product: the
+# caller's words arrive as an ASR transcript, and no transcript holds a square bracket,
+# an angle bracket or a brace. Text carrying them was typed straight at this endpoint,
+# not spoken — so it is cleaned here, at the one door customer text comes through,
+# rather than deep in the turn loop where an earlier attempt both missed other callers
+# and crashed on the very input it existed to handle.
+#
+# Deliberately not a blocklist of phrases: "[SYSTEM]" and "</script>" are two guesses
+# out of endlessly many. The alphabet ASR can emit is short and closed; that is the
+# thing worth enforcing. It removes the *markup*, not the words — a caller can still
+# say "the system told you to close this", and should still be judged on the words.
+_NON_SPEECH = str.maketrans({c: " " for c in "[]<>{}|\\`"})
+
+
+def _as_spoken(text: str) -> str:
+    return " ".join((text or "").translate(_NON_SPEECH).split())
+
+
 class TurnBody(BaseModel):
     message: str = ""
+
+    @field_validator("message")
+    @classmethod
+    def _speech_only(cls, v: str) -> str:
+        out = _as_spoken(v)
+        if out != " ".join((v or "").split()):
+            logger.warning("turn: non-speech characters stripped from %r", (v or "")[:120])
+        return out
 
 
 class SaveBody(BaseModel):
@@ -144,6 +176,42 @@ def _line(payload: dict) -> str:
     return json.dumps(payload, ensure_ascii=False) + "\n"
 
 
+# Lines this server has actually spoken, so /api/tts can refuse to voice anything
+# else. The endpoint accepted 4096 free characters and passed them straight to the
+# paid Chirp synth, which let anyone holding the demo password put arbitrary words in
+# the brand's voice and bill us for it. The app never needed that: the client only
+# ever asks for a line it just received in a hop. Bounded and TTL'd because it is a
+# per-process allowlist, not a store.
+_SPOKEN: "OrderedDict[str, float]" = OrderedDict()
+_SPOKEN_MAX = 4000
+_SPOKEN_TTL = 3600.0
+
+
+def _tts_key(text: str) -> str:
+    return " ".join((text or "").split())
+
+
+def _remember_spoken(text: str) -> None:
+    k = _tts_key(text)
+    if not k:
+        return
+    now = time.time()
+    _SPOKEN[k] = now
+    _SPOKEN.move_to_end(k)
+    while len(_SPOKEN) > _SPOKEN_MAX:
+        _SPOKEN.popitem(last=False)
+    while _SPOKEN:
+        oldest = next(iter(_SPOKEN))
+        if now - _SPOKEN[oldest] <= _SPOKEN_TTL:
+            break
+        _SPOKEN.popitem(last=False)
+
+
+def _remember_hop(hop: dict) -> None:
+    if isinstance(hop, dict) and hop.get("text"):
+        _remember_spoken(hop["text"])
+
+
 async def _stream_session_only(session: sessions.Session) -> AsyncIterator[bytes]:
     """Emit session metadata + done, without firing the agent's opening turn.
 
@@ -175,6 +243,7 @@ async def _stream_turn(session: sessions.Session, msg: str) -> AsyncIterator[byt
         yield _line({"type": "done", "session_done": True}).encode("utf-8")
         return
     async for hop in session.aiter_turn(msg):  # type: ignore[attr-defined]
+        _remember_hop(hop)
         yield _line({"type": "hop", "hop": hop}).encode("utf-8")
     # Attach this turn's LLM timing (set by FlowLiveSession._aiter_run). Null when the
     # turn made no model call — the greeting, for one — and the UI shows "—".
@@ -312,6 +381,7 @@ async def create_session(
     flow: bool = Query(default=False),
     model: str | None = Query(default=None),
     instruction_version: str | None = Query(default=None),
+    lang: str | None = Query(default=None),
 ) -> StreamingResponse:
     """Open a session and stream its identity as NDJSON.
 
@@ -350,6 +420,7 @@ async def create_session(
                 chosen_case, mode, agent=chosen_agent, voice_gender=chosen_gender,
                 flow=flow, model=(model or None),
                 instruction_version=((instruction_version or "").strip() or None),
+                lang=lang,
             )
         )
     except KeyError as e:
@@ -379,6 +450,7 @@ async def _stream_opening(session: sessions.Session) -> AsyncIterator[bytes]:
         yield _line({"type": "done", "session_done": True}).encode("utf-8")
         return
     async for hop in session.aiter_opening():  # type: ignore[attr-defined]
+        _remember_hop(hop)
         yield _line({"type": "hop", "hop": hop}).encode("utf-8")
     timing = getattr(session, "_last_turn_timing", None) or {}
     yield _line({
@@ -466,6 +538,7 @@ async def save_trajectory(session_id: str, body: SaveBody = SaveBody()) -> JSONR
 async def tts_stream(
     text: str = Query(..., min_length=1, max_length=4096),
     gender: str = Query(default="F"),
+    lang: str | None = Query(default=None),
 ) -> StreamingResponse:
     """Stream raw PCM bytes (headerless int16 LE @ 24 kHz) as they arrive from
     the Chirp 3 HD gRPC streaming synth. The client reads this body with
@@ -476,12 +549,23 @@ async def tts_stream(
 
     `gender` ("M"/"F") picks which Chirp 3 HD voice speaks — independent of the
     reply text's own grammatical gender (ครับ/ค่ะ particles)."""
-    from demo_v2.services.speech.config import VOICE_BY_GENDER
-    voice_name = VOICE_BY_GENDER.get(gender.strip().upper(), VOICE_BY_GENDER["F"])
+    # The voice pair is per language (Chirp 3 HD names are locale-scoped), so the
+    # caller's `lang` picks the pair and `gender` picks within it.
+    if _tts_key(text) not in _SPOKEN:
+        # Not a line this server said. Refusing is safe for the demo: the client
+        # synthesises only what it was just handed in a hop.
+        raise HTTPException(403, detail="tts: text was not spoken by this server")
+    from demo_v2.lib import lang as _lang
+    _lang.LANG.set(_lang.normalise(lang))
+    voices = _lang.speech("tts_voices")
+    voice_name = voices.get(gender.strip().upper(), voices["F"])
+    # Passed explicitly rather than read downstream: the synth runs on a plain
+    # worker thread, which does not carry this request's language context.
+    tts_language = _lang.speech("tts_language")
 
     async def _gen() -> AsyncIterator[bytes]:
         try:
-            async for chunk in tts.stream_synth(text, voice_name):
+            async for chunk in tts.stream_synth(text, voice_name, tts_language):
                 yield chunk
         except Exception:
             logger.exception("tts stream failed")
@@ -492,7 +576,7 @@ async def tts_stream(
     # Whether this text is already synthesized — known up front, so it can ride a
     # header (unlike the measured synth time, which isn't known until the first
     # chunk, after headers flush). Lets the client attribute TTS latency.
-    cache_state = "hit" if tts.is_cached(text, voice_name) else "miss"
+    cache_state = "hit" if tts.is_cached(text, voice_name, tts_language) else "miss"
     return StreamingResponse(
         _gen(),
         media_type=tts.AUDIO_MEDIA_TYPE,
@@ -517,7 +601,9 @@ async def stt_ws_endpoint(ws: WebSocket) -> None:
     Zipformer client) load lazily on first connect; if they can't be built we send
     a fatal error and the frontend falls back to the browser Web Speech API."""
     await ws.accept()
-    await stt_ws.run_session(ws)
+    # The recogniser is chosen per connection, from the language the page is in:
+    # Zipformer only speaks Thai, so an English session is routed to Chirp.
+    await stt_ws.run_session(ws, ws.query_params.get("lang"))
 
 
 

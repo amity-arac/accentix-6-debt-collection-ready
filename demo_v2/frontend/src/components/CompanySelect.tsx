@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { COMPANY_LABELS, type PersonaCase } from "../api";
+import { t } from "../i18n";
+import { useLang } from "../hooks/useLang";
 
 type Props = {
   companies: string[];
@@ -42,7 +44,7 @@ export function CompanySelect({ companies, cases, deletable = [], onPick, onNew,
           <span className="studio-tag">debt-collection agent</span>
         </div>
       </div>
-      <p className="studio-step">เลือกบริษัทที่จะทำงานด้วย</p>
+      <p className="studio-step">{t("pickCompany")}</p>
       <div className="co-grid">
         {companies.map((co) => {
           const { count, loan } = info(co);
@@ -68,10 +70,10 @@ export function CompanySelect({ companies, cases, deletable = [], onPick, onNew,
                   onClick={() => (asking ? void remove(co) : setConfirming(co))}
                   onBlur={() => setConfirming((c) => (c === co ? null : c))}
                   disabled={busy === co}
-                  title={`ลบบริษัท ${co}`}
-                  aria-label={`ลบบริษัท ${co}`}
+                  title={t("deleteCompany", { co })}
+                  aria-label={t("deleteCompany", { co })}
                 >
-                  {busy === co ? "กำลังลบ…" : asking ? "ลบเลย?" : <Trash2 size={15} aria-hidden="true" />}
+                  {busy === co ? t("deleting") : asking ? t("confirmDelete") : <Trash2 size={15} aria-hidden="true" />}
                 </button>
               )}
             </div>
@@ -81,7 +83,7 @@ export function CompanySelect({ companies, cases, deletable = [], onPick, onNew,
           <span className="co-plus">
             <Plus size={22} aria-hidden="true" />
           </span>
-          <span className="co-nm">สร้างบริษัทใหม่</span>
+          <span className="co-nm">{t("newCompany")}</span>
           <span className="co-sub">Flow Builder</span>
         </button>
       </div>

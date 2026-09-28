@@ -7,6 +7,7 @@ import { ResetConfirmModal } from "./components/ResetConfirmModal";
 import { PersonaPickerModal } from "./components/PersonaPickerModal";
 import { FlowUploadModal } from "./components/FlowUploadModal";
 import { CompanySelect } from "./components/CompanySelect";
+import { LangSwitch } from "./components/LangSwitch";
 import { ModeSelect } from "./components/ModeSelect";
 import { InstructionModal } from "./components/InstructionModal";
 import { SaveDialog } from "./components/SaveDialog";
@@ -25,9 +26,12 @@ import {
   deleteFlowCompany,
   saveTrajectory,
   type Engine,
+  type Lang,
   type PersonaCase,
 } from "./api";
 import * as audio from "./audio";
+import { t } from "./i18n";
+import { useLang } from "./hooks/useLang";
 
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string };
 
@@ -41,6 +45,7 @@ export default function App() {
     setAgent,
     setModel,
     setVoiceGender,
+    setLang,
     selectCase,
     fireOpening,
     sendUserMessage,
@@ -144,6 +149,12 @@ export default function App() {
   // Engine toggle inside the Playground — company is fixed by the shell, so this
   // just swaps the driving LLM (re-init happens on Start if it changed).
   const handleEngineChange = useCallback((e: Engine) => setAgent(e), [setAgent]);
+
+  // Changing the language is not a live toggle: the instruction, the catalog, the
+  // voice and the recogniser all change together, so anything already said would no
+  // longer match what the model can say next. Pick it before starting; while a call
+  // is running the control is disabled, and the value takes effect on the next start.
+  const handleLangChange = useCallback((next: Lang) => setLang(next), [setLang]);
 
   // Playground picker offers only the selected company's personas.
   const pickerCases = company ? cases.filter((c) => c.company === company) : cases;
@@ -336,6 +347,9 @@ export default function App() {
 
   return (
     <>
+      {/* Above every screen: the choice has to exist before a call does, and while
+          one is running it is locked — see LangSwitch. */}
+      <LangSwitch onChange={handleLangChange} disabled={started && !state.done} />
       {screen === "company" && (
         <CompanySelect
           companies={flowCompanies}
@@ -346,7 +360,7 @@ export default function App() {
           onDelete={async (co) => {
             const res = await deleteFlowCompany(co);
             if (!res.ok) {
-              window.alert(res.errors?.join("\n") ?? `ลบ ${co} ไม่สำเร็จ`);
+              window.alert(res.errors?.join("\n") ?? t("deleteFailed", { co }));
               return;
             }
             // the company is gone server-side; drop it from every list that named it
@@ -369,7 +383,7 @@ export default function App() {
 
       {screen === "play" && (
         <div className="app">
-          <button className="pg-back" onClick={backToMenu} title="กลับเมนู">← เมนู</button>
+          <button className="pg-back" onClick={backToMenu} title={t("backMenuTitle")}>{t("backMenu")}</button>
           <CustomerPanel
             caseId={state.caseId}
             mode={state.mode}
@@ -464,7 +478,7 @@ export default function App() {
         open={personaModalOpen}
         cases={pickerCases}
         currentCaseId={state.caseId}
-        note={company ? `personas ของ ${company}` : undefined}
+        note={company ? t("personasOf", { company }) : undefined}
         onClose={() => setPersonaModalOpen(false)}
         onSelect={(id) => void handleSelectPersona(id)}
       />

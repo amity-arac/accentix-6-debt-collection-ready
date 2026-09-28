@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { X, Download, Upload, FileJson } from "lucide-react";
 import { createFlowCompanyRaw } from "../api";
 import { useMountTransition } from "../hooks/useMountTransition";
+import { t } from "../i18n";
+import { useLang } from "../hooks/useLang";
 
 const MODAL_EXIT_MS = 380;
 
@@ -46,7 +48,7 @@ export function FlowUploadModal({ open, onClose, onCreated }: Props) {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      setErrors([`โหลด template ไม่สำเร็จ: ${e?.message ?? e}`]);
+      setErrors([t("templateFailed", { err: String(e?.message ?? e) })]);
     }
   };
 
@@ -60,7 +62,7 @@ export function FlowUploadModal({ open, onClose, onCreated }: Props) {
       try {
         doc = JSON.parse(text);
       } catch (e: any) {
-        setErrors([`ไฟล์ไม่ใช่ JSON ที่ถูกต้อง: ${e?.message ?? e}`]);
+        setErrors([t("notJson", { err: String(e?.message ?? e) })]);
         setSaving(false);
         return;
       }
@@ -78,9 +80,9 @@ export function FlowUploadModal({ open, onClose, onCreated }: Props) {
         // the last moment the person who wrote the template is still looking.
         if (res.warning) setErrors([res.warning]);
         onCreated(res.case_id, res.company);
-      } else setErrors(res.errors ?? ["สร้างไม่สำเร็จ"]);
+      } else setErrors(res.errors ?? [t("createFailed")]);
     } catch (e: any) {
-      setErrors([`อัปโหลดไม่สำเร็จ: ${e?.message ?? e}`]);
+      setErrors([t("uploadFailed", { err: String(e?.message ?? e) })]);
     } finally {
       setSaving(false);
     }
@@ -106,8 +108,8 @@ export function FlowUploadModal({ open, onClose, onCreated }: Props) {
         }}
       >
         <div className="fx-head">
-          <h2 id="fx-upload-title">สร้างบริษัทใหม่</h2>
-          <span className="fx-step">ดาวน์โหลด template → กรอก → อัปโหลด</span>
+          <h2 id="fx-upload-title">{t("uploadTitle")}</h2>
+          <span className="fx-step">{t("uploadSteps")}</span>
           <button className="fx-x" onClick={onClose} aria-label="Close">
             <X size={16} aria-hidden="true" />
           </button>
@@ -124,21 +126,21 @@ export function FlowUploadModal({ open, onClose, onCreated }: Props) {
 
           <ol className="fx-upload-steps">
             <li>
-              <b>1.</b> ดาวน์โหลด template (FlowSpec + catalog เปล่า) — tools เป็น HTTP webhook (ยิง API)
+              <b>1.</b> {t("uploadStep1")}
               <div>
                 <button className="fx-btn fx-ghost" onClick={() => void downloadTemplate()} disabled={saving}>
-                  <Download size={15} aria-hidden="true" /> ดาวน์โหลด template
+                  <Download size={15} aria-hidden="true" /> {t("downloadTemplate")}
                 </button>
               </div>
             </li>
             <li>
-              <b>2.</b> กรอก states / catalog / tools (url+body) ในไฟล์ JSON
+              <b>2.</b> {t("uploadStep2")}
             </li>
             <li>
-              <b>3.</b> อัปโหลดกลับ — ระบบ validate แล้วสร้างบริษัทให้
+              <b>3.</b> {t("uploadStep3")}
               <div>
                 <button className="fx-btn fx-primary" onClick={() => fileRef.current?.click()} disabled={saving}>
-                  <Upload size={15} aria-hidden="true" /> {saving ? "กำลังสร้าง…" : "อัปโหลด JSON"}
+                  <Upload size={15} aria-hidden="true" /> {saving ? t("creating") : t("uploadJson")}
                 </button>
                 {fileName && (
                   <span className="fx-upload-file">

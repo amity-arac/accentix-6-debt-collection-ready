@@ -141,6 +141,7 @@ class ZipformerSTTService:
     """
 
     def __init__(self, server: str | None = None, hotwords: str | None = None,
+                 target_rate: int | None = None,
                  boost: str | None = None) -> None:
         server = (server or os.environ.get("AAX6_ZIPFORMER_URL", "ws://34.177.82.136:2997")).strip()
         self.server = server.rstrip("/")
@@ -148,8 +149,13 @@ class ZipformerSTTService:
                          else os.environ.get("AAX6_ZIPFORMER_HOTWORDS", "")).strip()
         self.boost = (boost if boost is not None
                       else os.environ.get("AAX6_ZIPFORMER_BOOST", "")).strip()
-        logger.info("[zipformer] server=%s hotwords=%r boost=%r",
-                    self.server, self.hotwords, self.boost)
+        # What the SERVER wants, not what the mic sends. The customer's Thai model is
+        # 8 kHz, so the 16 kHz uplink is downsampled for it; the English model is
+        # trained at 16 kHz and downsampling would throw away the band it listens to.
+        # Passthrough is already handled by the resampler when the two match.
+        self.target_rate = int(target_rate or os.environ.get("AAX6_ZIPFORMER_RATE") or SERVER_RATE)
+        logger.info("[zipformer] server=%s rate=%d hotwords=%r boost=%r",
+                    self.server, self.target_rate, self.hotwords, self.boost)
 
     def _ws_url(self) -> str:
         url = f"{self.server}/ws/stream"
@@ -195,7 +201,7 @@ class ZipformerSTTService:
 
         async def _session() -> None:
             ws = None
-            resampler = _Resampler16to8(in_rate=sample_rate, target=SERVER_RATE)
+            resampler = _Resampler16to8(in_rate=sample_rate, target=self.target_rate)
             last_final = ""
             n_finals = 0
             recv_task = feed_task = None

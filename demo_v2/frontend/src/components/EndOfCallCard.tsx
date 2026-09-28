@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Save, X } from "lucide-react";
+import { t } from "../i18n";
+import { useLang } from "../hooks/useLang";
 
 type Props = {
   onRestart: () => void;
@@ -30,8 +32,8 @@ export function EndOfCallCard({ onRestart, onSave, saving }: Props) {
         type="button"
         className="end-of-call-dismiss"
         onClick={() => setHidden(true)}
-        title="ซ่อน (สายจบแล้ว)"
-        aria-label="ซ่อนกล่องสายจบ"
+        title={t("hideEnded")}
+        aria-label={t("hideEndedCard")}
       >
         <X size={14} aria-hidden="true" />
       </button>

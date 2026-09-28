@@ -51,7 +51,10 @@ export function isChirpSupported(): boolean {
 
 function sttUrl(): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${location.host}/api/stt`;
+  // Zipformer is a Thai model; an English session must be routed to Chirp, and the
+  // server picks that from this parameter.
+  const lang = (typeof window !== "undefined" && (window as any).__aax6Lang) || "th";
+  return `${proto}//${location.host}/api/stt?lang=${lang}`;
 }
 
 /** Open mic + worklet + WS and start streaming PCM. Resolves with a handle to

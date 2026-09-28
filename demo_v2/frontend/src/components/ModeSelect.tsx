@@ -1,5 +1,7 @@
 import { Headphones, FileText } from "lucide-react";
 import { COMPANY_LABELS } from "../api";
+import { t } from "../i18n";
+import { useLang } from "../hooks/useLang";
 
 type Props = {
   company: string;
@@ -13,13 +15,13 @@ export function ModeSelect({ company, onPlay, onView, onBack }: Props) {
   return (
     <div className="studio">
       <div className="studio-crumb">
-        <button onClick={onBack}>บริษัท</button>
+        <button onClick={onBack}>{t("company")}</button>
         <span className="sep">›</span>
         <b>
           {label} ({company})
         </b>
       </div>
-      <p className="studio-step">จะทำอะไรกับ {label}</p>
+      <p className="studio-step">{t("whatToDo", { label })}</p>
       <div className="mode-grid">
         <button className="mode-card" onClick={onPlay}>
           <span className="mode-ic">
@@ -27,19 +29,19 @@ export function ModeSelect({ company, onPlay, onView, onBack }: Props) {
           </span>
           <span className="mode-t">Playground</span>
           <span className="mode-d">
-            คุยกับบอทเหมือนโทรจริง — เลือกลูกค้า, model version, เสียง แล้วทดสอบ flow
+            {t("playgroundBlurb")}
           </span>
-          <span className="mode-go">เข้า playground →</span>
+          <span className="mode-go">{t("enterPlayground")}</span>
         </button>
         <button className="mode-card" onClick={onView}>
           <span className="mode-ic">
             <FileText size={24} aria-hidden="true" />
           </span>
-          <span className="mode-t">อ่าน instruction</span>
+          <span className="mode-t">{t("readInstruction")}</span>
           <span className="mode-d">
-            ดู prompt ที่โมเดลอ่านจริง — render สดจาก flow (JSON) ปัจจุบัน
+            {t("instructionBlurb")}
           </span>
-          <span className="mode-go">เปิดดู →</span>
+          <span className="mode-go">{t("open")}</span>
         </button>
       </div>
     </div>

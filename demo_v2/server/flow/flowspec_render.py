@@ -10,6 +10,8 @@ to generate or keep in sync.
 """
 from __future__ import annotations
 
+from demo_v2.lib import lang as _L
+
 
 from demo_v2.lib.prescript import CHAIN_RULE
 from demo_v2.server.flow.flowspec import (derive_outcomes, is_chain_state, outcome_args)
@@ -30,13 +32,13 @@ def _label_template(t: dict, chain: bool = False) -> str:
     in a chain — that it must be said in the same turn as its neighbours.
     """
     if t.get("any_of"):                       # one step that accepts any of several beats
-        s = "(" + " หรือ ".join(f"`{b}`" for b in t["any_of"]) + ")"
+        s = "(" + _L.frame("or").join(f"`{b}`" for b in t["any_of"]) + ")"
     else:
         s = f"`{t['fine_state']}`"
     if t.get("when_event"):
-        s += f" (เมื่อ {t['when_event']})"
+        s += _L.frame("when", ev=t["when_event"])
     if t.get("optional"):
-        s += " (ข้ามได้)" if chain else " (ถ้าจำเป็น)"
+        s += _L.frame("optional") if chain else _L.frame("if_needed")
     return s
 
 
@@ -57,7 +59,7 @@ def _fmt_event(spec: dict, event: str) -> str:
         ev = {"desc": ev}
     cues = ev.get("cues")
     if cues:
-        return f"{event} ({ev.get('desc', '')} — เช่น {', '.join(cues[:4])})"
+        return _L.frame("ev", event=event, desc=ev.get("desc", ""), cues=", ".join(cues[:4]))
     return f"{event} ({ev.get('desc', '')})" if ev.get("desc") else event
 
 
@@ -107,32 +109,32 @@ def _render_state(spec: dict, st: dict) -> list[str]:
     call ends here. This is the only place the flow graph becomes prose — the guards
     read the same spec directly, so the two cannot drift.
     """
-    lines = [f"**{st['id']}**" + (" ← เริ่มที่นี่" if st.get("initial") else "")]
+    lines = [f"**{st['id']}**" + (_L.frame("st_start") if st.get("initial") else "")]
     if st.get("templates"):
         if is_chain_state(st):
-            lines.append(f"- **พูดต่อกันในเทิร์นเดียว (chain) ตามลำดับ:** "
-                         f"{_fmt_templates(st['templates'], chain=True)} "
-                         f"— เรียก `reply(text_ids=[...])` ใส่หลาย id เรียงตามนี้")
+            lines.append(_L.frame("st_chain")
+                         + f"{_fmt_templates(st['templates'], chain=True)} "
+                         + _L.frame("st_chain2"))
         else:
             lines.append(f"- template: {_fmt_templates(st['templates'])}")
     if st.get("entry_tools"):
         chain = " → ".join(f"`{t}`" for t in st["entry_tools"])
-        lines.append(f"- เมื่อเข้า state นี้ เรียก (silent): {chain}")
+        lines.append(_L.frame("st_silent", chain=chain))
     if st.get("note"):
         lines.append(f"- {st['note']}")
     if st.get("max_visits"):
-        lines.append(f"- เข้า state นี้ได้สูงสุด {st['max_visits']} ครั้งต่อสาย")
+        lines.append(_L.frame("st_visits", n=st["max_visits"]))
     for tr in st.get("on", []):
         arrow = f"  - {_fmt_event(spec, tr['event'])} → **{tr['to']}**"
         if tr.get("tools"):
-            arrow += " [เรียก " + ", ".join(f"`{t}`" for t in tr["tools"]) + " ก่อน]"
+            arrow += _L.frame("call_first") + ", ".join(f"`{t}`" for t in tr["tools"]) + _L.frame("call_first2")
         if tr.get("note"):
             arrow += f" — {tr['note']}"
         lines.append(arrow)
     out = st.get("outcome")
     if out:
         closer, _ = _closing_tool(spec)
-        lines.append(f"  - จบสาย: `{closer}({_fmt_outcome_args(spec, out)})`"
+        lines.append(_L.frame("st_end", call=f"{closer}({_fmt_outcome_args(spec, out)})")
                      + _fmt_reasons(out))
     return lines
 
@@ -144,7 +146,7 @@ def render_crm_block(spec: dict) -> str:
     everything above is identical across calls) render the instruction with
     `crm="omit"` and append this."""
     labels = {**_CRM_LABELS, **(spec.get("crm_labels") or {})}
-    out = ["## ข้อมูลลูกค้า (CRM Snapshot)"]
+    out = [_L.frame("h_crm")]
     for field in spec.get("crm_fields", []):
         out.append(f"- **{labels.get(field, field)}:** {{{field}}}")
     return "\n".join(out)
@@ -173,13 +175,13 @@ def render_instruction(spec: dict, crm: str = "inline") -> str:
     # nothing keeps the debt default. `role` (a tone note) and `legal_note` were
     # removed from the format instead — see SPEC_LOCKED, "keys that were removed".
     identity = spec.get("agent_role") or ""
-    header = (f"คุณรับบทเป็น **{identity}**" if identity
-              else f"คุณรับบทเป็นเจ้าหน้าที่ติดตามทวงถามหนี้ของ **บริษัท {company}**")
-    sec.append(header + f"\n\n**เป้าหมาย: {spec.get('goal', '')}**")
+    header = (_L.frame("role_generic", identity=identity) if identity
+              else _L.frame("role_debt", company=company))
+    sec.append(header + _L.frame("goal", goal=spec.get("goal", "")))
 
     # --- CRM snapshot (placeholders intact; fill_template substitutes at load) ---
     labels = {**_CRM_LABELS, **(spec.get("crm_labels") or {})}
-    crm_lines = ["## ข้อมูลลูกค้า (CRM Snapshot)"]
+    crm_lines = [_L.frame("h_crm")]
     for field in spec.get("crm_fields", []):
         label = labels.get(field, field)
         crm_lines.append(f"- **{label}:** {{{field}}}")
@@ -189,15 +191,15 @@ def render_instruction(spec: dict, crm: str = "inline") -> str:
 
     # --- reply format + tools ---
     fmt = [
-        "## วิธีตอบ (Reply Format)",
-        "ตอบลูกค้าโดยเรียก `reply(text_ids=[...])` เลือกจาก **Available Pre-Scripts** ที่ระบบต่อท้ายให้เท่านั้น — **ห้ามสร้างข้อความอิสระ** ระบบเติม slot ({customer_name}/{amount}/...) อัตโนมัติ",
+        _L.frame("h_reply"),
+        _L.frame("reply_howto"),
         "",
         # The chain rule used to sit at the head of the template block. It moved here,
         # next to how-to-reply, because it is an instruction rather than data, and the
         # block is now a plain list — the same shape the training and eval side uses
         CHAIN_RULE,
         "",
-        "**เครื่องมือ silent (ไม่มีข้อความถึงลูกค้า — เรียกก่อน `reply`):**",
+        _L.frame("silent_tools"),
     ]
     for d in decls:
         arg_names = list(d.get("args", {}).keys())
@@ -208,22 +210,22 @@ def render_instruction(spec: dict, crm: str = "inline") -> str:
         if g.get("note"):
             extras.append(g["note"])
         if g.get("after_event"):
-            extras.append(f"เรียกได้หลัง event `{g['after_event']}` เท่านั้น")
+            extras.append(_L.frame("g_after", ev=g["after_event"]))
         if g.get("max_calls_per_conversation"):
-            extras.append(f"สูงสุด {g['max_calls_per_conversation']} ครั้งต่อสาย")
+            extras.append(_L.frame("g_max", n=g["max_calls_per_conversation"]))
         if g.get("must_precede"):
-            extras.append(f"ต้องเรียกก่อน `{g['must_precede']}` เสมอ")
+            extras.append(_L.frame("g_precede", tool=g["must_precede"]))
         if g.get("requires_prior"):
             # Wording kept byte-identical to what it was when `args_must_match` was the
             # hardcoded ("amount","date","channel"): a refactor that moves a list from
             # code into the spec must not also change what the model reads, or the next
             # measurement cannot attribute the difference (§6.14).
-            extras.append(f"ต้องมี `{g['requires_prior']}` "
-                          + ("ค่าตรงกัน" if g.get("args_must_match") else "") + "มาก่อน")
+            extras.append(_L.frame("g_prior", tool=g["requires_prior"])
+                          + (_L.frame("g_same") if g.get("args_must_match") else "") + _L.frame("g_before"))
         if g.get("required_before") == "non_today_date_in_args_or_reply":
-            extras.append("เรียกก่อนพูด/บันทึกวันที่ที่ไม่ใช่วันนี้")
+            extras.append(_L.frame("g_datetime"))
         if g.get("required_at") == "end_of_call":
-            extras.append("**เรียกตอนจบสายเสมอ ครั้งเดียว**")
+            extras.append(_L.frame("g_closing"))
         if extras:
             line += " — " + " · ".join(extras)
         fmt.append(line)
@@ -234,14 +236,13 @@ def render_instruction(spec: dict, crm: str = "inline") -> str:
     _ENFORCED = ("max_successful_calls", "max_calls_per_conversation",
                  "requires_prior", "must_precede", "required_at")
     if any(k in (d.get("gating") or {}) for d in decls for k in _ENFORCED):
-        fmt.append("\nเรียกผิดลำดับ/เรียกซ้ำ จะถูก reject พร้อมเหตุผล — อ่าน hint "
-                   "แล้วทำตาม ห้ามเรียกซ้ำแบบเดิม")
+        fmt.append(_L.frame("reject_hint") + _L.frame("reject_hint2"))
 
     notes = tools.get("notes", [])
     if notes:
         fmt.append("\n" + " / ".join(f"**{n}**" for n in notes))
     if validation.get("date_format"):
-        fmt.append(f"\nวันที่ทุกค่าใช้รูปแบบ `{validation['date_format']}` · `channel` ∈ {', '.join(validation.get('payment_channels', []))}")
+        fmt.append(_L.frame("date_fmt", fmt=validation["date_format"], channels=", ".join(validation.get("payment_channels", []))))
     sec.append("\n".join(fmt))
 
     # --- flow state machine, grouped by phase ---
@@ -262,27 +263,28 @@ def render_instruction(spec: dict, crm: str = "inline") -> str:
     # --- principles: prompt/reward constraints as the numbered rule list ---
     prompt_rules = [c for c in spec["constraints"] if "prompt" in c.get("enforce", [])]
     backend_rules = [c for c in spec["constraints"] if c.get("enforce") == ["backend"]]
-    pr = ["## หลักการ (⛔ กฎสูงสุด)"]
+    pr = [_L.frame("h_principles")]
     for i, c in enumerate(prompt_rules, 1):
         pr.append(f"{i}. {c['desc']}")
     if backend_rules:
-        pr.append("\n**กติกาที่ระบบบังคับเอง (เรียกผิดจะถูก reject พร้อมเหตุผล — อ่าน hint แล้วแก้):**")
+        pr.append(_L.frame("enforced"))
         for c in backend_rules:
             pr.append(f"- {c['desc']}")
     sec.append("\n".join(pr))
 
     # --- FAQ routing ---
     routes = spec.get("faq_routing", {}).get("routes", [])
-    faq = ["## FAQ (ตอบคำถามแทรก แล้วกลับเข้า flow)"] if routes else []
+    faq = [_L.frame("h_faq")] if routes else []
     for route in routes:
         tmpl = _fmt_templates(route.get("templates", []))
         line = f"- **{route['intent']}** \"{route.get('desc', '')}\" → {tmpl}"
         then = route.get("then")
         if then == "resume":
-            line += " → กลับเข้า flow เดิม"
+            line += _L.frame("faq_resume")
         else:
             out = (then or {}).get("outcome", {})
-            line += (f" → `{_closing_tool(spec)[0]}({_fmt_outcome_args(spec, out)})` ปิดสาย"
+            line += (_L.frame("faq_close",
+                              call=f"{_closing_tool(spec)[0]}({_fmt_outcome_args(spec, out)})")
                      + _fmt_reasons(out))
         if route.get("note"):
             line += f" — {route['note']}"
@@ -296,7 +298,7 @@ def render_instruction(spec: dict, crm: str = "inline") -> str:
     if results:
         try:
             _closer, _cargs = _closing_tool(spec)
-            head = f"## Outcome (จบสายต้องเรียก `{_closer}({', '.join(_cargs)})` เสมอ)"
+            head = _L.frame("h_outcome", call=f"{_closer}({', '.join(_cargs)})")
         except ValueError:
             # a flow may record nothing — say what the results mean without promising a
             # call that does not exist
@@ -309,7 +311,7 @@ def render_instruction(spec: dict, crm: str = "inline") -> str:
 
     # --- pre-script overview (fine_states only; full catalog appended at runtime) ---
     ov = ["## Available Pre-Scripts",
-          "เลือก text_id จาก catalog ที่ระบบต่อท้ายให้ (รายการเต็มต่อท้ายอัตโนมัติ) — สรุปกลุ่มตาม state:"]
+          _L.frame("catalog_howto")]
     for phase in ("opening", "main", "close"):
         groups: list[str] = []
         for st in spec["states"]:

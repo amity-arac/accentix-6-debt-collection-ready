@@ -20,10 +20,17 @@ GENDER_SUFFIXES = {
 
 def render_gender(template: str, gender: str) -> str:
     """Substitute {suffix}/{q_suffix}/{pronoun} placeholders. No-op if the
-    template has none (the older fully-duplicated catalog)."""
+    template has none (the older fully-duplicated catalog).
+
+    The values follow the session's language. Thai carries politeness and speaker
+    gender inside the sentence; English carries neither, so there the particles
+    resolve to nothing and the pronoun becomes "I". An English template that keeps
+    a placeholder then still renders correctly, instead of speaking a Thai word in
+    the middle of an English line."""
     if not any(p in template for p in ("{suffix}", "{q_suffix}", "{pronoun}")):
         return template
-    values = GENDER_SUFFIXES.get(gender, GENDER_SUFFIXES["M"])
+    from demo_v2.lib import lang as _lang
+    values = _lang.pick(_lang.GENDER).get(gender, GENDER_SUFFIXES["M"])
     # Targeted replace (NOT str.format) — data placeholders are now also {curly}
     # ({customer_name}, {amount}, …) and .format() would choke on them.
     for key, val in values.items():
@@ -120,6 +127,17 @@ PAYMENT_CHANNEL_THAI = {
 }
 CHANNEL_PLACEHOLDERS = {"payment_channel"}
 
+
+def _dynamic_fallback() -> dict:
+    """The spoken fallback for an omitted dynamic_var, in the session's language."""
+    from demo_v2.lib import lang as _lang
+    return _lang.pick(_lang.DYNAMIC_FALLBACK)
+
+
+def _payment_channel() -> dict:
+    from demo_v2.lib import lang as _lang
+    return _lang.pick(_lang.PAYMENT_CHANNEL)
+
 # Regex for conditional blocks: {{if field}}content{{else}}alt{{/if}}
 # Match innermost blocks only; the while-loop in fill_template() peels one nesting layer per iteration.
 # Group 1: field name, Group 2: if-branch, Group 3 (optional): else-branch.
@@ -163,6 +181,13 @@ CHAIN_RULE = (
 )
 
 
+def _templates_header() -> str:
+    from demo_v2.lib import lang as _lang
+    return _lang.frame("templates_hdr")
+
+
+# Kept as a name for the Thai callers that import it; the block builder asks the
+# function instead, so the header follows the session language.
 TEMPLATES_HEADER = "TEMPLATES (สำหรับ reply — เลือก text_id ให้ตรงสถานการณ์):"
 
 
@@ -182,10 +207,18 @@ def build_template_block(script_db: list[dict], compact: bool = False) -> str:
     the first entry of a group every time) and `| Vars: [...]`, the DYNAMIC placeholder
     names that must arrive in `dynamic_vars`.
     """
-    lines = [TEMPLATES_HEADER]
+    lines = [_templates_header()]
     for entry in script_db:
         tid = entry["text_id"]
-        name = entry.get("intent_name") or entry.get("_fine_state", "")
+        # `_fine_state` first, NOT `intent_name` — the same older-flow label problem as
+        # the `state` grouping above. The beat name is what the rest of the prompt calls
+        # this line: the flow map says `- template: disclose_balance` and the constraints
+        # name that same string. `intent_name` is a v6-era grouping key that several
+        # beats deliberately share, so KBANK had disclose_balance, ask_pay_today, apology
+        # and handoff_refuse all labelled `negotiation_ask_pay_today` — the catalog
+        # offered four lines under one name and none at all under the name the flow map
+        # had just told the model to speak (17 of 28 lines mislabelled, AEON 32 of 58).
+        name = entry.get("_fine_state") or entry.get("intent_name", "")
         body = entry.get("template", "")
         dyn = _extract_dynamic_vars_from_template(body)
         vars_suffix = f" | Vars: [{', '.join(dyn)}]" if dyn else ""
@@ -285,7 +318,7 @@ def fill_template(
         if placeholder in DYNAMIC_PLACEHOLDERS:
             value = dynamic_vars.get(placeholder)
             if value is None or value == "":
-                return DYNAMIC_PLACEHOLDERS[placeholder]
+                return _dynamic_fallback()[placeholder]
             value_str = str(value)
             if strict_dates and placeholder in DATE_PLACEHOLDERS:
                 if not datetime_utils.is_valid_date(value_str):
@@ -303,7 +336,7 @@ def fill_template(
                 return datetime_utils.render_time_thai(value_str)
             if placeholder in CHANNEL_PLACEHOLDERS:
                 # Render enum literal to Thai; pass through paraphrased values.
-                return PAYMENT_CHANNEL_THAI.get(value_str.strip(), value_str)
+                return _payment_channel().get(value_str.strip(), value_str)
             return value_str
         # A spec-declared field with no registry entry. The registries above are
         # debt-domain, so without this a spec naming its own CRM fields leaked every

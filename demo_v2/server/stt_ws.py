@@ -68,12 +68,18 @@ MAX_UTTERANCE_MS = 30_000
 
 # Process-wide STT engine (cheap to build; connections are per-utterance) + a
 # one-time warmup flag. The VADService is per-connection because it is stateful.
-_stt_singleton: Any = None
-_stt_warmed = False
+# One engine per (NAME, LANGUAGE), not one per process. Two reasons, and the second
+# is easy to miss: Zipformer is a Thai model, so English has to go through Chirp —
+# and Chirp itself is built with a `language_code`, so a Chirp instance made for
+# Thai transcribes English audio against `th-TH` and returns confident nonsense.
+# Keying on the engine name alone was a bug that produced no error at all.
+_stt_singletons: dict = {}
+_stt_warmed: set = set()
 _engine_lock = threading.Lock()
 
 
-def _build_engines():
+def _build_engines(engine: str | None = None, language: str | None = None,
+                   url: str | None = None, rate: int | None = None):
     """Lazily build (STTService, VADService). The heavy imports happen here, off the
     import path, and this may block (torch.hub.load + a warmup connect) — call it via
     asyncio.to_thread.
@@ -82,25 +88,29 @@ def _build_engines():
     swaps in Google Chirp 3 instead, useful when that server is unreachable from
     wherever the demo runs. Both expose the same streaming shape.
     """
-    global _stt_singleton, _stt_warmed
-    engine = os.environ.get("AAX6_STT_ENGINE", "zipformer").strip().lower()
+    engine = (engine or os.environ.get("AAX6_STT_ENGINE") or "zipformer").strip().lower()
+    from demo_v2.services.speech.config import DEFAULT_LANGUAGE_CODE
+    language = language or DEFAULT_LANGUAGE_CODE
+    key = (engine, language, url or '', rate or 0)
     with _engine_lock:
-        if _stt_singleton is None:
+        if key not in _stt_singletons:
             if engine == "chirp":
                 from demo_v2.services.speech.stt import STTService
 
-                _stt_singleton = STTService()
+                _stt_singletons[key] = STTService(language_code=language)
             else:
                 from demo_v2.services.speech.zipformer_stt import ZipformerSTTService
 
                 # URL + optional hotwords/boost are read from env inside the service
-                # (AAX6_ZIPFORMER_URL / _HOTWORDS / _BOOST).
-                _stt_singleton = ZipformerSTTService()
-        stt = _stt_singleton
-        if not _stt_warmed:
+                # (AAX6_ZIPFORMER_URL / _HOTWORDS / _BOOST). The Zipformer server is
+                # a Thai model and takes no language argument — which is exactly why
+                # English is routed to Chirp instead.
+                _stt_singletons[key] = ZipformerSTTService(server=url, target_rate=rate)
+        stt = _stt_singletons[key]
+        if key not in _stt_warmed:
             logger.info("[stt] warming up %s connection...", engine)
             stt.warmup(sample_rate=STT_SAMPLE_RATE)
-            _stt_warmed = True
+            _stt_warmed.add(key)
             logger.info("[stt] warmup done")
 
     # Fresh VAD per connection — Silero state is stateful and not shareable.
@@ -311,7 +321,7 @@ def _vad_gate_worker(
             finalize()  # hard cap mid-speech
 
 
-async def run_session(ws: WebSocket) -> None:
+async def run_session(ws: WebSocket, lang: str | None = None) -> None:
     """Drive one STT WebSocket connection. Caller has already `accept()`-ed.
 
     Builds the engines off the event loop; on failure sends a fatal error (the
@@ -327,7 +337,18 @@ async def run_session(ws: WebSocket) -> None:
             pass
 
     try:
-        stt, vad = await asyncio.to_thread(_build_engines)
+        from demo_v2.lib import lang as _lang
+        _lang.LANG.set(_lang.normalise(lang))
+        # Which recogniser can hear this language at all — Zipformer is Thai-only.
+        # Two Zipformers, one per language: the Thai one is the customer's own
+        # fine-tune (8 kHz); the English one runs beside this app (16 kHz). The URL
+        # comes from the env var this language names, so a deployment can move either
+        # server without touching code.
+        import os as _os
+        _url = _os.environ.get(_lang.speech("stt_url_env")) or None
+        stt, vad = await asyncio.to_thread(
+            _build_engines, _lang.speech("stt_engine"), _lang.speech("stt_language"),
+            _url, _lang.speech("stt_rate"))
     except Exception as e:  # noqa: BLE001
         logger.exception("[stt] engine build failed")
         await safe_send({"type": "error", "fatal": True, "message": f"STT unavailable: {e}"})
