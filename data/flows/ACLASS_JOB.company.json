@@ -1,0 +1,857 @@
+{
+ "flow_id": "ACLASS-outbound-jobconfirm",
+ "display_name": "A Class — Job confirmation",
+ "agent_role": "outbound operator at a UK coach and minibus hire company",
+ "goal": "identify -> retrieve the job -> read each field back and get it agreed -> collect driver name and number -> record the result",
+ "crm_fields": [
+  "today",
+  "agent",
+  "supplier_name",
+  "job_date",
+  "pickup_time",
+  "pickup_location",
+  "destination",
+  "vehicle_size",
+  "passenger_count"
+ ],
+ "session_init": {
+  "note": "Fired once when the call opens; the response IS the context, no mapping. Point AAX6_API_BASE somewhere else to move the endpoint -- do not edit the spec.",
+  "url": "{API_BASE}/ACLASS_JOB/init?msisdn={msisdn}",
+  "method": "GET",
+  "timeout": 8,
+  "desc": "returns our copy of the job being run tomorrow",
+  "on_failure": {
+   "fine_state": "apology_close",
+   "outcome": {
+    "args": {
+     "status": "unreachable",
+     "driver_name": "no record returned at call start"
+    }
+   }
+  }
+ },
+ "events": {
+  "reaches_person": {
+   "desc": "somebody who can see their job sheet is on the line",
+   "cues": [
+    "Hello, how can I help?",
+    "Speaking",
+    "Hiya",
+    "Yeah, go on"
+   ]
+  },
+  "job_found": {
+   "desc": "they have the job in front of them",
+   "cues": [
+    "Yeah, I've got that",
+    "Oh, yep. I've got that here",
+    "Yeah, we have, yeah",
+    "Okay, I got it",
+    "Let me have a look on the list. Hold on."
+   ]
+  },
+  "job_not_found": {
+   "desc": "the job is not on their sheet",
+   "cues": [
+    "I can't see anything",
+    "Nothing showing for that date",
+    "Not got it here",
+    "We haven't got that one"
+   ]
+  },
+  "field_confirmed": {
+   "desc": "they agree with the field just read out",
+   "cues": [
+    "Yeah",
+    "Yep",
+    "That's right",
+    "Correct",
+    "That's fine"
+   ]
+  },
+  "field_disputed": {
+   "desc": "their sheet says something different",
+   "cues": [
+    "No, I've got half past ten",
+    "That's not what I've got",
+    "Mine says the other way round",
+    "We've got a forty-nine, not two"
+   ]
+  },
+  "correction_taken": {
+   "desc": "the corrected value is agreed",
+   "cues": [
+    "Yeah, that's the one",
+    "That's it",
+    "Yes, that's right"
+   ]
+  },
+  "details_agreed": {
+   "desc": "every field has been read back and agreed",
+   "cues": [
+    "That's all correct",
+    "Yeah, that all matches",
+    "That's perfect"
+   ]
+  },
+  "driver_given": {
+   "desc": "they give the driver's name and number",
+   "cues": [
+    "Driver's name is Arfan",
+    "The driver's name is Ben, and his number is [PHONE_NUMBER]",
+    "That will be [PERSON] and his number is [PHONE_NUMBER]",
+    "Her number is [PHONE_NUMBER]"
+   ]
+  },
+  "driver_unknown": {
+   "desc": "the driver is not allocated yet",
+   "cues": [
+    "Not allocated yet",
+    "We don't know who's on it yet",
+    "I'll let you know closer to the day",
+    "That gets sorted in the morning"
+   ]
+  },
+  "no_input": {
+   "desc": "silence or unintelligible",
+   "cues": [
+    "...",
+    "(silence)",
+    "Hello? Hello?",
+    "[line noise]",
+    "music playing"
+   ]
+  },
+  "faq": {
+   "desc": "interruption answered from faq_routing, then resume",
+   "intents": [
+    "caller",
+    "bot",
+    "repeat"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "No identity verification. Every field read back must come from lookup_job -- this call exists to catch a mismatch, so a field stated from memory defeats it."
+  ],
+  "declarations": [
+   {
+    "name": "lookup_job",
+    "impl": "http",
+    "desc": "Fetch our copy of the job: date, pickup time and place, destination, vehicle size, passengers. Call before reading anything back.",
+    "args": {
+     "job_date": {
+      "type": "string",
+      "desc": "date of the job from CRM: {job_date}"
+     }
+    },
+    "gating": {
+     "required_before_state": "readback_time"
+    },
+    "url": "{API_BASE}/ACLASS_JOB/lookup_job",
+    "method": "POST"
+   },
+   {
+    "name": "confirm_job_details",
+    "impl": "http",
+    "desc": "Record the confirmed job and the driver details. Called once, before the closing line.",
+    "args": {
+     "status": {
+      "type": "string",
+      "desc": "how the check ended",
+      "enum": [
+       "confirmed",
+       "pending_driver",
+       "no_record",
+       "unreachable"
+      ]
+     },
+     "driver_name": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "driver's name exactly as they gave it"
+     },
+     "driver_phone": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "driver's number exactly as they read it out"
+     },
+     "corrections": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "any field where their sheet differed from ours, and the agreed value"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/ACLASS_JOB/confirm_job_details",
+    "method": "POST"
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet_identify",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_identify"
+    }
+   ],
+   "note": "Name yourself and the company and say which job you are ringing about.",
+   "on": [
+    {
+     "event": "reaches_person",
+     "to": "retrieve_job"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "retrieve_job",
+   "phase": "main",
+   "entry_tools": [
+    "lookup_job"
+   ],
+   "templates": [
+    {
+     "fine_state": "ask_they_have_job"
+    }
+   ],
+   "note": "Ask them to find the job on their sheet before you read anything out.",
+   "on": [
+    {
+     "event": "job_found",
+     "to": "readback_time"
+    },
+    {
+     "event": "job_not_found",
+     "to": "close_no_record"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "readback_time",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "readback_time"
+    }
+   ],
+   "note": "Read the time back and wait. One field per turn -- stating the whole sheet in one go gives the supplier nothing to disagree with.",
+   "on": [
+    {
+     "event": "field_confirmed",
+     "to": "readback_route"
+    },
+    {
+     "event": "field_disputed",
+     "to": "correct_time"
+    },
+    {
+     "event": "details_agreed",
+     "to": "collect_driver"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "correct_time",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ack_correction"
+    }
+   ],
+   "note": "Their sheet wins on the time. Take it, then carry on down the list.",
+   "on": [
+    {
+     "event": "correction_taken",
+     "to": "readback_route"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "readback_route",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "readback_route"
+    }
+   ],
+   "note": "Read the route back and wait. One field per turn -- stating the whole sheet in one go gives the supplier nothing to disagree with.",
+   "on": [
+    {
+     "event": "field_confirmed",
+     "to": "readback_vehicle"
+    },
+    {
+     "event": "field_disputed",
+     "to": "correct_route"
+    },
+    {
+     "event": "details_agreed",
+     "to": "collect_driver"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "correct_route",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ack_correction"
+    }
+   ],
+   "note": "Their sheet wins on the route. Take it, then carry on down the list.",
+   "on": [
+    {
+     "event": "correction_taken",
+     "to": "readback_vehicle"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "readback_vehicle",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "readback_vehicle"
+    }
+   ],
+   "note": "Read the vehicle back and wait. One field per turn -- stating the whole sheet in one go gives the supplier nothing to disagree with.",
+   "on": [
+    {
+     "event": "field_confirmed",
+     "to": "readback_passengers"
+    },
+    {
+     "event": "field_disputed",
+     "to": "correct_vehicle"
+    },
+    {
+     "event": "details_agreed",
+     "to": "collect_driver"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "correct_vehicle",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ack_correction"
+    }
+   ],
+   "note": "Their sheet wins on the vehicle. Take it, then carry on down the list.",
+   "on": [
+    {
+     "event": "correction_taken",
+     "to": "readback_passengers"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "readback_passengers",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "readback_passengers"
+    }
+   ],
+   "note": "Read the passengers back and wait. One field per turn -- stating the whole sheet in one go gives the supplier nothing to disagree with.",
+   "on": [
+    {
+     "event": "field_confirmed",
+     "to": "collect_driver"
+    },
+    {
+     "event": "field_disputed",
+     "to": "correct_passengers"
+    },
+    {
+     "event": "details_agreed",
+     "to": "collect_driver"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "correct_passengers",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ack_correction"
+    }
+   ],
+   "note": "Their sheet wins on the passengers. Take it, then carry on down the list.",
+   "on": [
+    {
+     "event": "correction_taken",
+     "to": "collect_driver"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "collect_driver",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_driver"
+    }
+   ],
+   "note": "Ask for the driver's name and mobile. Read the number back digit by digit.",
+   "on": [
+    {
+     "event": "driver_given",
+     "to": "close_confirmed"
+    },
+    {
+     "event": "driver_unknown",
+     "to": "close_pending_driver"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "close_confirmed",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "confirm_job_details"
+   ],
+   "outcome": {
+    "result": "confirmed",
+    "reasons": [
+     "confirmed"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_confirmed"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_pending_driver",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "confirm_job_details"
+   ],
+   "outcome": {
+    "result": "pending_driver",
+    "reasons": [
+     "driver_not_allocated"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_pending_driver"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_no_record",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "confirm_job_details"
+   ],
+   "outcome": {
+    "result": "no_record",
+    "reasons": [
+     "not_on_their_sheet"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "flag_no_record"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "confirm_job_details"
+   ],
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "no_input"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "apology_close"
+    }
+   ],
+   "on": []
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "who is calling / what is this about",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Who is this?",
+     "Sorry, who's calling?",
+     "Where are you calling from?",
+     "What's this regarding?",
+     "Who is it?"
+    ]
+   },
+   {
+    "intent": "bot",
+    "desc": "are you a person or a machine",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Are you a real person?",
+     "Is this a recording?",
+     "Am I speaking to a machine?",
+     "You sound like a robot"
+    ]
+   },
+   {
+    "intent": "repeat",
+    "desc": "could not hear, asks for a repeat",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Sorry?",
+     "Say that again?",
+     "Can you repeat that?",
+     "Hello? Hello?",
+     "You're breaking up"
+    ]
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "rule_identify_first",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Name yourself and A Class Corporate Travel and say which job before reading details."
+  },
+  {
+   "id": "one_field_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "One field per turn. Stating every field at once has not followed this procedure even when every field is right -- the supplier has to be given the chance to disagree with each one."
+  },
+  {
+   "id": "no_field_from_memory",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Every value read back comes from lookup_job. A field stated without it defeats the purpose of the call."
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Only repeat a field when the line went quiet. Disagreement is an answer."
+  }
+ ],
+ "auxiliary_templates": {
+  "allowed": [
+   {
+    "fine_state": "ack_hold"
+   },
+   {
+    "fine_state": "faq_caller"
+   },
+   {
+    "fine_state": "ai_disclosure"
+   },
+   {
+    "fine_state": "faq_repeat"
+   }
+  ]
+ },
+ "catalog": [
+  {
+   "company": "ACLASS",
+   "text_id": 9400,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Hello, it's [agent] from A Class Corporate Travel. You're doing a job for us on [job_date].",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9403,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Hiya, it's [agent] at A Class Corporate Travel — about the job on [job_date].",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9408,
+   "intent_name": "ask_they_have_job",
+   "state": "middle",
+   "template": "Have you got that one in front of you?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_they_have_job"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9412,
+   "intent_name": "readback_time",
+   "state": "middle",
+   "template": "I've got the pickup at [pickup_time]. Is that what you've got?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "readback_time"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9419,
+   "intent_name": "readback_route",
+   "state": "middle",
+   "template": "That's [pickup_location] through to [destination]. Same your end?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "readback_route"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9422,
+   "intent_name": "readback_vehicle",
+   "state": "middle",
+   "template": "And it's down as a [vehicle_size] seater. Is that right?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "readback_vehicle"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9428,
+   "intent_name": "readback_passengers",
+   "state": "middle",
+   "template": "And I've got [passenger_count] on it. Does that match?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "readback_passengers"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9431,
+   "intent_name": "ack_correction",
+   "state": "middle",
+   "template": "Right, I'll change ours to match yours. Thanks for catching that.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ack_correction"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9436,
+   "intent_name": "ask_driver",
+   "state": "middle",
+   "template": "That's everything then. Have you got the driver's name and mobile for me?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_driver"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9440,
+   "intent_name": "thank_confirmed",
+   "state": "close",
+   "template": "Perfect, that's all matching. Thanks very much for your time. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_confirmed"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9447,
+   "intent_name": "thank_pending_driver",
+   "state": "close",
+   "template": "No problem — if you could let us have the driver's details once they're sorted, that'd be great. Thanks very much. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_pending_driver"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9450,
+   "intent_name": "flag_no_record",
+   "state": "close",
+   "template": "That's not right then, it's not showing your end. I'll get it resent and give you a ring straight back. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "flag_no_record"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9456,
+   "intent_name": "apology_close",
+   "state": "close",
+   "template": "Sorry, I can't hear you there. I'll try you again another time. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "apology_close"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9459,
+   "intent_name": "faq_caller",
+   "state": "middle",
+   "template": "It's [agent] at A Class Corporate Travel, about a job you're running for us.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_caller"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9464,
+   "intent_name": "ai_disclosure",
+   "state": "middle",
+   "template": "I'm an automated assistant calling for A Class Corporate Travel.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ai_disclosure"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9468,
+   "intent_name": "faq_repeat",
+   "state": "middle",
+   "template": "Course, let me go through that again.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_repeat"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9475,
+   "intent_name": "ack_hold",
+   "state": "middle",
+   "template": "No problem, take your time.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ack_hold"
+  }
+ ],
+ "spec_version": 2,
+ "company": "ACLASS_JOB"
+}

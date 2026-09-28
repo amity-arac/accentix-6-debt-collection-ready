@@ -1,0 +1,630 @@
+{
+ "flow_id": "ACLASS-outbound-availability",
+ "display_name": "A Class — Availability",
+ "agent_role": "outbound operator at a UK coach and minibus hire company",
+ "goal": "identify -> state the job -> let them check -> agree to email the spec and wait for a price -> record the result",
+ "crm_fields": [
+  "today",
+  "agent",
+  "supplier_name",
+  "job_date",
+  "vehicle_count",
+  "vehicle_size",
+  "passenger_count",
+  "pickup_location",
+  "destination"
+ ],
+ "session_init": {
+  "note": "Fired once when the call opens; the response IS the context, no mapping. Point AAX6_API_BASE somewhere else to move the endpoint -- do not edit the spec.",
+  "url": "{API_BASE}/ACLASS_AVAIL/init?msisdn={msisdn}",
+  "method": "GET",
+  "timeout": 8,
+  "desc": "returns the job we are trying to cover",
+  "on_failure": {
+   "fine_state": "apology_close",
+   "outcome": {
+    "args": {
+     "status": "unreachable",
+     "vehicles_offered": "no record returned at call start"
+    }
+   }
+  }
+ },
+ "events": {
+  "reaches_person": {
+   "desc": "somebody who can answer for the operator is on the line",
+   "cues": [
+    "Hello, how can I help you?",
+    "Speaking",
+    "Yeah, go ahead",
+    "Hello champion"
+   ]
+  },
+  "checks_diary": {
+   "desc": "they go away to look at their availability",
+   "cues": [
+    "Hold on. One second.",
+    "Let me have a look",
+    "Let's have a look",
+    "Can you just hold for me",
+    "Give me a minute"
+   ]
+  },
+  "has_capacity": {
+   "desc": "they have vehicles free -- or, asked a second time after a part-load, they find something to put with it",
+   "cues": [
+    "I've got two coaches available",
+    "Yeah, we can do that",
+    "That's fine, we're free",
+    "I've got one for that date",
+    "I could put a nineteen-seater with it",
+    "Actually yes, I've a minibus free as well"
+   ]
+  },
+  "partial_capacity": {
+   "desc": "they can cover some but not all of the job",
+   "cues": [
+    "I've only got the one",
+    "I can do one of the two",
+    "I've got a smaller one, would that do?",
+    "I could cover the morning but not the return"
+   ]
+  },
+  "no_capacity": {
+   "desc": "nothing free -- or, asked a second time after a part-load, that one vehicle is all they have",
+   "cues": [
+    "Nothing available at all, I'm afraid.",
+    "We are fully booked.",
+    "No, we've got nothing up until the twenty-fourth",
+    "We definitely got nothing",
+    "No, that's all I've got",
+    "That one's the only thing free"
+   ]
+  },
+  "agrees_to_quote": {
+   "desc": "they will take the spec by email and come back with a price",
+   "cues": [
+    "Send that across and I'll get one of the seniors to have a look at it",
+    "If you send it to [EMAIL_ADDRESS]",
+    "Just send it again and put sales team",
+    "Do you want to send it?"
+   ]
+  },
+  "no_input": {
+   "desc": "silence or unintelligible",
+   "cues": [
+    "...",
+    "(silence)",
+    "Hello? Hello?",
+    "[line noise]",
+    "music playing"
+   ]
+  },
+  "faq": {
+   "desc": "interruption answered from faq_routing, then resume",
+   "intents": [
+    "caller",
+    "bot",
+    "repeat"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "No identity verification. The job spec comes from the CRM snapshot; do not invent a detail the job sheet does not carry."
+  ],
+  "declarations": [
+   {
+    "name": "lookup_job",
+    "impl": "http",
+    "desc": "Fetch the job we are trying to cover: date, vehicles needed, size, passengers, pickup and destination. Call before stating the job.",
+    "args": {
+     "job_date": {
+      "type": "string",
+      "desc": "date of the job from CRM: {job_date}"
+     }
+    },
+    "gating": {
+     "required_before_state": "state_job"
+    },
+    "url": "{API_BASE}/ACLASS_AVAIL/lookup_job",
+    "method": "POST"
+   },
+   {
+    "name": "record_quote_request",
+    "impl": "http",
+    "desc": "Record the result of the enquiry. Always called once, before closing.",
+    "args": {
+     "status": {
+      "type": "string",
+      "desc": "how the enquiry ended",
+      "enum": [
+       "quote_pending",
+       "declined",
+       "unreachable"
+      ]
+     },
+     "vehicles_offered": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "what they said they had free, in their words"
+     },
+     "email_address": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "where to send the spec, exactly as the supplier gave it on this call -- there is no address in the job sheet to fall back on"
+     },
+     "note": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "anything they attached to the answer"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/ACLASS_AVAIL/record_quote_request",
+    "method": "POST"
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet_identify",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_identify"
+    }
+   ],
+   "note": "Name yourself and the company. These are trade contacts who ring us back, so keep it short.",
+   "on": [
+    {
+     "event": "reaches_person",
+     "to": "state_job"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "state_job",
+   "phase": "main",
+   "entry_tools": [
+    "lookup_job"
+   ],
+   "templates": [
+    {
+     "fine_state": "state_job"
+    }
+   ],
+   "note": "Give the date, how many vehicles, what size and the route, then ask whether they have anything free.",
+   "on": [
+    {
+     "event": "checks_diary",
+     "to": "await_check"
+    },
+    {
+     "event": "has_capacity",
+     "to": "confirm_spec"
+    },
+    {
+     "event": "no_capacity",
+     "to": "close_declined"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "await_check",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ack_hold"
+    }
+   ],
+   "note": "They are looking at their diary. Wait -- do not restate the job or fill the silence with another question.",
+   "on": [
+    {
+     "event": "has_capacity",
+     "to": "confirm_spec"
+    },
+    {
+     "event": "partial_capacity",
+     "to": "partial"
+    },
+    {
+     "event": "no_capacity",
+     "to": "close_declined"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "partial",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "weigh_partial"
+    }
+   ],
+   "note": "They can cover part of it. Say what the job actually needs and ask whether they can put anything with it. The branch is THEIR answer to that question -- they find something, or that is all they have.",
+   "on": [
+    {
+     "event": "has_capacity",
+     "to": "confirm_spec"
+    },
+    {
+     "event": "no_capacity",
+     "to": "close_declined"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "confirm_spec",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "offer_spec_email"
+    }
+   ],
+   "note": "Offer to email the spec and ask where to send it. Take the address as they say it.",
+   "on": [
+    {
+     "event": "agrees_to_quote",
+     "to": "close_quote_pending"
+    },
+    {
+     "event": "no_capacity",
+     "to": "close_declined"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "close_quote_pending",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "record_quote_request"
+   ],
+   "outcome": {
+    "result": "quote_pending",
+    "reasons": [
+     "spec_sent"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_await_price"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_declined",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "record_quote_request"
+   ],
+   "outcome": {
+    "result": "declined",
+    "reasons": [
+     "no_capacity"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_declined"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "record_quote_request"
+   ],
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "no_input"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "apology_close"
+    }
+   ],
+   "on": []
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "who is calling / what is this about",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Who is this?",
+     "Sorry, who's calling?",
+     "Where are you calling from?",
+     "What's this regarding?",
+     "Who is it?"
+    ]
+   },
+   {
+    "intent": "bot",
+    "desc": "are you a person or a machine",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Are you a real person?",
+     "Is this a recording?",
+     "Am I speaking to a machine?",
+     "You sound like a robot"
+    ]
+   },
+   {
+    "intent": "repeat",
+    "desc": "could not hear, asks for a repeat",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Sorry?",
+     "Say that again?",
+     "Can you repeat that?",
+     "Hello? Hello?",
+     "You're breaking up"
+    ]
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "rule_identify_first",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Name yourself and A Class Corporate Travel before stating the job."
+  },
+  {
+   "id": "deferral_is_success",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "A call that ends with the spec emailed and a price to follow is the successful close, not a partial one. Do not press for a price on the call."
+  },
+  {
+   "id": "job_stated_once",
+   "type": "once_per_call",
+   "template_fine_states": [
+    "state_job"
+   ],
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "State the job once. While they are checking the diary, wait."
+  },
+  {
+   "id": "hold_means_wait",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Only speak again unprompted when the line has gone quiet."
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "One template is one turn."
+  }
+ ],
+ "auxiliary_templates": {
+  "allowed": [
+   {
+    "fine_state": "ack_hold"
+   },
+   {
+    "fine_state": "faq_caller"
+   },
+   {
+    "fine_state": "ai_disclosure"
+   },
+   {
+    "fine_state": "faq_repeat"
+   }
+  ]
+ },
+ "catalog": [
+  {
+   "company": "ACLASS",
+   "text_id": 9200,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Hello, it's [agent] from A Class Corporate Travel. I wonder if you could help me.",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9203,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Morning, it's [agent] at A Class Corporate Travel. Have you got a second?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9208,
+   "intent_name": "state_job",
+   "state": "middle",
+   "template": "I've got a job on [job_date] — [passenger_count] passengers from [pickup_location] over to [destination]. I'd need [vehicle_count] of your [vehicle_size] seaters. Have you got anything free?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "state_job"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9212,
+   "intent_name": "weigh_partial",
+   "state": "middle",
+   "template": "It's [passenger_count] passengers, so the one on its own won't cover it. Have you anything else you could put with it?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "weigh_partial"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9219,
+   "intent_name": "offer_spec_email",
+   "state": "middle",
+   "template": "That's great. Shall I send the spec over so you can price it? What's the best address for it?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "offer_spec_email"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9222,
+   "intent_name": "thank_await_price",
+   "state": "close",
+   "template": "Lovely, that's on its way to [email_address] now. If you could let me know the cost as soon as you can, that'd be great. Thanks very much. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_await_price",
+   "hint": "read the address back to them — send the one they just gave you as email_address in dynamic_vars; there is none in the job sheet"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9228,
+   "intent_name": "thank_declined",
+   "state": "close",
+   "template": "No problem at all, thanks for looking. I'll try someone else. Speak soon. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_declined"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9231,
+   "intent_name": "apology_close",
+   "state": "close",
+   "template": "Sorry, I can't hear you there. I'll try you again another time. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "apology_close"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9236,
+   "intent_name": "faq_caller",
+   "state": "middle",
+   "template": "It's [agent] at A Class Corporate Travel, ringing round to see if you've a coach free.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_caller"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9240,
+   "intent_name": "ai_disclosure",
+   "state": "middle",
+   "template": "I'm an automated assistant calling for A Class Corporate Travel.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ai_disclosure"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9247,
+   "intent_name": "faq_repeat",
+   "state": "middle",
+   "template": "Course, let me go through that again.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_repeat"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9250,
+   "intent_name": "ack_hold",
+   "state": "middle",
+   "template": "No problem, take your time.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ack_hold"
+  }
+ ],
+ "spec_version": 2,
+ "company": "ACLASS_AVAIL"
+}

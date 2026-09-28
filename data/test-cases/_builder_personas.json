@@ -132,30 +132,6 @@
   }
  },
  {
-  "id": "TC-AEONLITE-BUILD-001",
-  "topic": "อิอ้อน — ก่อนครบกำหนด (Remind) demo",
-  "eval_track": "Track_A",
-  "patience": 3,
-  "was_flipped": false,
-  "customer_data": {
-   "customer_name": "วีระ ตรงเวลา",
-   "loan_type": "บัตรเครดิต",
-   "total_amount_due": 45000,
-   "minimum_payment_due": 4500,
-   "due_status": "upcoming",
-   "customer_phone": "081-555-7788",
-   "msisdn": "081-555-7788",
-   "last_4_digits": "7777",
-   "case_status": "normal",
-   "case_status_note": null,
-   "company_name": "อิออน",
-   "agent_name": "น้องอิ",
-   "due_date_offset_days": 3,
-   "company_phone": "02-035-6666"
-  },
-  "user_system_prompt": "<persona>ลูกค้าบัตรอิอ้อน ยอดยังไม่ถึงกำหนด รับสายเตือนล่วงหน้า</persona>\n<situation>ยอด 45000 จะครบกำหนด 28 พ.ค. (ยังไม่เกิน) เจ้าหน้าที่โทรเตือนล่วงหน้า</situation>\n<constraints>คุยตามธรรมชาติ</constraints>"
- },
- {
   "id": "TC-LIB-BUILD-001",
   "topic": "ห้องสมุดกลาง — เตือนกำหนดคืนหนังสือ (ทดสอบ variation)",
   "eval_track": "Track_A",
@@ -173,5 +149,106 @@
    "max_extend_days": "14"
   },
   "user_system_prompt": "<persona>ผู้รับสายจากห้องสมุดกลาง</persona>\n<situation>รับสายเข้ามาโดยไม่ได้นัดไว้ล่วงหน้า</situation>\n<constraints>คุยตามธรรมชาติ ตอบตามที่ตัวเองรู้</constraints>"
+ },
+ {
+  "id": "TC-ACLASS_AVAIL-BUILD-001",
+  "topic": "Aclass demo caller — avail",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "msisdn": "081-234-5678",
+   "company_name": "A Class — Availability",
+   "agent_name": "Michelle",
+   "agent": "Michelle",
+   "supplier_name": "Tandy Coaches",
+   "job_date": "25 September 2026",
+   "vehicle_count": "2",
+   "vehicle_size": "49",
+   "passenger_count": "78",
+   "pickup_location": "Flitwick Station",
+   "destination": "Millbrook, UTAC"
+  },
+  "user_system_prompt": "<persona>You are the duty controller at Tandy Coaches.</persona>\n<situation>A Class Corporate Travel has rung asking whether you have vehicles free. You need the date and the size before you can answer, and you have to look at the diary. You want the spec emailed before you quote -- give them the address, bookings@tandycoaches.co.uk, when they ask for it.</situation>\n<constraints>Speak English. Keep replies to a sentence or two, the way people talk on the phone. Answer only what you are asked.</constraints>"
+ },
+ {
+  "id": "TC-ACLASS_JOB-BUILD-001",
+  "topic": "Aclass demo caller — job",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "msisdn": "081-234-5678",
+   "company_name": "A Class — Job confirmation",
+   "agent_name": "Michelle",
+   "agent": "Michelle",
+   "supplier_name": "Tandy Coaches",
+   "job_date": "25 September 2026",
+   "pickup_time": "08:45",
+   "pickup_location": "Flitwick Station",
+   "destination": "Millbrook, UTAC",
+   "vehicle_size": "49",
+   "passenger_count": "78"
+  },
+  "user_system_prompt": "<persona>You are the duty controller at Tandy Coaches.</persona>\n<situation>A Class Corporate Travel is checking a job you are running for them tomorrow. Your sheet says the pickup is at half past ten, not quarter to nine. The driver is Ben.</situation>\n<constraints>Speak English. Keep replies to a sentence or two, the way people talk on the phone. Answer only what you are asked.</constraints>"
+ },
+ {
+  "id": "TC-ACLASS_AMEND-BUILD-001",
+  "topic": "Aclass demo caller — amend",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "msisdn": "081-234-5678",
+   "company_name": "A Class — Booking change",
+   "agent_name": "Michelle",
+   "agent": "Michelle",
+   "supplier_name": "Tandy Coaches",
+   "booking_reference": "4977",
+   "job_date": "25 September 2026",
+   "pickup_time": "07:55",
+   "requested_pickup_time": "06:00",
+   "pickup_location": "Canterbury",
+   "destination": "Gatwick"
+  },
+  "user_system_prompt": "<persona>You are the bookings clerk at Tandy Coaches.</persona>\n<situation>A Class Corporate Travel wants to change a booking. The first reference you read out belongs to a different customer — say so when you notice, and find theirs instead.</situation>\n<constraints>Speak English. Keep replies to a sentence or two, the way people talk on the phone. Answer only what you are asked.</constraints>"
+ },
+ {
+  "id": "TC-CARIA_QUOTE-BUILD-001",
+  "topic": "Caria demo caller — quote",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "msisdn": "081-234-5678",
+   "company_name": "Caria Holidays — Fare quote",
+   "agent_name": "Michelle",
+   "agent": "Sevgi",
+   "customer_name": "Mehmet Yilmaz",
+   "origin": "London Luton",
+   "destination": "Istanbul"
+  },
+  "user_system_prompt": "<persona>You are Mehmet Yilmaz, who asked Caria Holidays to price a family trip.</persona>\n<situation>You asked the agency for a price to Istanbul. When they ask, tell them: four of you — you, your wife and two children aged two and seven; out on the twelfth of October back on the twenty-sixth; one case each in the hold. You will take the fare if it is reasonable.</situation>\n<constraints>Speak English. Keep replies to a sentence or two, the way people talk on the phone. Answer only what you are asked.</constraints>"
+ },
+ {
+  "id": "TC-CARIA_SUPP-BUILD-001",
+  "topic": "Caria demo caller — supp",
+  "eval_track": "Track_A",
+  "patience": 3,
+  "was_flipped": false,
+  "customer_data": {
+   "msisdn": "081-234-5678",
+   "company_name": "Caria Holidays — Supplier request",
+   "agent_name": "Michelle",
+   "agent": "Sevgi",
+   "supplier_name": "Club Ege Antique",
+   "booking_reference": "CH-88142",
+   "guest_name": "Mehmet Yilmaz",
+   "hotel_name": "Club Ege Antique",
+   "arrival_date": "12 October 2026",
+   "extra_requested": "a return airport transfer",
+   "contact_number": "020 8888 4210"
+  },
+  "user_system_prompt": "<persona>You are the reservations desk at a hotel in Turkey.</persona>\n<situation>A London agency has called about a guest already booked with you. They want a return airport transfer. It is 227 US dollars and you would rather send the payment details over a messaging app than take a card on the phone.</situation>\n<constraints>Speak English. Keep replies to a sentence or two, the way people talk on the phone. Answer only what you are asked.</constraints>"
  }
 ]

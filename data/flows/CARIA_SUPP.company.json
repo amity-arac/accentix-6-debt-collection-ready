@@ -1,0 +1,663 @@
+{
+ "flow_id": "CARIA-outbound-supplier",
+ "display_name": "Caria Holidays — Supplier request",
+ "agent_role": "outbound agent at a UK travel agency selling London-Turkey flights and hotel packages",
+ "goal": "identify -> name the booking -> ask for the extra -> take their price -> agree how to pay -> record the result",
+ "crm_fields": [
+  "today",
+  "agent",
+  "supplier_name",
+  "booking_reference",
+  "guest_name",
+  "hotel_name",
+  "arrival_date",
+  "extra_requested",
+  "contact_number"
+ ],
+ "session_init": {
+  "note": "Fired once when the call opens; the response IS the context, no mapping. Point AAX6_API_BASE somewhere else to move the endpoint -- do not edit the spec.",
+  "url": "{API_BASE}/CARIA_SUPP/init?msisdn={msisdn}",
+  "method": "GET",
+  "timeout": 8,
+  "desc": "returns the client's reservation with this supplier",
+  "on_failure": {
+   "fine_state": "apology_close",
+   "outcome": {
+    "args": {
+     "status": "unreachable",
+     "extra_price": "no record returned at call start"
+    }
+   }
+  }
+ },
+ "events": {
+  "reaches_person": {
+   "desc": "someone who can see the reservation answers",
+   "cues": [
+    "Reservations, how can I help?",
+    "Yes, go ahead",
+    "Speaking"
+   ]
+  },
+  "booking_found": {
+   "desc": "they have the reservation",
+   "cues": [
+    "Yes, I have the booking",
+    "I can see that",
+    "Arriving on the ninth, yes"
+   ]
+  },
+  "booking_not_found": {
+   "desc": "nothing under that reference",
+   "cues": [
+    "I don't have that reference",
+    "Nothing under that name",
+    "Which agency did you book through?"
+   ]
+  },
+  "quotes_price": {
+   "desc": "they name a price for the extra",
+   "cues": [
+    "That's two hundred and twenty-seven dollars",
+    "It's forty euros each way",
+    "Thirty pounds per night"
+   ]
+  },
+  "unavailable": {
+   "desc": "they cannot provide it",
+   "cues": [
+    "We don't do transfers",
+    "Fully booked that night",
+    "Not at that time, I'm afraid"
+   ]
+  },
+  "sends_link": {
+   "desc": "they will send a payment link",
+   "cues": [
+    "I'll send you a link",
+    "You can pay online",
+    "I'll email the payment page"
+   ]
+  },
+  "wants_messaging": {
+   "desc": "they want to settle it over a messaging app instead",
+   "cues": [
+    "Give me your WhatsApp number",
+    "I'll send the details on WhatsApp",
+    "What's the best number for you?"
+   ]
+  },
+  "no_input": {
+   "desc": "silence or unintelligible",
+   "cues": [
+    "...",
+    "(silence)",
+    "Hello? Hello?",
+    "[line noise]",
+    "hold music"
+   ]
+  },
+  "faq": {
+   "desc": "interruption answered from faq_routing, then resume",
+   "intents": [
+    "caller",
+    "bot",
+    "repeat"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "No identity check. The price and the payment channel are both the supplier's to state; neither is ours to assume."
+  ],
+  "declarations": [
+   {
+    "name": "lookup_booking",
+    "impl": "http",
+    "desc": "Our copy of the client's reservation with this supplier: reference, guest name, hotel, arrival. Call before naming the booking.",
+    "args": {
+     "booking_reference": {
+      "type": "string",
+      "desc": "our reference: {booking_reference}"
+     }
+    },
+    "gating": {
+     "required_before_state": "name_booking"
+    },
+    "url": "{API_BASE}/CARIA_SUPP/lookup_booking",
+    "method": "POST"
+   },
+   {
+    "name": "record_supplier_request",
+    "impl": "http",
+    "desc": "Record the arrangement and how it is to be paid. Called once, before the closing line.",
+    "args": {
+     "status": {
+      "type": "string",
+      "desc": "how the call ended",
+      "enum": [
+       "arranged",
+       "unavailable",
+       "no_record",
+       "unreachable"
+      ]
+     },
+     "extra_price": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "the price the supplier quoted, in their currency, as they said it"
+     },
+     "payment_channel": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "how it will be paid — a link, or a messaging app and the number given"
+     },
+     "note": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "anything attached to the arrangement"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/CARIA_SUPP/record_supplier_request",
+    "method": "POST"
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet_identify",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_identify"
+    }
+   ],
+   "note": "Name yourself and the agency. These suppliers take bookings from many agencies, so say which one.",
+   "on": [
+    {
+     "event": "reaches_person",
+     "to": "name_booking"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "name_booking",
+   "phase": "main",
+   "entry_tools": [
+    "lookup_booking"
+   ],
+   "templates": [
+    {
+     "fine_state": "name_booking"
+    }
+   ],
+   "note": "Give the reference, the guest and the arrival date from lookup_booking.",
+   "on": [
+    {
+     "event": "booking_found",
+     "to": "ask_extra"
+    },
+    {
+     "event": "booking_not_found",
+     "to": "close_no_record"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "ask_extra",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_extra"
+    }
+   ],
+   "note": "Ask for the extra the client wants and what it costs.",
+   "on": [
+    {
+     "event": "quotes_price",
+     "to": "arrange_payment"
+    },
+    {
+     "event": "unavailable",
+     "to": "close_unavailable"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "arrange_payment",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "read_back_price"
+    }
+   ],
+   "note": "Read the price and the currency back, then settle how it is paid. The supplier decides the channel; take the number or the link they offer.",
+   "on": [
+    {
+     "event": "sends_link",
+     "to": "close_arranged"
+    },
+    {
+     "event": "wants_messaging",
+     "to": "give_number"
+    },
+    {
+     "event": "unavailable",
+     "to": "close_unavailable"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "give_number",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "give_contact"
+    }
+   ],
+   "note": "Give the office contact number and read it back digit by digit.",
+   "on": [
+    {
+     "event": "sends_link",
+     "to": "close_arranged"
+    },
+    {
+     "event": "wants_messaging",
+     "to": "close_arranged"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "close_arranged",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "arranged",
+    "reasons": [
+     "agreed"
+    ]
+   },
+   "note": "Record the price the supplier quoted and the channel they chose, in their words — neither is held anywhere before this call.",
+   "templates": [
+    {
+     "fine_state": "thank_arranged"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_supplier_request"
+   ]
+  },
+  {
+   "id": "close_unavailable",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "unavailable",
+    "reasons": [
+     "cannot_provide"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_unavailable"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_supplier_request"
+   ]
+  },
+  {
+   "id": "close_no_record",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "no_record",
+    "reasons": [
+     "reference_not_found"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "flag_no_record"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_supplier_request"
+   ]
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "no_input"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "apology_close"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_supplier_request"
+   ]
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "who is calling",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Who is this?",
+     "Sorry, who's calling?",
+     "Which agency is this?",
+     "What's this about?"
+    ]
+   },
+   {
+    "intent": "bot",
+    "desc": "person or machine",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Are you a real person?",
+     "Is this a recording?",
+     "Am I speaking to a machine?"
+    ]
+   },
+   {
+    "intent": "repeat",
+    "desc": "could not hear",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Sorry?",
+     "Say that again?",
+     "Can you repeat that?",
+     "Hello? Hello?",
+     "The line is bad"
+    ]
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "rule_identify_first",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Name yourself and Caria Holidays — the supplier deals with many agencies."
+  },
+  {
+   "id": "price_is_theirs",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "The price and its currency are the supplier's to state. Read them back before agreeing; do not convert and do not round."
+  },
+  {
+   "id": "channel_is_theirs",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "How payment happens is the supplier's choice. Record the channel they name rather than offering ours."
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Only repeat yourself when the line went quiet."
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "One template is one turn."
+  }
+ ],
+ "auxiliary_templates": {
+  "allowed": [
+   {
+    "fine_state": "ack_hold"
+   },
+   {
+    "fine_state": "faq_caller"
+   },
+   {
+    "fine_state": "ai_disclosure"
+   },
+   {
+    "fine_state": "faq_repeat"
+   }
+  ]
+ },
+ "catalog": [
+  {
+   "company": "CARIA",
+   "text_id": 10200,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Hello, it's [agent] calling from Caria Holidays in London. I've got a client booked with you.",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10203,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Good morning, it's [agent] from Caria Holidays in London.",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10208,
+   "intent_name": "name_booking",
+   "state": "middle",
+   "template": "It's [guest_name], arriving [arrival_date] — reference [booking_reference]. Have you got that one?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "name_booking"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10212,
+   "intent_name": "ask_extra",
+   "state": "middle",
+   "template": "They'd like [extra_requested]. Could you arrange that, and what would it come to?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_extra"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10219,
+   "intent_name": "read_back_price",
+   "state": "middle",
+   "template": "Right — [extra_price] for [extra_requested]. How would you like us to pay?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "read_back_price",
+   "hint": "send extra_price in dynamic_vars, in the supplier's own words and currency — no price is held anywhere before this call"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10222,
+   "intent_name": "give_contact",
+   "state": "middle",
+   "template": "Of course — it's [contact_number]. Have you got that alright?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "give_contact"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10228,
+   "intent_name": "thank_arranged",
+   "state": "close",
+   "template": "That's great, thank you very much. We'll look out for it. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_arranged"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10231,
+   "intent_name": "thank_unavailable",
+   "state": "close",
+   "template": "No problem at all, thanks for checking. I'll let the client know. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_unavailable"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10236,
+   "intent_name": "flag_no_record",
+   "state": "close",
+   "template": "That's strange, we have it our end. I'll check the reference and ring you back. Thank you. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "flag_no_record"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10240,
+   "intent_name": "apology_close",
+   "state": "close",
+   "template": "Sorry, I can't hear you. I'll try you again later. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "apology_close"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10247,
+   "intent_name": "faq_caller",
+   "state": "middle",
+   "template": "It's [agent] at Caria Holidays, about a client we've booked in with you.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_caller"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10250,
+   "intent_name": "ai_disclosure",
+   "state": "middle",
+   "template": "I'm an automated assistant calling for Caria Holidays.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ai_disclosure"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10256,
+   "intent_name": "faq_repeat",
+   "state": "middle",
+   "template": "Course, let me go through that again.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_repeat"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 10259,
+   "intent_name": "ack_hold",
+   "state": "middle",
+   "template": "No problem, I'll hold.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ack_hold"
+  }
+ ],
+ "spec_version": 2,
+ "company": "CARIA_SUPP"
+}

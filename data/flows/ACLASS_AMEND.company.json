@@ -1,0 +1,731 @@
+{
+ "flow_id": "ACLASS-outbound-amend",
+ "display_name": "A Class — Booking change",
+ "agent_role": "outbound operator at a UK coach and minibus hire company",
+ "goal": "identify -> retrieve by reference -> have the record read back -> request the change -> get it confirmed -> record the result",
+ "crm_fields": [
+  "today",
+  "agent",
+  "supplier_name",
+  "booking_reference",
+  "job_date",
+  "pickup_time",
+  "requested_pickup_time",
+  "pickup_location",
+  "destination"
+ ],
+ "session_init": {
+  "note": "Fired once when the call opens; the response IS the context, no mapping. Point AAX6_API_BASE somewhere else to move the endpoint -- do not edit the spec.",
+  "url": "{API_BASE}/ACLASS_AMEND/init?msisdn={msisdn}",
+  "method": "GET",
+  "timeout": 8,
+  "desc": "returns the booking we hold with this supplier",
+  "on_failure": {
+   "fine_state": "apology_close",
+   "outcome": {
+    "args": {
+     "status": "unreachable",
+     "note": "no record returned at call start"
+    }
+   }
+  }
+ },
+ "events": {
+  "reaches_person": {
+   "desc": "somebody who can see the booking is on the line",
+   "cues": [
+    "Good day, how can I help?",
+    "Speaking",
+    "Yeah, go ahead"
+   ]
+  },
+  "record_found": {
+   "desc": "they read the booking back",
+   "cues": [
+    "Oh, okay. It is reference four nine double seven.",
+    "It is, um, three, five, nine, three, five, eight.",
+    "Yeah, I've got it",
+    "Booked in for the fourth, yeah"
+   ]
+  },
+  "no_record": {
+   "desc": "nothing held against that reference or date",
+   "cues": [
+    "No reference here",
+    "I haven't got anything for that date",
+    "There's nothing booked in",
+    "That's not showing at all"
+   ]
+  },
+  "wrong_record": {
+   "desc": "the record read back belongs to someone else",
+   "cues": [
+    "Oh, no way. Sorry, that's the wrong one.",
+    "No, that's the wrong one",
+    "Sorry, that's a different customer",
+    "Hold on, that's not yours"
+   ]
+  },
+  "record_agreed": {
+   "desc": "the record read back is the right one",
+   "cues": [
+    "Yes, that's the one",
+    "That's it, yeah",
+    "Yes, that's right"
+   ]
+  },
+  "change_accepted": {
+   "desc": "they will make the change",
+   "cues": [
+    "That will not be a problem at all",
+    "No problem at all.",
+    "Yep, that's fine.",
+    "I'll amend that and send the booking confirmation"
+   ]
+  },
+  "change_refused": {
+   "desc": "the change cannot be made",
+   "cues": [
+    "It's too late for that now",
+    "The driver's already been given it",
+    "We can't change it this close",
+    "That's already gone out"
+   ]
+  },
+  "confirmation_promised": {
+   "desc": "they will send written confirmation of the change",
+   "cues": [
+    "I'll send the booking confirmation",
+    "You'll get an email through",
+    "I'll email that over"
+   ]
+  },
+  "no_input": {
+   "desc": "silence or unintelligible",
+   "cues": [
+    "...",
+    "(silence)",
+    "Hello? Hello?",
+    "[line noise]",
+    "music playing"
+   ]
+  },
+  "faq": {
+   "desc": "interruption answered from faq_routing, then resume",
+   "intents": [
+    "caller",
+    "bot",
+    "repeat"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "No identity verification. amend_booking must never be called before the supplier has read a record back and it has been agreed to be ours -- the read-back is the only thing standing between a change and someone else's booking."
+  ],
+  "declarations": [
+   {
+    "name": "lookup_booking",
+    "impl": "http",
+    "desc": "Fetch the booking we hold with this supplier: reference, date, current pickup time, route. Call before asking them for anything.",
+    "args": {
+     "booking_reference": {
+      "type": "string",
+      "optional": true,
+      "desc": "our reference, when we have one: {booking_reference}"
+     },
+     "job_date": {
+      "type": "string",
+      "desc": "date of the job from CRM: {job_date}"
+     }
+    },
+    "gating": {
+     "required_before_state": "readback"
+    },
+    "url": "{API_BASE}/ACLASS_AMEND/lookup_booking",
+    "method": "POST"
+   },
+   {
+    "name": "amend_booking",
+    "impl": "http",
+    "desc": "Apply the agreed change to the booking. Only after the supplier has read the record back and it was agreed to be ours.",
+    "args": {
+     "booking_reference": {
+      "type": "string",
+      "desc": "the reference the supplier read back"
+     },
+     "field": {
+      "type": "string",
+      "desc": "which field is changing",
+      "enum": [
+       "pickup_time",
+       "pickup_location",
+       "destination",
+       "job_date",
+       "vehicle_size"
+      ]
+     },
+     "new_value": {
+      "type": "string",
+      "data": true,
+      "desc": "the new value, as it was agreed on the call"
+     }
+    },
+    "gating": {
+     "after_event": "record_agreed",
+     "requires_prior": "lookup_booking",
+     "note": "never before the record has been read back and agreed"
+    },
+    "url": "{API_BASE}/ACLASS_AMEND/amend_booking",
+    "method": "POST"
+   },
+   {
+    "name": "record_amendment",
+    "impl": "http",
+    "desc": "Record how the call ended. Always called once, before the closing line.",
+    "args": {
+     "status": {
+      "type": "string",
+      "desc": "how the call ended",
+      "enum": [
+       "amended",
+       "declined",
+       "no_record",
+       "unreachable"
+      ]
+     },
+     "note": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "the supplier's own words for the outcome"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1
+    },
+    "url": "{API_BASE}/ACLASS_AMEND/record_amendment",
+    "method": "POST"
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet_identify",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_identify"
+    }
+   ],
+   "note": "Name yourself and the company, and say you need to change a booking.",
+   "on": [
+    {
+     "event": "reaches_person",
+     "to": "retrieve_ref"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "retrieve_ref",
+   "phase": "main",
+   "entry_tools": [
+    "lookup_booking"
+   ],
+   "templates": [
+    {
+     "fine_state": "ask_what_is_booked"
+    }
+   ],
+   "note": "Ask what they have booked in for the date, or quote our reference. Let THEM read the record; do not read ours out first.",
+   "on": [
+    {
+     "event": "record_found",
+     "to": "readback"
+    },
+    {
+     "event": "no_record",
+     "to": "close_no_record"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "readback",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "check_record_is_ours"
+    }
+   ],
+   "note": "Check the record they read out is ours before asking for anything. If it turns out to belong to another customer, go back and retrieve again.",
+   "on": [
+    {
+     "event": "record_agreed",
+     "to": "request_change"
+    },
+    {
+     "event": "wrong_record",
+     "to": "retrieve_ref"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "request_change",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_change"
+    }
+   ],
+   "note": "State the current value and the value you want, one change at a time.",
+   "on": [
+    {
+     "event": "change_accepted",
+     "tools": [
+      "amend_booking"
+     ],
+     "to": "apply_change"
+    },
+    {
+     "event": "change_refused",
+     "to": "close_declined"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "apply_change",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "confirm_new_value"
+    }
+   ],
+   "note": "Read the new value back so it is agreed, and ask for written confirmation.",
+   "on": [
+    {
+     "event": "confirmation_promised",
+     "to": "close_amended"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "close_amended",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "record_amendment"
+   ],
+   "outcome": {
+    "result": "amended",
+    "reasons": [
+     "amended"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_amended"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_declined",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "record_amendment"
+   ],
+   "outcome": {
+    "result": "declined",
+    "reasons": [
+     "too_late"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "ack_declined"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_no_record",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "record_amendment"
+   ],
+   "outcome": {
+    "result": "no_record",
+    "reasons": [
+     "nothing_held"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "flag_no_record"
+    }
+   ],
+   "on": []
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "terminal": true,
+   "entry_tools": [
+    "record_amendment"
+   ],
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "no_input"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "apology_close"
+    }
+   ],
+   "on": []
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "who is calling / what is this about",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Who is this?",
+     "Sorry, who's calling?",
+     "Where are you calling from?",
+     "What's this regarding?",
+     "Who is it?"
+    ]
+   },
+   {
+    "intent": "bot",
+    "desc": "are you a person or a machine",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Are you a real person?",
+     "Is this a recording?",
+     "Am I speaking to a machine?",
+     "You sound like a robot"
+    ]
+   },
+   {
+    "intent": "repeat",
+    "desc": "could not hear, asks for a repeat",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Sorry?",
+     "Say that again?",
+     "Can you repeat that?",
+     "Hello? Hello?",
+     "You're breaking up"
+    ]
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "rule_identify_first",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Name yourself and A Class Corporate Travel before asking about a booking."
+  },
+  {
+   "id": "wrong_record_restarts",
+   "type": "immediate_transition_on",
+   "event": "wrong_record",
+   "to": "retrieve_ref",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "If the record read back is somebody else's, go back and retrieve again. Do not ask for a change against it, and do not carry any of its values forward."
+  },
+  {
+   "id": "one_change_at_a_time",
+   "type": "max_occurrences",
+   "counts": "change_request",
+   "max": 1,
+   "on_exceed": {
+    "to": "close_declined"
+   },
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "One field per call. A second change needs its own confirmation and is raised separately."
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Only repeat yourself when the line went quiet."
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "One template is one turn."
+  }
+ ],
+ "auxiliary_templates": {
+  "allowed": [
+   {
+    "fine_state": "ack_hold"
+   },
+   {
+    "fine_state": "faq_caller"
+   },
+   {
+    "fine_state": "ai_disclosure"
+   },
+   {
+    "fine_state": "faq_repeat"
+   }
+  ]
+ },
+ "catalog": [
+  {
+   "company": "ACLASS",
+   "text_id": 9600,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Hello, it's [agent] from A Class Corporate Travel. I need to change something on a booking, if that's alright.",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9603,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Hiya, [agent] at A Class Corporate Travel here. Bit of a random one for you.",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9608,
+   "intent_name": "ask_what_is_booked",
+   "state": "middle",
+   "template": "What have I got booked in with you for [job_date]?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_what_is_booked"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9612,
+   "intent_name": "ask_what_is_booked",
+   "state": "middle",
+   "template": "Sorry, let's go again. What else have you got down for [job_date]?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_what_is_booked"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9619,
+   "intent_name": "check_record_is_ours",
+   "state": "middle",
+   "template": "That's [booking_reference], [pickup_location] to [destination]. Is that the one that's ours?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "check_record_is_ours"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9622,
+   "intent_name": "check_record_is_ours",
+   "state": "middle",
+   "template": "And that one's [pickup_location] to [destination]. Is that ours?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "check_record_is_ours"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9628,
+   "intent_name": "ask_change",
+   "state": "middle",
+   "template": "It's in for [pickup_time] at the moment. Could I move that to [requested_pickup_time]?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_change"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9631,
+   "intent_name": "confirm_new_value",
+   "state": "middle",
+   "template": "[requested_pickup_time] then, on [booking_reference]. Could you send the confirmation through?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "confirm_new_value"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9636,
+   "intent_name": "thank_amended",
+   "state": "close",
+   "template": "Perfect, thank you very much for sorting that. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_amended"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9640,
+   "intent_name": "ack_declined",
+   "state": "close",
+   "template": "No problem, I understand. I'll leave it as it is and let the customer know. Thanks very much. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "ack_declined"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9647,
+   "intent_name": "flag_no_record",
+   "state": "close",
+   "template": "That's odd, we've got it down our end. I'll check it here and ring you straight back. Thanks. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "flag_no_record"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9650,
+   "intent_name": "apology_close",
+   "state": "close",
+   "template": "Sorry, I can't hear you there. I'll try you again another time. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "apology_close"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9656,
+   "intent_name": "faq_caller",
+   "state": "middle",
+   "template": "It's [agent] at A Class Corporate Travel, about a booking we've got with you.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_caller"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9659,
+   "intent_name": "ai_disclosure",
+   "state": "middle",
+   "template": "I'm an automated assistant calling for A Class Corporate Travel.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ai_disclosure"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9664,
+   "intent_name": "faq_repeat",
+   "state": "middle",
+   "template": "Course, let me go through that again.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_repeat"
+  },
+  {
+   "company": "ACLASS",
+   "text_id": 9668,
+   "intent_name": "ack_hold",
+   "state": "middle",
+   "template": "No problem, take your time.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ack_hold"
+  }
+ ],
+ "spec_version": 2,
+ "company": "ACLASS_AMEND"
+}

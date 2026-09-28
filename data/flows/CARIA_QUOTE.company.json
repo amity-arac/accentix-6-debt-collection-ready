@@ -1,0 +1,685 @@
+{
+ "flow_id": "CARIA-outbound-quote",
+ "display_name": "Caria Holidays — Fare quote",
+ "agent_role": "outbound agent at a UK travel agency selling London-Turkey flights and hotel packages",
+ "goal": "identify -> party -> route and dates -> baggage -> quote the fare -> record what they decided",
+ "crm_fields": [
+  "today",
+  "agent",
+  "customer_name",
+  "origin",
+  "destination"
+ ],
+ "session_init": {
+  "note": "Fired once when the call opens; the response IS the context, no mapping. Point AAX6_API_BASE somewhere else to move the endpoint -- do not edit the spec.",
+  "url": "{API_BASE}/CARIA_QUOTE/init?msisdn={msisdn}",
+  "method": "GET",
+  "timeout": 8,
+  "desc": "returns the enquiry this call is returning, and the party on it",
+  "on_failure": {
+   "fine_state": "apology_close",
+   "outcome": {
+    "args": {
+     "status": "unreachable",
+     "fare": "no record returned at call start"
+    }
+   }
+  }
+ },
+ "events": {
+  "reaches_person": {
+   "desc": "the customer is on the line",
+   "cues": [
+    "Speaking",
+    "Yes, that's me",
+    "Hello, yes"
+   ]
+  },
+  "gives_party": {
+   "desc": "says how many are travelling, and the children's ages",
+   "cues": [
+    "Four of us",
+    "Two adults and two children",
+    "One is two years old, the other is seven",
+    "Just me"
+   ]
+  },
+  "gives_route": {
+   "desc": "gives where from, where to and when",
+   "cues": [
+    "London to Istanbul",
+    "Out on the twenty-second",
+    "Coming back after three weeks",
+    "One way only"
+   ]
+  },
+  "gives_baggage": {
+   "desc": "says how much hold baggage is needed",
+   "cues": [
+    "One case each",
+    "Just hand luggage",
+    "Two bags in the hold"
+   ]
+  },
+  "accepts_quote": {
+   "desc": "takes the fare",
+   "cues": [
+    "That's fine, book it",
+    "Yes, go ahead",
+    "Alright, do it"
+   ]
+  },
+  "wants_to_think": {
+   "desc": "will come back to us",
+   "cues": [
+    "Let me speak to my wife",
+    "I'll call you back",
+    "Let me think about it"
+   ]
+  },
+  "too_expensive": {
+   "desc": "the fare is refused on price",
+   "cues": [
+    "That's too much",
+    "Can you do better?",
+    "I've seen it cheaper"
+   ]
+  },
+  "no_input": {
+   "desc": "silence or unintelligible",
+   "cues": [
+    "...",
+    "(silence)",
+    "Hello? Hello?",
+    "[line noise]",
+    "hold music"
+   ]
+  },
+  "faq": {
+   "desc": "interruption answered from faq_routing, then resume",
+   "intents": [
+    "caller",
+    "bot",
+    "repeat"
+   ]
+  }
+ },
+ "tools": {
+  "require_kyc": false,
+  "notes": [
+   "No identity check. The fare must come from price_search -- a quoted price the agent invented is the one error this call cannot survive."
+  ],
+  "declarations": [
+   {
+    "name": "price_search",
+    "impl": "http",
+    "desc": "Search fares for the route, dates, party and baggage collected so far. Returns the airline and the total. Call before quoting.",
+    "args": {
+     "origin": {
+      "type": "string",
+      "desc": "departure city"
+     },
+     "destination": {
+      "type": "string",
+      "desc": "arrival city"
+     },
+     "depart_date": {
+      "type": "string",
+      "desc": "outbound date as said"
+     },
+     "party": {
+      "type": "string",
+      "data": true,
+      "desc": "who is travelling, in the customer's own words, INCLUDING the children's ages (\"two adults and two children, aged two and seven\") -- infant and child fares differ, so the ages change the price"
+     },
+     "baggage": {
+      "type": "string",
+      "data": true,
+      "desc": "hold baggage as the customer described it"
+     }
+    },
+    "gating": {
+     "required_before_state": "quote_fare",
+     "note": "never quote a fare this tool did not return"
+    },
+    "response": {
+     "airline": "Pegasus",
+     "fare": "GBP 742.00"
+    },
+    "url": "{API_BASE}/CARIA_QUOTE/price_search",
+    "method": "POST"
+   },
+   {
+    "name": "record_quote",
+    "impl": "http",
+    "desc": "Record what the customer decided. Called once, before closing.",
+    "args": {
+     "status": {
+      "type": "string",
+      "desc": "how the call ended",
+      "enum": [
+       "booked",
+       "considering",
+       "declined",
+       "unreachable"
+      ]
+     },
+     "fare": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "the fare quoted, as price_search returned it"
+     },
+     "note": {
+      "type": "string",
+      "optional": true,
+      "data": true,
+      "desc": "the customer's own words for the outcome"
+     }
+    },
+    "gating": {
+     "required_at": "end_of_call",
+     "max_successful_calls": 1,
+     "requires_prior": "price_search"
+    },
+    "url": "{API_BASE}/CARIA_QUOTE/record_quote",
+    "method": "POST"
+   }
+  ]
+ },
+ "states": [
+  {
+   "id": "greet_identify",
+   "phase": "opening",
+   "initial": true,
+   "templates": [
+    {
+     "fine_state": "greet_identify"
+    }
+   ],
+   "note": "Name yourself and the agency and say which enquiry this is about.",
+   "on": [
+    {
+     "event": "reaches_person",
+     "to": "ask_party"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "ask_party",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_party"
+    }
+   ],
+   "note": "How many adults, how many children, and the children's AGES. The ages are not small talk -- infant and child fares differ, and a quote given without them is wrong.",
+   "on": [
+    {
+     "event": "gives_party",
+     "to": "ask_route"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "ask_route",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_route"
+    }
+   ],
+   "note": "Where from, where to, out and back.",
+   "on": [
+    {
+     "event": "gives_route",
+     "to": "ask_baggage"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "ask_baggage",
+   "phase": "main",
+   "templates": [
+    {
+     "fine_state": "ask_baggage"
+    }
+   ],
+   "note": "Hold baggage changes the fare on the carriers this agency sells.",
+   "on": [
+    {
+     "event": "gives_baggage",
+     "to": "quote_fare"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "quote_fare",
+   "phase": "main",
+   "entry_tools": [
+    "price_search"
+   ],
+   "templates": [
+    {
+     "fine_state": "quote_fare"
+    }
+   ],
+   "note": "Quote the airline and the total that price_search returned, and nothing else.",
+   "on": [
+    {
+     "event": "accepts_quote",
+     "to": "close_booked"
+    },
+    {
+     "event": "wants_to_think",
+     "to": "close_considering"
+    },
+    {
+     "event": "too_expensive",
+     "to": "close_declined"
+    },
+    {
+     "event": "no_input",
+     "to": "close_unreachable"
+    }
+   ]
+  },
+  {
+   "id": "close_booked",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "booked",
+    "reasons": [
+     "accepted"
+    ]
+   },
+   "note": "They took the fare. File it with the fare price_search returned.",
+   "templates": [
+    {
+     "fine_state": "thank_booked"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_quote"
+   ]
+  },
+  {
+   "id": "close_considering",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "considering",
+    "reasons": [
+     "will_come_back"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_considering"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_quote"
+   ]
+  },
+  {
+   "id": "close_declined",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "declined",
+    "reasons": [
+     "price"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "thank_declined"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_quote"
+   ]
+  },
+  {
+   "id": "close_unreachable",
+   "phase": "close",
+   "terminal": true,
+   "outcome": {
+    "result": "unreachable",
+    "reasons": [
+     "no_input"
+    ]
+   },
+   "templates": [
+    {
+     "fine_state": "apology_close"
+    }
+   ],
+   "on": [],
+   "entry_tools": [
+    "record_quote"
+   ]
+  }
+ ],
+ "faq_routing": {
+  "routes": [
+   {
+    "intent": "caller",
+    "desc": "who is calling",
+    "templates": [
+     {
+      "fine_state": "faq_caller"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Who is this?",
+     "Sorry, who's calling?",
+     "Which agency is this?",
+     "What's this about?"
+    ]
+   },
+   {
+    "intent": "bot",
+    "desc": "person or machine",
+    "templates": [
+     {
+      "fine_state": "ai_disclosure"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Are you a real person?",
+     "Is this a recording?",
+     "Am I speaking to a machine?"
+    ]
+   },
+   {
+    "intent": "repeat",
+    "desc": "could not hear",
+    "templates": [
+     {
+      "fine_state": "faq_repeat"
+     }
+    ],
+    "then": "resume",
+    "cues": [
+     "Sorry?",
+     "Say that again?",
+     "Can you repeat that?",
+     "Hello? Hello?",
+     "The line is bad"
+    ]
+   }
+  ]
+ },
+ "constraints": [
+  {
+   "id": "rule_identify_first",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Name yourself and Caria Holidays before anything else."
+  },
+  {
+   "id": "no_fare_before_search",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "The airline and the fare are not known before the call: they arrive as price_search's answer. Nothing in the CRM snapshot carries a price."
+  },
+  {
+   "id": "ages_before_quote",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "The party, the dates and the baggage are what the customer says on this call, and they are what price_search is called with. Children's ages in particular change the fare, so a search sent without them prices the wrong ticket."
+  },
+  {
+   "id": "quote_before_result",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "`booked`, `considering` and `declined` are the customer's decisions. Say the fare and ask, then record what they answered -- a result filed without quoting is a decision nobody made."
+  },
+  {
+   "id": "quote_once",
+   "type": "once_per_call",
+   "template_fine_states": [
+    "quote_fare"
+   ],
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Quote once. If they ask again, answer the question."
+  },
+  {
+   "id": "repeat_only_on_no_input",
+   "type": "repeat_only_on",
+   "event": "no_input",
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "Only repeat yourself when the line went quiet."
+  },
+  {
+   "id": "one_template_per_turn",
+   "type": "max_templates_per_reply",
+   "max": 1,
+   "enforce": [
+    "prompt"
+   ],
+   "desc": "One template is one turn."
+  }
+ ],
+ "auxiliary_templates": {
+  "allowed": [
+   {
+    "fine_state": "ack_hold"
+   },
+   {
+    "fine_state": "faq_caller"
+   },
+   {
+    "fine_state": "ai_disclosure"
+   },
+   {
+    "fine_state": "faq_repeat"
+   }
+  ]
+ },
+ "catalog": [
+  {
+   "company": "CARIA",
+   "text_id": 9800,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Hello [customer_name], it's [agent] from Caria Holidays — about the trip you asked us to price.",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9803,
+   "intent_name": "greet_identify",
+   "state": "opening",
+   "template": "Good morning, it's [agent] at Caria Holidays. Is that [customer_name]?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "greet_identify"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9808,
+   "intent_name": "ask_party",
+   "state": "middle",
+   "template": "How many of you are travelling? And are there any children — if so, how old are they?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_party"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9812,
+   "intent_name": "ask_route",
+   "state": "middle",
+   "template": "And that's [origin] to [destination] — which dates were you looking at?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_route"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9819,
+   "intent_name": "ask_baggage",
+   "state": "middle",
+   "template": "How much luggage will you be putting in the hold?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "ask_baggage"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9822,
+   "intent_name": "quote_fare",
+   "state": "middle",
+   "template": "Right — [party], [origin] to [destination] on [depart_date], with [baggage]. The best I've got is [airline] at [fare]. Shall I hold that for you?",
+   "is_closer": false,
+   "is_demand": true,
+   "is_acknowledgment": false,
+   "expects_response": true,
+   "_fine_state": "quote_fare",
+   "hint": "read the booking back before the price — send party, depart_date and baggage in dynamic_vars exactly as the customer said them; airline and fare come from price_search, not from you"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9828,
+   "intent_name": "thank_booked",
+   "state": "close",
+   "template": "Lovely, I'll get that issued and send the tickets over. Thanks very much. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_booked"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9831,
+   "intent_name": "thank_considering",
+   "state": "close",
+   "template": "No problem at all — the fare can move, so let me know as soon as you can. Thanks. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_considering"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9836,
+   "intent_name": "thank_declined",
+   "state": "close",
+   "template": "I understand. I'll keep an eye out and ring you if anything better comes up. Thanks. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "thank_declined"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9840,
+   "intent_name": "apology_close",
+   "state": "close",
+   "template": "Sorry, I can't hear you. I'll try you again later. Bye.",
+   "is_closer": true,
+   "is_demand": false,
+   "is_acknowledgment": false,
+   "expects_response": false,
+   "_fine_state": "apology_close"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9847,
+   "intent_name": "faq_caller",
+   "state": "middle",
+   "template": "It's [agent] at Caria Holidays, about the fare you asked us for.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_caller"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9850,
+   "intent_name": "ai_disclosure",
+   "state": "middle",
+   "template": "I'm an automated assistant calling for Caria Holidays.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ai_disclosure"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9856,
+   "intent_name": "faq_repeat",
+   "state": "middle",
+   "template": "Course, let me go through that again.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "faq_repeat"
+  },
+  {
+   "company": "CARIA",
+   "text_id": 9859,
+   "intent_name": "ack_hold",
+   "state": "middle",
+   "template": "No problem, I'll hold.",
+   "is_closer": false,
+   "is_demand": false,
+   "is_acknowledgment": true,
+   "expects_response": true,
+   "_fine_state": "ack_hold"
+  }
+ ],
+ "spec_version": 2,
+ "company": "CARIA_QUOTE"
+}
