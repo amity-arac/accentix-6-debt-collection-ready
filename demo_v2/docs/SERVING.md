@@ -87,18 +87,43 @@ git lfs pull
 
 ไม่ทำขั้นนี้จะได้ไฟล์ตัวชี้ขนาดไม่กี่ร้อยไบต์ แล้ว vLLM ล้มตอนโหลด
 
-## 3.1 · checkpoint เต็ม (ส่งมอบแยกจาก repo)
+## 3.1 · checkpoint เต็ม — จาก Hugging Face
 
-น้ำหนักไม่ได้อยู่ใน git เพราะขนาดเกินไป — โอนแยกทางที่ตกลงกัน · **ตรวจความครบก่อนใช้เสมอ**
+น้ำหนักไม่ได้อยู่ใน git เพราะขนาดเกินไป · อยู่ที่ **`amityco/aax6`** ซึ่งเป็น repo **private**
+⇒ ต้องมี token ที่มีสิทธิ์อ่าน org `amityco` ก่อน
+
+| ไดเรกทอรีใน repo | ขนาด | คืออะไร |
+| --- | --- | --- |
+| `models/sft9b_w4a16/` | 8.6 GB | 9B W4A16 — **ตัวที่ควรใช้** เสิร์ฟตรงได้ ไม่ต้องหา base |
+| `models/sft27b_w4a16/` | 18.6 GB | 27B W4A16 — อ่านคำเตือนใน README ของ repo ก่อนใช้ |
+| `adapter_9b_sftv3/` · `adapter_27b/` | 205 MB · 499 MB | LoRA ต้นทางของสองตัวบน → ข้อ 3.2 |
 
 ```bash
-sha256sum -c checksums.txt          # หรือเทียบกับต้นทางทีละไฟล์
-du -sh <dir>                        # ต้องใกล้เคียงกับที่ต้นทางแจ้ง
+export HF_TOKEN=hf_xxx                  # token ที่อ่าน amityco ได้
+export HF_HOME=/workspace/hf            # ให้แคชอยู่บนดิสก์ที่มีที่ว่างพอ
+/workspace/aax6/env/bin/python -c "from huggingface_hub import snapshot_download; \
+    snapshot_download('amityco/aax6', allow_patterns='models/sft9b_w4a16/*', \
+                      local_dir='/workspace/models', max_workers=8)"
 ```
+
+ได้ `/workspace/models/models/sft9b_w4a16/` ⇒ ใช้ path นี้เป็น `MODEL` ในข้อ 4 ได้เลย
+(W4A16 ทำคะแนน gold-43 เท่ากับ bf16 ของตัวเองเป๊ะทั้งสอง scorer จึงไม่เสียอะไรจากการย่อ)
+
+### ตรวจความครบก่อนใช้ — ทุกครั้ง
+
+```bash
+bash demo_v2/ops/verify_weights.sh /workspace/models/models/sft9b_w4a16
+```
+
+สคริปต์ดึง sha256 ของทุกไฟล์จาก Hugging Face มาเทียบกับที่อยู่บนดิสก์ ⇒ ไม่มีไฟล์
+`checksums.txt` ให้ตกยุค เพราะต้นทางเป็นคนบอกเอง · ถ้าเข้าเน็ตไม่ได้ ให้ผู้ส่งมอบรัน
+`--emit` ที่ต้นทางแล้วส่งไฟล์ผลลัพธ์มาพร้อมน้ำหนัก
 
 เคยมีกรณีที่ไฟล์โอนมาไม่ครบ (sparse file: `du` แสดง 12 GB แต่ `ls` แสดง 18.8 GB) แล้วโมเดล
 พ่นข้อความไม่มีความหมาย — และถูกสรุปผิดว่าเป็นปัญหาของ vLLM รุ่นนั้น ⇒ เทียบ checksum
 ก่อนโทษ runtime ทุกครั้ง
+
+ถ้าเข้า `huggingface.co` ไม่ได้เลย ต้องขอน้ำหนักมาแบบ offline — ไม่มีทางอื่น
 
 ## 3.2 · adapter + base จาก Hugging Face
 
