@@ -1672,6 +1672,13 @@ class FlowLiveSession:
         self._recorded_result = None
         self._step_nudges = 0
         self._off_catalog_replies = 0
+        # How many times each beat has been spoken is per-CONVERSATION; the caps it
+        # is checked against come from the spec and stay. Left standing, the first
+        # reply of the new call is refused with `beat_quota_exceeded` for a beat the
+        # PREVIOUS call spent — the same class of miss as `_recorded_result` above,
+        # and the reason the reset test asserts on every per-conversation attribute
+        # rather than on the transcript alone.
+        self._beat_count = {}
         _init = next((st["id"] for st in (self._spec.get("states") or [])
                       if st.get("initial")), None)
         self._cur_states = {_init} if _init else set()

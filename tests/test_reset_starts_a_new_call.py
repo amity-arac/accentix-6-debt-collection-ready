@@ -34,7 +34,11 @@ def _stub():
     s._turn_count = 7
     s.done = True
     s._transcript = [{"user": "ครับ", "hops": []}]
+    s._beat_count = {"disclose_balance": 2, "convince": 1}
     s._init_agent = lambda: None        # บัง method จริง: ไม่ต้องต่อ backend/API
+    # `reset_pointer` เข้า language context ก่อน; stub ไม่มี ContextVar ของจริง
+    # ไม่บังตรงนี้ทั้งสามเทสต์จะตายด้วย AttributeError แทนที่จะเฝ้าเรื่อง reset
+    s._enter_lang = lambda: None
     return s
 
 
@@ -54,6 +58,9 @@ def test_reset_clears_every_per_conversation_attribute():
     assert s._turn_count == 0
     assert s.done is False
     assert s._transcript == []
+    # ตัวนับบทเป็นของต่อสาย ไม่ล้างแล้วสายใหม่จะโดน `beat_quota_exceeded`
+    # ตั้งแต่ประโยคแรก เพราะโควตาถูกใช้ไปตั้งแต่สายก่อน
+    assert s._beat_count == {}
 
 
 def test_reset_restores_the_row_the_tenant_gave():
