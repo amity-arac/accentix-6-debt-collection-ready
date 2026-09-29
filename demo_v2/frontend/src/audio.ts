@@ -54,8 +54,17 @@ export function isTtsEnabled(): boolean {
   return ttsEnabled;
 }
 
+// Which synth /api/tts should use. "chirp" is the default and what every call
+// used before the picker existed, so an untouched session behaves as it always did.
+let ttsEngine = "chirp";
+
+export function setTtsEngine(id: string): void {
+  ttsEngine = id || "chirp";
+}
+
 function ttsUrl(text: string): string {
-  return `/api/tts?text=${encodeURIComponent(text)}&gender=${voiceGender}&lang=${lang}`;
+  return `/api/tts?text=${encodeURIComponent(text)}&gender=${voiceGender}` +
+    `&lang=${lang}&engine=${encodeURIComponent(ttsEngine)}`;
 }
 
 // Chirp 3 HD streams PCM at this rate (matches DEFAULT_SAMPLE_RATE server-side).
@@ -64,6 +73,20 @@ const SAMPLE_RATE = 24000;
 // a late-arriving chunk doesn't underrun into a click. ~80ms is inaudible as
 // startup delay but comfortably covers network jitter between chunks.
 const LEAD = 0.08;
+// Smallest buffer worth scheduling on its own, in BYTES (0.2 s of int16 @ 24 kHz).
+//
+// Each scheduled buffer is a separate AudioBufferSourceNode. When the browser
+// refuses a 24 kHz context (Safari does) the graph resamples every buffer on its
+// own, and an independent resample per buffer leaves an artefact at each join —
+// audible as a hiss on word edges. The count is what matters: Chirp arrives in
+// ~22 chunks for a sentence, the Gemini engines in 74-146, which is why they hiss
+// three to seven times as much through the same player while the very same bytes
+// are clean in a file.
+//
+// So: schedule the FIRST chunk the moment it lands (time-to-first-audio is the
+// number anyone notices), then coalesce the rest up to this size. A sentence goes
+// from ~146 joins to ~25 without moving first audio at all.
+const MIN_SCHEDULE_BYTES = 0.2 * 24000 * 2;
 // One-shot gesture events used to unlock (resume) a suspended AudioContext. An
 // AudioContext created before any user interaction starts `suspended`; browsers
 // require a user gesture to resume it. We attach these once and remove them on
@@ -179,6 +202,19 @@ export function play(text: string): Promise<void> {
       if (streamEnded && liveSources.size === 0) settle();
     };
 
+    // Accumulator for the coalescing above.
+    let pending: Uint8Array[] = [];
+    let pendingBytes = 0;
+    const flushPending = () => {
+      if (pendingBytes === 0) return;
+      const merged = new Uint8Array(pendingBytes);
+      let at = 0;
+      for (const b of pending) { merged.set(b, at); at += b.byteLength; }
+      pending = [];
+      pendingBytes = 0;
+      scheduleChunk(merged);
+    };
+
     const scheduleChunk = (usableBytes: Uint8Array) => {
       const nSamples = usableBytes.byteLength >> 1;
       if (nSamples === 0) return;
@@ -254,8 +290,17 @@ export function play(text: string): Promise<void> {
             leftover = bytes.subarray(cut); // 1 byte, held for next chunk
             bytes = bytes.subarray(0, cut);
           }
-          if (bytes.byteLength > 0) scheduleChunk(bytes);
+          if (bytes.byteLength > 0) {
+            if (!firstScheduled) {
+              scheduleChunk(bytes);            // first audio: no delay, ever
+            } else {
+              pending.push(bytes);
+              pendingBytes += bytes.byteLength;
+              if (pendingBytes >= MIN_SCHEDULE_BYTES) flushPending();
+            }
+          }
         }
+        flushPending();                        // whatever is left, however short
         streamEnded = true;
         finishIfDone();
       } catch {

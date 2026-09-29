@@ -5,7 +5,8 @@ import { LatencyMetrics } from "./LatencyMetrics";
 import type { MicState } from "../hooks/useSpeechRecognition";
 import type { SpeechErrorCode } from "../speech";
 import type { VoiceMode } from "../api";
-import { fetchModels, type Engine, type VoiceGender } from "../api";
+import { fetchModels, fetchTtsEngines, type Engine, type TtsEngine, type VoiceGender } from "../api";
+import { setTtsEngine } from "../audio";
 import { t } from "../i18n";
 import { useLang } from "../hooks/useLang";
 
@@ -94,6 +95,23 @@ export function ControlBar({
 }: Props) {
   const [typed, setTyped] = useState("");
   const [models, setModels] = useState<{ base: string[]; flow: string[] }>({ base: [], flow: [] });
+  const [ttsEngines, setTtsEngines] = useState<TtsEngine[]>([]);
+  const [ttsEngine, setTtsEngineState] = useState("chirp");
+
+  // Fetched once: the answer depends on server-side credentials, not on anything
+  // that changes while the page is open. Kept in state rather than read straight
+  // into the <select> so the picker does not flash empty on first paint.
+  useEffect(() => {
+    let live = true;
+    void fetchTtsEngines().then((list) => {
+      if (!live || list.length === 0) return;
+      setTtsEngines(list);
+      const dflt = list.find((x) => x.default)?.id ?? list[0].id;
+      setTtsEngineState(dflt);
+      setTtsEngine(dflt);
+    });
+    return () => { live = false; };
+  }, []);
 
   // Poll the served model list so the version picker fills once vLLM is reachable
   // (not just on mount — the tunnel/serve may come up after the page loads).
@@ -203,6 +221,24 @@ export function ControlBar({
             Text
           </button>
         </div>
+        {voiceMode !== "OFF" && ttsEngines.length > 1 && (
+          <label className="agent-model" title="Which synth speaks the reply">
+            <span className="agent-segmented-label">synth</span>
+            <select
+              className="agent-model-select"
+              value={ttsEngine}
+              disabled={starting}
+              onChange={(e) => {
+                setTtsEngine(e.target.value);
+                setTtsEngineState(e.target.value);
+              }}
+            >
+              {ttsEngines.map((x) => (
+                <option key={x.id} value={x.id}>{x.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         {agent === "qwen" && onBuildFlow && (
           <button
             type="button"

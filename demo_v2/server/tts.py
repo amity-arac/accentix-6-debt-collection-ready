@@ -47,7 +47,8 @@ from demo_v2.services.speech.config import (
 
 @lru_cache(maxsize=16)
 def _streaming_config_for(
-    voice_name: str, language_code: str = DEFAULT_LANGUAGE_CODE
+    voice_name: str, language_code: str = DEFAULT_LANGUAGE_CODE,
+    model_name: str | None = None,
 ) -> texttospeech.StreamingSynthesizeConfig:
     """One StreamingSynthesizeConfig per (voice, language), built lazily and cached —
     lets /api/tts pick both per request instead of one process-wide voice.
@@ -60,13 +61,17 @@ def _streaming_config_for(
     accent. The cache key includes the language for the same reason: keyed on the
     voice alone, the first language to ask for a name would own it.
     """
-    full_name = f"{language_code}-Chirp3-HD-{voice_name}"
-    _code = language_code
+    # A model-based voice is named bare ("Aoede") and carries `model_name`; a Chirp
+    # voice is named by locale ("th-TH-Chirp3-HD-Despina") and must NOT carry one.
+    # Swapping the two conventions is a 400 either way.
+    if model_name:
+        voice = texttospeech.VoiceSelectionParams(
+            name=voice_name, language_code=language_code, model_name=model_name)
+    else:
+        voice = texttospeech.VoiceSelectionParams(
+            name=f"{language_code}-Chirp3-HD-{voice_name}", language_code=language_code)
     return texttospeech.StreamingSynthesizeConfig(
-        voice=texttospeech.VoiceSelectionParams(
-            name=full_name,
-            language_code=_code,
-        ),
+        voice=voice,
         streaming_audio_config=texttospeech.StreamingAudioConfig(
             # PCM = headerless little-endian signed 16-bit (raw LINEAR16, NO WAV
             # header). Streaming supports only PCM/ALAW/MULAW/OGG_OPUS; LINEAR16
@@ -103,7 +108,39 @@ _CHUNK_MAX: Final[int] = 80
 # (text, voice, language): the same sentence in the same voice is DIFFERENT audio
 # in two locales, so the language belongs in the key. Without it the first call to
 # synthesise a line would own it for both languages.
-_CacheKey = tuple[str, str, str]
+# The ENGINE is part of the key too. Without it, switching the picker from Chirp to
+# Gemini replays whatever the other engine already synthesised for that line — the
+# A/B would compare each engine against itself.
+_CacheKey = tuple[str, str, str, str]
+
+#: Engine ids the route accepts. "chirp" is the default.
+CHIRP: Final[str] = "chirp"
+
+#: Engines that ride THIS module's bidirectional gRPC stream but ask Cloud TTS for a
+#: different model. Gemini TTS is reachable here as well as through the Gemini API,
+#: and the two are not equivalent — same model, measured on one 132-character line:
+#:
+#:                          first audio   >6 kHz energy
+#:     Chirp 3 HD                1.29 s          1.80 %
+#:     gemini-3.1 via Cloud      0.79 s          4.14 %
+#:     gemini-3.1 via Gemini API 1.78 s          9.18 %
+#:
+#: Cloud TTS holds one stream open and takes the text in chunks, so it pays the
+#: round trip once; the Gemini API takes the whole sentence and answers once. That
+#: accounts for the latency, and it halves the high-frequency artefacts too.
+#:
+#: Addressed by BARE voice name plus `model_name` — `en-US-Gemini-3.1-Flash-TTS`
+#: does not exist, and an API key cannot reach it (the call lands on Vertex and
+#: wants `aiplatform.endpoints.predict`), so this path needs ADC.
+#: Only 3.1 is served here; both 3.8 ids answer "model is not supported".
+CLOUD_MODELS: Final[dict[str, dict[str, str]]] = {
+    "gemini-3.1-cloud":     {"model": "gemini-3.1-flash-tts-preview",
+                             "label": "Gemini 3.1 Flash TTS (Cloud)"},
+    "gemini-2.5-pro-cloud": {"model": "gemini-2.5-pro-preview-tts",
+                             "label": "Gemini 2.5 Pro TTS (Cloud)"},
+    "gemini-2.5-cloud":     {"model": "gemini-2.5-flash-preview-tts",
+                             "label": "Gemini 2.5 Flash TTS (Cloud)"},
+}
 _CACHE: dict[_CacheKey, bytes] = {}
 
 # Cache toggle (default ON). Set AAX6_TTS_CACHE=0 to disable the cross-turn text
@@ -141,14 +178,21 @@ _INFLIGHT: dict[_CacheKey, _Broadcast] = {}
 
 
 async def _produce(text: str, voice_name: str, language_code: str,
-                   key: _CacheKey, bc: _Broadcast) -> None:
+                   key: _CacheKey, bc: _Broadcast, engine: str = CHIRP) -> None:
     """Detached producer: drive ONE gRPC synth, append each chunk to `bc` and
     push it to every current subscriber, then cache the concatenation. Runs to
     completion independent of any subscriber (so barge-in still populates cache)."""
     loop = asyncio.get_running_loop()
     q: asyncio.Queue = asyncio.Queue()
-    threading.Thread(target=_run_grpc_stream,
-                     args=(text, voice_name, language_code, loop, q), daemon=True).start()
+    if engine == CHIRP or engine in CLOUD_MODELS:
+        model = CLOUD_MODELS[engine]["model"] if engine in CLOUD_MODELS else None
+        worker = _run_grpc_stream
+        args = (text, voice_name, language_code, loop, q, model)
+    else:
+        from demo_v2.server import tts_gemini
+        worker = tts_gemini.run_stream
+        args = (text, voice_name, language_code, engine, loop, q, _STREAM_DONE)
+    threading.Thread(target=worker, args=args, daemon=True).start()
     try:
         while True:
             item = await q.get()
@@ -174,12 +218,13 @@ async def _produce(text: str, voice_name: str, language_code: str,
 
 
 def is_cached(text: str, voice_name: str = DEFAULT_TTS_VOICE,
-              language_code: str = DEFAULT_LANGUAGE_CODE) -> bool:
+              language_code: str = DEFAULT_LANGUAGE_CODE,
+              engine: str = CHIRP) -> bool:
     """True if `text` is already synthesized (in this voice) in the in-process
     cache (→ a /api/tts request emits instantly). The route uses this to tag the
     response's cache state so the client can attribute TTS latency (hit ≈ 0 vs
     cold synth). Always False when the cache is disabled (AAX6_TTS_CACHE=0)."""
-    return _CACHE_ENABLED and (text.strip(), voice_name, language_code) in _CACHE
+    return _CACHE_ENABLED and (text.strip(), voice_name, language_code, engine) in _CACHE
 
 
 def _chunk_text(text: str) -> Iterator[str]:
@@ -230,12 +275,13 @@ def _run_grpc_stream(
     language_code: str,
     loop: asyncio.AbstractEventLoop,
     q: "asyncio.Queue[bytes | object | Exception]",
+    model_name: str | None = None,
 ) -> None:
     """Worker-thread entry point: drive the bidirectional gRPC stream and
     forward each `audio_content` payload onto the asyncio queue."""
     try:
         client = get_tts_client()
-        streaming_config = _streaming_config_for(voice_name, language_code)
+        streaming_config = _streaming_config_for(voice_name, language_code, model_name)
 
         def request_generator() -> Iterator[texttospeech.StreamingSynthesizeRequest]:
             # First message: config only.
@@ -258,7 +304,8 @@ def _run_grpc_stream(
 
 
 async def stream_synth(text: str, voice_name: str = DEFAULT_TTS_VOICE,
-                       language_code: str = DEFAULT_LANGUAGE_CODE) -> AsyncIterator[bytes]:
+                       language_code: str = DEFAULT_LANGUAGE_CODE,
+                       engine: str = CHIRP) -> AsyncIterator[bytes]:
     """Yield audio chunks for `text` in `voice_name`, SUBSCRIBING to a shared
     fan-out synth keyed by (text, voice_name, language_code).
 
@@ -271,7 +318,7 @@ async def stream_synth(text: str, voice_name: str = DEFAULT_TTS_VOICE,
     text = text.strip()
     if not text:
         return
-    key: _CacheKey = (text, voice_name, language_code)
+    key: _CacheKey = (text, voice_name, language_code, engine)
 
     cached = _CACHE.get(key) if _CACHE_ENABLED else None
     if cached is not None:
@@ -282,7 +329,8 @@ async def stream_synth(text: str, voice_name: str = DEFAULT_TTS_VOICE,
     if bc is None:
         bc = _Broadcast()
         _INFLIGHT[key] = bc
-        bc.task = asyncio.get_running_loop().create_task(_produce(text, voice_name, language_code, key, bc))
+        bc.task = asyncio.get_running_loop().create_task(
+            _produce(text, voice_name, language_code, key, bc, engine))
 
     # Subscribe atomically: snapshot already-produced chunks and register our
     # queue with NO await between them, so the producer (same event loop) can't
@@ -316,16 +364,17 @@ async def stream_synth(text: str, voice_name: str = DEFAULT_TTS_VOICE,
 
 
 async def synth(text: str, voice_name: str = DEFAULT_TTS_VOICE,
-                language_code: str = DEFAULT_LANGUAGE_CODE) -> bytes:
+                language_code: str = DEFAULT_LANGUAGE_CODE,
+                engine: str = CHIRP) -> bytes:
     """Non-streaming wrapper used by `prewarm` to populate the cache."""
     text = text.strip()
     if not text:
         return b""
-    cached = _CACHE.get((text, voice_name)) if _CACHE_ENABLED else None
+    cached = _CACHE.get((text, voice_name, language_code, engine)) if _CACHE_ENABLED else None
     if cached is not None:
         return cached
     parts: list[bytes] = []
-    async for chunk in stream_synth(text, voice_name, language_code):
+    async for chunk in stream_synth(text, voice_name, language_code, engine):
         parts.append(chunk)
     return b"".join(parts)
 

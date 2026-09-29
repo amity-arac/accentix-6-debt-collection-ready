@@ -414,3 +414,21 @@ export async function fetchPrescripts(company: string, version?: string): Promis
   if (!resp.ok) throw new Error(`/api/flow/prescripts ${resp.status}`);
   return resp.json();
 }
+
+
+/** One entry in the TTS engine picker, as `/api/tts/engines` reports it. */
+export type TtsEngine = { id: string; label: string; default: boolean };
+
+/** Ask the server which synths it can actually reach. The list is server-side
+ *  because the Gemini entries depend on a key the client cannot see — a hardcoded
+ *  list would offer options that return silence. */
+export async function fetchTtsEngines(): Promise<TtsEngine[]> {
+  try {
+    const r = await fetch("/api/tts/engines");
+    if (!r.ok) return [];
+    const j = await r.json();
+    return Array.isArray(j?.engines) ? (j.engines as TtsEngine[]) : [];
+  } catch {
+    return [];
+  }
+}

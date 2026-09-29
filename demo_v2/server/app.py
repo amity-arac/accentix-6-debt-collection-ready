@@ -36,7 +36,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 # `stt_ws` keeps torch / numpy / websockets imports lazy (inside the handler),
 # so importing it here does NOT pull those heavy deps at startup.
-from demo_v2.server import sessions, stt_ws, tts  # noqa: E402
+from demo_v2.server import sessions, stt_ws, tts, tts_gemini  # noqa: E402
 
 logger = logging.getLogger("demo.server")
 
@@ -534,11 +534,30 @@ async def save_trajectory(session_id: str, body: SaveBody = SaveBody()) -> JSONR
     })
 
 
+@app.get("/api/tts/engines")
+async def tts_engines() -> dict:
+    """What the TTS picker may offer. Chirp is always present — it is the engine
+    the demo has always used and it runs on the same ADC as the rest of Google
+    Cloud here. The Gemini entries appear only when an API key is configured,
+    because offering an option that can only return silence is worse than not
+    offering it."""
+    out = [{"id": tts.CHIRP, "label": "Chirp 3 HD", "default": True}]
+    # The Cloud-TTS models ride the same credentials Chirp does, so they are offered
+    # whenever Chirp is — no separate availability check to get out of step.
+    out += [{"id": k, "label": v["label"], "default": False}
+            for k, v in tts.CLOUD_MODELS.items()]
+    if tts_gemini.available():
+        out += [{"id": k, "label": v["label"], "default": False}
+                for k, v in tts_gemini.MODELS.items()]
+    return {"engines": out, "default": tts.CHIRP}
+
+
 @app.get("/api/tts")
 async def tts_stream(
     text: str = Query(..., min_length=1, max_length=4096),
     gender: str = Query(default="F"),
     lang: str | None = Query(default=None),
+    engine: str = Query(default=tts.CHIRP),
 ) -> StreamingResponse:
     """Stream raw PCM bytes (headerless int16 LE @ 24 kHz) as they arrive from
     the Chirp 3 HD gRPC streaming synth. The client reads this body with
@@ -562,10 +581,15 @@ async def tts_stream(
     # Passed explicitly rather than read downstream: the synth runs on a plain
     # worker thread, which does not carry this request's language context.
     tts_language = _lang.speech("tts_language")
+    # An unknown engine falls back to Chirp rather than 400ing: the picker is a
+    # convenience, and a stale value in a client's localStorage should not cost
+    # the caller their audio mid-call.
+    if engine != tts.CHIRP and engine not in tts.CLOUD_MODELS and engine not in tts_gemini.MODELS:
+        engine = tts.CHIRP
 
     async def _gen() -> AsyncIterator[bytes]:
         try:
-            async for chunk in tts.stream_synth(text, voice_name, tts_language):
+            async for chunk in tts.stream_synth(text, voice_name, tts_language, engine):
                 yield chunk
         except Exception:
             logger.exception("tts stream failed")
@@ -576,7 +600,7 @@ async def tts_stream(
     # Whether this text is already synthesized — known up front, so it can ride a
     # header (unlike the measured synth time, which isn't known until the first
     # chunk, after headers flush). Lets the client attribute TTS latency.
-    cache_state = "hit" if tts.is_cached(text, voice_name, tts_language) else "miss"
+    cache_state = "hit" if tts.is_cached(text, voice_name, tts_language, engine) else "miss"
     return StreamingResponse(
         _gen(),
         media_type=tts.AUDIO_MEDIA_TYPE,
